@@ -1,0 +1,557 @@
+/* iOS 26 Light Glass Theme with 3D Background Blur */
+
+/* Fluid typography based on mouse movement */
+.fluid-text {
+  transition: font-size 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+              font-weight 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              letter-spacing 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.fluid-text.mouse-active {
+  font-size: 1.1em;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Global light theme background */
+body {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+  color: #1e293b;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+  font-weight: 400;
+  overflow-x: hidden;
+}
+
+/* ENHANCED: 3D Background Blur Layer */
+.three-background-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* NEW: Blur layer between 3D background and UI */
+.blur-separator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  backdrop-filter: blur(150px) saturate(100%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
+  background: rgba(248, 250, 252, 0.1);
+  pointer-events: none;
+}
+
+/* Main content container with enhanced layering */
+.main-content-layer {
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* Base glass panel class with enhanced blur for 3D separation */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 20px;
+  box-shadow: 
+    0 12px 48px rgba(31, 38, 135, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    0 6px 24px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  z-index: 2;
+}
+
+.glass-panel:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-4px);
+  box-shadow: 
+    0 20px 60px rgba(31, 38, 135, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 12px 32px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+}
+
+/* Enhanced dashboard container with blur separation */
+.min-h-screen {
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  min-height: auto;
+}
+
+/* ApyHub header with enhanced glass theme and 3D separation */
+nav {
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filt0er: blur(28px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  position: relative;
+  z-index: 10;
+}
+
+/* Glass buttons with enhanced blur */
+button {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #374151;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  position: relative;
+  z-index: 3;
+}
+
+button:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+}
+
+/* Interactive elements with enhanced 3D separation */
+.interactive-element {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  z-index: 2;
+}
+
+.interactive-element:hover {
+  transform: translateY(-3px) scale(1.02);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+}
+
+/* Enhanced glass cards and panels */
+.bg-white,
+.border-gray-200 {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 8px 24px rgba(31, 38, 135, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  position: relative;
+  z-index: 2;
+}
+
+/* Status indicators with enhanced glass effect */
+.bg-green-50 {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+.bg-yellow-50 {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+.bg-blue-50 {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+.bg-purple-50 {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+.bg-indigo-50 {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+/* Alert and status backgrounds with enhanced blur */
+.bg-red-50 {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+.bg-orange-50 {
+  background: rgba(251, 146, 60, 0.2);
+  border-color: rgba(251, 146, 60, 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+/* Ticket cards with enhanced glass and 3D separation */
+.hover\\:shadow-md:hover {
+  box-shadow: 
+    0 12px 32px rgba(31, 38, 135, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  transform: translateY(-4px);
+  backdrop-filter: blur(36px) saturate(200%);
+  -webkit-backdrop-filter: blur(36px) saturate(200%);
+}
+
+/* Table styling with enhanced glass effect */
+table {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+
+thead tr {
+  background: rgba(255, 255, 255, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+}
+
+/* Input fields with enhanced glass styling */
+input, select, textarea {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #374151;
+  position: relative;
+  z-index: 3;
+}
+
+input:focus, select:focus, textarea:focus {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Modal and overlay styling with enhanced blur */
+.modal-overlay {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  z-index: 100;
+}
+
+.modal-content {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  box-shadow: 
+    0 24px 80px rgba(31, 38, 135, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  z-index: 101;
+}
+
+/* Enhanced animations with blur effects */
+.animate-fade-in {
+  animation: fadeInGlassBlur 0.5s ease-in-out;
+}
+
+@keyframes fadeInGlassBlur {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    transform: translateY(0px) scale(1);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUpGlassBlur 0.3s ease-out;
+}
+
+@keyframes slideUpGlassBlur {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transform: translateY(30px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    transform: translateY(0px) scale(1);
+  }
+}
+
+/* Enhanced scrollbar for glass theme with blur */
+::-webkit-scrollbar {
+  width: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.6);
+}
+
+/* Tag display with enhanced glass effect */
+.tag-glass {
+  background: rgba(59, 130, 246, 0.2);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  padding: 4px 8px;
+  color: #1e40af;
+  font-size: 12px;
+  font-weight: 500;
+  position: relative;
+  z-index: 2;
+}
+
+/* Status badges with enhanced glass and blur */
+.status-badge {
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid;
+  position: relative;
+  z-index: 2;
+}
+
+.status-badge.matched {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #065f46;
+}
+
+.status-badge.mismatched {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #92400e;
+}
+
+.status-badge.missing {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #1e40af;
+}
+
+.status-badge.blocked {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #991b1b;
+}
+
+/* Active/Selected states with enhanced blur */
+.border-blue-500,
+.bg-blue-50,
+button.active,
+.bg-blue-600 {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #1e40af;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 
+    0 8px 32px rgba(59, 130, 246, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 1px rgba(59, 130, 246, 0.15);
+}
+
+.bg-blue-600:hover {
+  background: rgba(59, 130, 246, 0.4);
+  color: #1e40af;
+  transform: translateY(-2px);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+}
+
+/* Success/Error states with enhanced blur */
+.bg-green-100 {
+  background: rgba(16, 185, 129, 0.2);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+
+.bg-red-100 {
+  background: rgba(239, 68, 68, 0.2);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+
+.bg-yellow-100 {
+  background: rgba(245, 158, 11, 0.2);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+
+.bg-orange-100 {
+  background: rgba(251, 146, 60, 0.2);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+
+/* Text colors for light theme (unchanged) */
+.text-gray-900 { color: #1e293b; }
+.text-gray-700 { color: #374151; }
+.text-gray-600 { color: #4b5563; }
+.text-gray-500 { color: #6b7280; }
+.text-gray-400 { color: #9ca3af; }
+
+/* Enhanced button states */
+.disabled\\:opacity-50:disabled {
+  opacity: 0.5;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.disabled\\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+
+/* Responsive glass panels with enhanced blur */
+@media (max-width: 768px) {
+  .glass-panel {
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-radius: 16px;
+    margin: 8px;
+  }
+  
+  nav {
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+  
+  .blur-separator {
+    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+  }
+}
+
+/* Funny credit footer styling with enhanced blur */
+.credit-footer {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  z-index: 1000;
+  cursor: default;
+  box-shadow: 
+    0 8px 20px rgba(31, 38, 135, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: all 0.7s ease;
+}
+
+.credit-footer:hover {
+            opacity: 0;
+            transform: translateX(-50%) translateY(20px);
+        }
+
+/* ApyHub logo specific styling */
+.apyhub-logo {
+  filter: brightness(0.9) contrast(1.2);
+}
+
+/* Enhanced focus states */
+*:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Loading overlay with enhanced glass effect */
+.loading-overlay {
+  background: rgba(248, 250, 252, 0.8);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  z-index: 50;
+}
+
+/* Grid layouts with enhanced glass spacing */
+.stats-grid {
+  gap: 16px;
+}
+
+.stats-grid > * {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.stats-grid > *:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-2px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}

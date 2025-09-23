@@ -1,0 +1,800 @@
+/* Enhanced Luxury Background Specific Styles - Darker Glass Theme with Status Indicators */
+
+/* 3D Background Container - Enhanced for luxury sculptures with increased spacing */
+.luxury-background-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Enhanced blur separator specifically for luxury background - Darker tones */
+.luxury-blur-separator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  backdrop-filter: blur(6px) saturate(105%) brightness(95%); /* Darker filtering */
+  -webkit-backdrop-filter: blur(6px) saturate(105%) brightness(95%);
+  background: linear-gradient(
+    135deg,
+    rgba(203, 213, 225, 0.12) 0%, /* Darker gradient */
+    rgba(148, 163, 184, 0.08) 30%,
+    rgba(100, 116, 139, 0.06) 70%,
+    rgba(71, 85, 105, 0.04) 100%
+  );
+  pointer-events: none;
+}
+
+/* NEW: Status indicator zones with visual feedback */
+.status-zone-left {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 50vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -1;
+  transition: all 0.5s ease;
+}
+
+.status-zone-left.active {
+  background: radial-gradient(
+    ellipse at 20% 50%,
+    rgba(16, 185, 129, 0.03) 0%,
+    rgba(34, 197, 94, 0.02) 30%,
+    transparent 70%
+  );
+}
+
+.status-zone-right {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 50vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -1;
+  transition: all 0.5s ease;
+}
+
+.status-zone-right.active {
+  background: radial-gradient(
+    ellipse at 80% 50%,
+    rgba(59, 130, 246, 0.03) 0%,
+    rgba(99, 102, 241, 0.02) 30%,
+    transparent 70%
+  );
+}
+
+/* Luxury content layer - ensures proper stacking */
+.luxury-content-layer {
+  position: relative;
+  z-index: 1;
+  backdrop-filter: blur(0.5px);
+  -webkit-backdrop-filter: blur(0.5px);
+  min-height: 100vh;
+}
+
+/* Enhanced sculpture interaction zones with much better spacing and faster zoom effects */
+.sculpture-interaction-zone {
+  position: absolute;
+  width: 400px; /* Much larger for better interaction area */
+  height: 400px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.1s ease; /* Much faster transition */
+  background: radial-gradient(
+    circle,
+    rgba(30, 64, 175, 0.2) 0%, /* More visible */
+    rgba(30, 64, 175, 0.1) 50%,
+    transparent 100%
+  );
+  z-index: 0;
+}
+
+.sculpture-interaction-zone.active {
+  opacity: 1;
+  animation: enhancedPulseGlow 1s ease-in-out infinite; /* Faster animation */
+}
+
+/* NEW: Status-specific interaction zones */
+.sculpture-interaction-zone.sync-active {
+  background: radial-gradient(
+    circle,
+    rgba(16, 185, 129, 0.3) 0%,
+    rgba(34, 197, 94, 0.15) 50%,
+    transparent 100%
+  );
+}
+
+.sculpture-interaction-zone.create-active {
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.3) 0%,
+    rgba(99, 102, 241, 0.15) 50%,
+    transparent 100%
+  );
+}
+
+@keyframes enhancedPulseGlow {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 0.6; /* Much more visible */
+  }
+  50% { 
+    transform: scale(1.2); /* Bigger pulse */
+    opacity: 1; /* Fully visible at peak */
+  }
+}
+
+/* NEW: Status dot animations */
+@keyframes statusDotPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+@keyframes statusSyncGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.8), 0 0 40px rgba(34, 197, 94, 0.4);
+  }
+}
+
+@keyframes statusCreateGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 40px rgba(99, 102, 241, 0.4);
+  }
+}
+
+/* NEW: Status indicator styling */
+.status-indicator {
+  position: fixed;
+  padding: 8px 16px;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 5;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.status-indicator.sync {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #059669;
+}
+
+.status-indicator.create {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #2563eb;
+}
+
+.status-indicator.sync:hover {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.4);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.status-indicator.create:hover {
+  background: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px) scale(1.02);
+}
+
+/* NEW: Zoom indicator styling */
+.zoom-indicator {
+  animation: zoomFadeIn 0.3s ease-out;
+}
+
+@keyframes zoomFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 0.8;
+    transform: translateY(0);
+  }
+}
+
+/* Loading state for luxury background - Darker theme */
+.luxury-background-loading {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+  opacity: 0.7; /* More visible */
+}
+
+.luxury-background-loading::before {
+  content: '';
+  width: 80px; /* Larger loading indicator */
+  height: 80px;
+  border: 4px solid rgba(30, 64, 175, 0.2); /* Darker blue */
+  border-top: 4px solid rgba(30, 64, 175, 0.6);
+  border-radius: 50%;
+  animation: luxurySpinner 0.8s linear infinite; /* Faster spinner */
+}
+
+@keyframes luxurySpinner {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Performance optimization classes */
+.luxury-high-performance {
+  will-change: transform, opacity, filter;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.luxury-smooth-animation {
+  animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Enhanced morphing transition indicators with faster animations */
+.sculpture-morphing-indicator {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 12px; /* Larger indicator */
+  height: 12px;
+  background: linear-gradient(135deg, #1e40af, #0891b2); /* Darker colors */
+  border-radius: 50%;
+  opacity: 0;
+  z-index: 5;
+  transition: opacity 0.2s ease; /* Faster transition */
+  box-shadow: 0 0 24px rgba(30, 64, 175, 0.4); /* Darker shadow */
+}
+
+.sculpture-morphing-indicator.active {
+  opacity: 1;
+  animation: fastMorphingPulse 1s ease-in-out infinite; /* Faster pulse */
+}
+
+/* NEW: Status-aware morphing indicators */
+.sculpture-morphing-indicator.sync-active {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.4);
+}
+
+.sculpture-morphing-indicator.create-active {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.4);
+}
+
+@keyframes fastMorphingPulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 0 24px rgba(30, 64, 175, 0.4);
+  }
+  50% { 
+    transform: scale(1.4); /* Bigger pulse */
+    box-shadow: 0 0 36px rgba(30, 64, 175, 0.8);
+  }
+}
+
+/* Enhanced mouse interaction visual feedback with increased spacing */
+.mouse-interaction-trail {
+  position: fixed;
+  width: 6px; /* Larger trail */
+  height: 6px;
+  background: radial-gradient(circle, rgba(30, 64, 175, 0.8), transparent); /* Darker */
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Faster transition */
+}
+
+/* NEW: Status-aware mouse trails */
+.mouse-interaction-trail.sync-zone {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.8), transparent);
+}
+
+.mouse-interaction-trail.create-zone {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.8), transparent);
+}
+
+/* Enhanced sculpture type indicators with darker theme */
+.sculpture-type-indicator {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 10px 20px; /* Larger padding */
+  background: rgba(30, 64, 175, 0.15); /* Darker background */
+  backdrop-filter: blur(24px); /* More blur */
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(30, 64, 175, 0.25); /* Darker border */
+  border-radius: 24px; /* More rounded */
+  font-size: 13px; /* Slightly larger */
+  font-weight: 600; /* Bolder */
+  color: #1e40af; /* Darker text */
+  opacity: 0;
+  z-index: 5;
+  transition: all 0.3s ease; /* Faster transition */
+  text-transform: uppercase;
+  letter-spacing: 1.2px; /* More spacing */
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.2); /* Added shadow */
+}
+
+.sculpture-type-indicator.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.sculpture-type-indicator.hidden {
+  opacity: 0;
+  transform: translateY(-15px); /* Bigger movement */
+}
+
+/* Enhanced floating particles with increased spacing */
+.luxury-particles-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.luxury-particle {
+  position: absolute;
+  width: 3px; /* Larger particles */
+  height: 3px;
+  background: radial-gradient(circle, rgba(71, 85, 105, 0.6), transparent); /* Darker particles */
+  border-radius: 50%;
+  animation: enhancedFloatParticle 12s linear infinite; /* Faster animation */
+}
+
+/* NEW: Status-aware particles */
+.luxury-particle.sync-zone {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.6), transparent);
+}
+
+.luxury-particle.create-zone {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.6), transparent);
+}
+
+@keyframes enhancedFloatParticle {
+  0% {
+    transform: translateY(100vh) translateX(0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-120px) translateX(30px) scale(0); /* More movement */
+    opacity: 0;
+  }
+}
+
+/* Enhanced glow effects for sculptures with increased spacing */
+.sculpture-glow-effect {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 400px; /* Increased from 300px */
+  height: 400px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle,
+    rgba(30, 64, 175, 0.05) 0%, /* Darker glow */
+    rgba(8, 145, 178, 0.03) 30%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  animation: enhancedSubtleGlow 6s ease-in-out infinite; /* Faster glow */
+}
+
+/* NEW: Status-aware glow effects */
+.sculpture-glow-effect.sync-active {
+  background: radial-gradient(
+    circle,
+    rgba(16, 185, 129, 0.08) 0%,
+    rgba(34, 197, 94, 0.04) 30%,
+    transparent 70%
+  );
+}
+
+.sculpture-glow-effect.create-active {
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.08) 0%,
+    rgba(99, 102, 241, 0.04) 30%,
+    transparent 70%
+  );
+}
+
+@keyframes enhancedSubtleGlow {
+  0%, 100% { 
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.4; /* More visible */
+  }
+  50% { 
+    transform: translate(-50%, -50%) scale(1.2); /* Bigger glow */
+    opacity: 0.8;
+  }
+}
+
+/* Enhanced credit footer for luxury background with darker theme */
+.luxury-credit-footer {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 64, 175, 0.18); /* Darker background */
+  backdrop-filter: blur(28px) saturate(180%); /* More blur */
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(30, 64, 175, 0.3); /* Darker border */
+  border-radius: 24px; /* More rounded */
+  padding: 12px 24px; /* Larger padding */
+  font-size: 13px; /* Slightly larger */
+  color: #1e40af; /* Darker text */
+  font-weight: 600; /* Bolder */
+  z-index: 1000;
+  box-shadow: 
+    0 8px 24px rgba(30, 64, 175, 0.15), /* Darker shadow */
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.320, 1); /* Faster transition */
+  letter-spacing: 0.4px; /* More spacing */
+}
+
+.luxury-credit-footer:hover {
+  background: rgba(30, 64, 175, 0.25); /* Darker hover */
+  transform: translateX(-50%) translateY(-3px) scale(1.03); /* Bigger scale */
+  box-shadow: 
+    0 12px 32px rgba(30, 64, 175, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 0 1px rgba(30, 64, 175, 0.15);
+  backdrop-filter: blur(36px) saturate(200%); /* More blur */
+  -webkit-backdrop-filter: blur(36px) saturate(200%);
+  color: #1d4ed8; /* Slightly darker on hover */
+}
+
+/* Enhanced view transition indicators with increased spacing */
+.view-transition-indicator {
+  position: fixed;
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Increased spacing from 8px */
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.2s ease; /* Faster transition */
+}
+
+.view-transition-indicator.visible {
+  opacity: 1;
+}
+
+.view-transition-dot {
+  width: 8px; /* Larger dots */
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(71, 85, 105, 0.4); /* Darker inactive */
+  transition: all 0.2s ease; /* Faster transition */
+}
+
+.view-transition-dot.active {
+  background: rgba(30, 64, 175, 0.9); /* Darker active */
+  transform: scale(1.4); /* Bigger scale */
+  box-shadow: 0 0 12px rgba(30, 64, 175, 0.5); /* Darker shadow */
+}
+
+/* NEW: Status-aware view transition dots */
+.view-transition-dot.sync-active {
+  background: rgba(16, 185, 129, 0.9);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+}
+
+.view-transition-dot.create-active {
+  background: rgba(59, 130, 246, 0.9);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+/* NEW: Click prevention overlay */
+.click-prevention-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(
+    circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(30, 64, 175, 0.02) 0%,
+    transparent 50%
+  );
+  transition: opacity 0.3s ease;
+}
+
+.click-prevention-overlay.active {
+  opacity: 1;
+}
+
+/* NEW: Enhanced interaction feedback */
+.luxury-interaction-feedback {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(30, 64, 175, 0.6);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.luxury-interaction-feedback.active {
+  transform: translate(-50%, -50%) scale(1);
+  animation: interactionRipple 0.6s ease-out;
+}
+
+/* NEW: Status-aware interaction feedback */
+.luxury-interaction-feedback.sync-zone {
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+.luxury-interaction-feedback.create-zone {
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+@keyframes interactionRipple {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(3);
+    opacity: 0;
+  }
+}
+
+/* NEW: Status pulse animation */
+@keyframes statusPulse {
+  0%, 100% { 
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+/* Responsive adjustments for luxury background with enhanced spacing */
+@media (max-width: 768px) {
+  .luxury-blur-separator {
+    backdrop-filter: blur(4px) saturate(102%) brightness(97%); /* Less blur on mobile */
+    -webkit-backdrop-filter: blur(4px) saturate(102%) brightness(97%);
+  }
+  
+  .sculpture-type-indicator {
+    top: 15px;
+    left: 15px;
+    padding: 8px 16px; /* Smaller on mobile */
+    font-size: 12px;
+  }
+  
+  .luxury-credit-footer {
+    bottom: 16px;
+    padding: 10px 18px; /* Smaller on mobile */
+    font-size: 12px;
+  }
+  
+  .sculpture-glow-effect {
+    width: 250px; /* Smaller on mobile */
+    height: 250px;
+  }
+  
+  .view-transition-indicator {
+    left: 15px;
+    gap: 10px; /* Smaller spacing on mobile */
+  }
+  
+  .sculpture-interaction-zone {
+    width: 200px; /* Smaller on mobile */
+    height: 200px;
+  }
+  
+  .status-indicator {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .luxury-blur-separator {
+    backdrop-filter: blur(3px) saturate(100%) brightness(98%);
+    -webkit-backdrop-filter: blur(3px) saturate(100%) brightness(98%);
+  }
+  
+  .sculpture-interaction-zone {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .sculpture-glow-effect {
+    width: 180px;
+    height: 180px;
+  }
+  
+  .view-transition-dot {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .status-indicator {
+    padding: 5px 10px;
+    font-size: 10px;
+  }
+}
+
+/* High DPI display optimizations with darker theme */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .luxury-blur-separator {
+    backdrop-filter: blur(8px) saturate(110%) brightness(93%); /* Darker on high DPI */
+    -webkit-backdrop-filter: blur(8px) saturate(110%) brightness(93%);
+  }
+  
+  .luxury-credit-footer {
+    backdrop-filter: blur(32px) saturate(185%);
+    -webkit-backdrop-filter: blur(32px) saturate(185%);
+  }
+}
+
+/* Accessibility enhancements */
+@media (prefers-reduced-motion: reduce) {
+  .sculpture-morphing-indicator,
+  .sculpture-glow-effect,
+  .luxury-particle,
+  .sculpture-interaction-zone,
+  .enhancedPulseGlow,
+  .fastMorphingPulse,
+  .enhancedFloatParticle,
+  .enhancedSubtleGlow,
+  .statusPulse,
+  .statusDotPulse,
+  .statusSyncGlow,
+  .statusCreateGlow {
+    animation: none;
+  }
+  
+  .luxury-smooth-animation {
+    animation-duration: 0.05s;
+  }
+  
+  .sculpture-interaction-zone,
+  .luxury-credit-footer,
+  .sculpture-type-indicator,
+  .status-indicator {
+    transition-duration: 0.1s;
+  }
+}
+
+/* Dark mode compatibility (enhanced) */
+@media (prefers-color-scheme: dark) {
+  .sculpture-type-indicator {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: rgba(30, 64, 175, 0.2);
+    color: #3b82f6;
+  }
+  
+  .luxury-credit-footer {
+    background: rgba(0, 0, 0, 0.25);
+    border-color: rgba(30, 64, 175, 0.2);
+    color: #3b82f6;
+  }
+  
+  .zoom-indicator {
+    background: rgba(30, 64, 175, 0.3);
+    border-color: rgba(30, 64, 175, 0.4);
+    color: #3b82f6;
+  }
+  
+  .status-indicator.sync {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #10b981;
+  }
+  
+  .status-indicator.create {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #3b82f6;
+  }
+}
+
+/* Performance helper classes */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+}
+
+.disable-animations {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* NEW: Fast transition classes for quicker interactions */
+.fast-transition {
+  transition-duration: 0.15s !important;
+}
+
+.instant-transition {
+  transition-duration: 0.05s !important;
+}
+
+/* NEW: Enhanced zoom classes */
+.zoom-container {
+  transition: transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.zoom-container.zoomed {
+  transform: scale(1.1);
+}
+
+/* NEW: Status dot classes for external use */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+  transition: all 0.3s ease;
+}
+
+.status-dot.sync {
+  background: rgba(16, 185, 129, 0.8);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  animation: statusDotPulse 2s ease-in-out infinite;
+}
+
+.status-dot.create {
+  background: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+  animation: statusDotPulse 2s ease-in-out infinite 0.5s;
+}
+
+.status-dot.inactive {
+  background: rgba(71, 85, 105, 0.4);
+  box-shadow: none;
+  animation: none;
+}

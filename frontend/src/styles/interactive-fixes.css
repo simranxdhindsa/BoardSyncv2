@@ -1,0 +1,201 @@
+/* Interactive Elements Fix - Add this to your existing CSS */
+
+/* CRITICAL: Ensure all interactive elements are clickable */
+input, 
+textarea, 
+select, 
+button,
+a,
+[role="button"],
+[tabindex]:not([tabindex="-1"]),
+.interactive-element,
+.clickable {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  z-index: 10 !important;
+  position: relative !important;
+  user-select: auto !important;
+  -webkit-user-select: auto !important;
+  -moz-user-select: auto !important;
+  -ms-user-select: auto !important;
+  touch-action: manipulation !important;
+}
+
+/* Fix for form inputs specifically */
+input, textarea, select {
+  cursor: text !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: #374151 !important;
+  pointer-events: auto !important;
+  z-index: 20 !important;
+}
+
+/* Fix for buttons */
+button {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: #374151 !important;
+  font-weight: 600 !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  z-index: 20 !important;
+}
+
+/* Background layers should NOT interfere with interactions */
+.luxury-background-container,
+.three-background-container,
+.luxury-blur-separator,
+.blur-separator {
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  z-index: -1 !important;
+}
+
+/* Content layers should allow interactions */
+.luxury-canvas-content-layer,
+.main-content-layer {
+  pointer-events: auto !important;
+  z-index: 1 !important;
+}
+
+/* Glass panels should be interactive */
+.glass-panel {
+  pointer-events: auto !important;
+  z-index: 2 !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(32px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(180%) !important;
+}
+
+/* Navigation should be on top */
+nav {
+  pointer-events: auto !important;
+  z-index: 10 !important;
+  background: rgba(255, 255, 255, 0.35) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+}
+
+/* Authentication forms should be highly interactive */
+.auth-container {
+  pointer-events: auto !important;
+  z-index: 1000 !important;
+}
+
+.auth-card {
+  pointer-events: auto !important;
+  z-index: 1001 !important;
+}
+
+.auth-card input,
+.auth-card button,
+.auth-card a {
+  pointer-events: auto !important;
+  z-index: 1002 !important;
+}
+
+/* Fix for specific button states */
+button:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+button:active {
+  transform: translateY(0) !important;
+}
+
+button:disabled {
+  opacity: 0.7 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* Fix for input focus states */
+input:focus, 
+textarea:focus, 
+select:focus {
+  background: rgba(255, 255, 255, 0.35) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+  outline: none !important;
+}
+
+/* Ensure form groups are interactive */
+.form-group,
+.form-group * {
+  pointer-events: auto !important;
+}
+
+/* Fix for modal overlays */
+.modal-overlay {
+  pointer-events: auto !important;
+  z-index: 100 !important;
+}
+
+.modal-content {
+  pointer-events: auto !important;
+  z-index: 101 !important;
+}
+
+/* Loading states should be visible but not interactive */
+.loading-overlay {
+  pointer-events: auto !important;
+  z-index: 9999 !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* Credit footer should be interactive for hover effect */
+.credit-footer {
+  pointer-events: auto !important;
+  z-index: 1000 !important;
+  cursor: default !important;
+}
+
+/* Fix for dropdowns and selects */
+select option {
+  background: white !important;
+  color: #374151 !important;
+}
+
+/* Fix for any disabled states */
+[disabled] {
+  pointer-events: none !important;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* Ensure text is selectable in appropriate places */
+p, span, div:not(.interactive-element), h1, h2, h3, h4, h5, h6 {
+  user-select: auto !important;
+  -webkit-user-select: auto !important;
+  -moz-user-select: auto !important;
+  -ms-user-select: auto !important;
+}
+
+/* Fix for any canvas or video elements that might block interactions */
+canvas, video {
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+
+/* Mobile touch fixes */
+@media (max-width: 768px) {
+  button, input, textarea, select, a {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.3) !important;
+    touch-action: manipulation !important;
+  }
+  
+  input, textarea {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+}

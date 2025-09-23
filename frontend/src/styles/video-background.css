@@ -1,0 +1,72 @@
+/* Simple Video Background Styles - Add this to your existing CSS or create new file */
+
+/* Video background container - ensures it stays behind everything */
+.video-background-container {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -10 !important; /* Very low z-index */
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Video element styling */
+.video-background-element {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 100%;
+  min-height: 100%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+  object-fit: cover;
+  transition: opacity 1s ease-in-out, filter 0.3s ease;
+}
+
+/* Ensure video doesn't interfere with existing elements */
+.video-background-element,
+.video-background-container,
+.video-background-container * {
+  pointer-events: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .video-background-element {
+    filter: blur(6px) brightness(0.8) !important;
+  }
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .video-background-element {
+    display: none !important;
+  }
+}
+
+/* Loading state */
+.video-loading-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 1000;
+  opacity: 0.8;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
