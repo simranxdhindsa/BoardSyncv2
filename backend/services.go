@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+func init() {
+	// Initialize lastSyncTime to current time to avoid zero time issues
+	lastSyncTime = time.Now()
+}
+
 // ENHANCED: Asana API Functions with Tag Support
 func getAsanaTasks() ([]AsanaTask, error) {
 	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,completed_at,created_at,modified_at,memberships.section.gid,memberships.section.name,tags.gid,tags.name", config.AsanaProjectID)

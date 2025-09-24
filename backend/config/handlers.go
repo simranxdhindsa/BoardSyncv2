@@ -25,18 +25,37 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) RegisterRoutes(router *mux.Router, authService *auth.Service) {
 	settings := router.PathPrefix("/api/settings").Subrouter()
 
+	// Add CORS middleware to settings routes
+	settings.Use(utils.CORSMiddleware)
+
 	// Apply authentication middleware to all settings routes
 	settings.Use(authService.Middleware)
 
-	settings.HandleFunc("", h.GetSettings).Methods("GET")
-	settings.HandleFunc("", h.UpdateSettings).Methods("PUT")
-	settings.HandleFunc("/asana/projects", h.GetAsanaProjects).Methods("GET")
-	settings.HandleFunc("/youtrack/projects", h.GetYouTrackProjects).Methods("GET")
-	settings.HandleFunc("/test-connections", h.TestConnections).Methods("POST")
+	// Register routes with OPTIONS support
+	settings.HandleFunc("", h.GetSettings).Methods("GET", "OPTIONS")
+	settings.HandleFunc("", h.UpdateSettings).Methods("PUT", "OPTIONS")
+	settings.HandleFunc("/asana/projects", h.GetAsanaProjects).Methods("GET", "OPTIONS")
+	settings.HandleFunc("/youtrack/projects", h.GetYouTrackProjects).Methods("GET", "OPTIONS")
+	settings.HandleFunc("/test-connections", h.TestConnections).Methods("POST", "OPTIONS")
+}
+
+// Handle OPTIONS requests for all settings endpoints
+func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Access-Control-Max-Age", "86400")
+	w.WriteHeader(http.StatusOK)
 }
 
 // GetSettings retrieves user settings
 func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	user, ok := auth.GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")
@@ -54,6 +73,12 @@ func (h *Handler) GetSettings(w http.ResponseWriter, r *http.Request) {
 
 // UpdateSettings updates user settings
 func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	user, ok := auth.GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")
@@ -93,6 +118,12 @@ func (h *Handler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 
 // GetAsanaProjects retrieves available Asana projects
 func (h *Handler) GetAsanaProjects(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	user, ok := auth.GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")
@@ -114,6 +145,12 @@ func (h *Handler) GetAsanaProjects(w http.ResponseWriter, r *http.Request) {
 
 // GetYouTrackProjects retrieves available YouTrack projects
 func (h *Handler) GetYouTrackProjects(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	user, ok := auth.GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")
@@ -135,6 +172,12 @@ func (h *Handler) GetYouTrackProjects(w http.ResponseWriter, r *http.Request) {
 
 // TestConnections tests API connections
 func (h *Handler) TestConnections(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	user, ok := auth.GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")

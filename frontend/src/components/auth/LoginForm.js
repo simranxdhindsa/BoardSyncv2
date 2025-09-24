@@ -1,7 +1,10 @@
+// Fixed LoginForm Component - Replace frontend/src/components/auth/LoginForm.js
+
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Mail, Lock, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import FluidText from '../FluidText';
+import '../../styles/auth-glass-theme.css'; // Import the new CSS
 
 const LoginForm = ({ onSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -14,7 +17,9 @@ const LoginForm = ({ onSuccess }) => {
   });
   const [formErrors, setFormErrors] = useState({});
   
-  const { login, register, loading, error, clearError } = useAuth();
+  // LOCAL loading state instead of using auth context loading
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login, register, error, clearError } = useAuth();
 
   const validateForm = () => {
     const errors = {};
@@ -51,6 +56,8 @@ const LoginForm = ({ onSuccess }) => {
     
     if (!validateForm()) return;
     
+    setIsSubmitting(true); // Use local loading state
+    
     try {
       if (isLogin) {
         await login({
@@ -71,6 +78,8 @@ const LoginForm = ({ onSuccess }) => {
     } catch (err) {
       console.error('Authentication failed:', err);
       // Error is handled by the auth context
+    } finally {
+      setIsSubmitting(false); // Reset local loading state
     }
   };
 
@@ -102,191 +111,190 @@ const LoginForm = ({ onSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="glass-panel bg-white border border-gray-200 rounded-lg p-8 w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <img 
-              src="https://apyhub.com/logo.svg" 
-              alt="ApyHub" 
-              className="h-10 w-10 apyhub-logo"
-            />
-            <FluidText className="ml-3 text-2xl font-bold text-gray-900" sensitivity={1.5}>
-              Asana-YouTrack Sync
-            </FluidText>
-          </div>
-          <FluidText className="text-lg font-semibold text-gray-900 mb-2" sensitivity={1.2}>
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </FluidText>
-          <p className="text-gray-600 text-sm">
-            {isLogin 
-              ? 'Sign in to access your sync dashboard' 
-              : 'Get started with personalized sync settings'
-            }
-          </p>
-        </div>
-
-        {/* Error Display */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800 text-sm font-medium">{error}</p>
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Username Field */}
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              Username
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                id="username"
-                value={formData.username}
-                onChange={handleInputChange('username')}
-                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  formErrors.username ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Enter your username"
-                disabled={loading}
+    <>
+      {/* Background Overlay */}
+      <div className="auth-background-overlay" />
+      
+      {/* Main Container */}
+      <div className="auth-container">
+        <div className="auth-glass-panel">
+          {/* Header */}
+          <div className="auth-header">
+            <div className="auth-logo-container">
+              <img 
+                src="https://apyhub.com/logo.svg" 
+                alt="ApyHub" 
+                className="auth-logo"
               />
+              <FluidText className="auth-title ml-3" sensitivity={1.5}>
+                Asana-YouTrack Sync
+              </FluidText>
             </div>
-            {formErrors.username && (
-              <p className="text-red-500 text-xs mt-1">{formErrors.username}</p>
-            )}
+            <FluidText className="auth-title" sensitivity={1.2}>
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </FluidText>
+            <p className="auth-subtitle">
+              {isLogin 
+                ? 'Sign in to access your sync dashboard' 
+                : 'Get started with personalized sync settings'
+              }
+            </p>
           </div>
 
-          {/* Email Field (Registration only) */}
-          {!isLogin && (
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="email"
-                  id="email"
-                  value={formData.email}
-                  onChange={handleInputChange('email')}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                    formErrors.email ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter your email"
-                  disabled={loading}
-                />
-              </div>
-              {formErrors.email && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
-              )}
+          {/* Error Display */}
+          {error && (
+            <div className="auth-error">
+              <p>{error}</p>
             </div>
           )}
 
-          {/* Password Field */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                value={formData.password}
-                onChange={handleInputChange('password')}
-                className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  formErrors.password ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Enter your password"
-                disabled={loading}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                disabled={loading}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            {formErrors.password && (
-              <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>
-            )}
-          </div>
-
-          {/* Confirm Password Field (Registration only) */}
-          {!isLogin && (
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="auth-form">
+            {/* Username Field */}
+            <div className="auth-form-group">
+              <label htmlFor="username" className="auth-label">
+                Username
               </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <div className="auth-input-container">
+                <User className="auth-input-icon" />
+                <input
+                  type="text"
+                  id="username"
+                  value={formData.username}
+                  onChange={handleInputChange('username')}
+                  className="auth-input auth-input-with-icon"
+                  placeholder="Enter your username"
+                  disabled={isSubmitting}
+                />
+              </div>
+              {formErrors.username && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.username}</p>
+              )}
+            </div>
+
+            {/* Email Field (Registration only) */}
+            {!isLogin && (
+              <div className="auth-form-group">
+                <label htmlFor="email" className="auth-label">
+                  Email Address
+                </label>
+                <div className="auth-input-container">
+                  <Mail className="auth-input-icon" />
+                  <input
+                    type="email"
+                    id="email"
+                    value={formData.email}
+                    onChange={handleInputChange('email')}
+                    className="auth-input auth-input-with-icon"
+                    placeholder="Enter your email"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                {formErrors.email && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
+                )}
+              </div>
+            )}
+
+            {/* Password Field */}
+            <div className="auth-form-group">
+              <label htmlFor="password" className="auth-label">
+                Password
+              </label>
+              <div className="auth-input-container">
+                <Lock className="auth-input-icon" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  id="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange('confirmPassword')}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                    formErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Confirm your password"
-                  disabled={loading}
+                  id="password"
+                  value={formData.password}
+                  onChange={handleInputChange('password')}
+                  className="auth-input auth-input-with-icon"
+                  style={{ paddingRight: '3rem' }}
+                  placeholder="Enter your password"
+                  disabled={isSubmitting}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="auth-input-toggle"
+                  disabled={isSubmitting}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
-              {formErrors.confirmPassword && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.confirmPassword}</p>
+              {formErrors.password && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>
               )}
             </div>
-          )}
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-medium"
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                {isLogin ? 'Signing in...' : 'Creating account...'}
-              </>
-            ) : (
-              <FluidText sensitivity={1}>
-                {isLogin ? 'Sign In' : 'Create Account'}
-              </FluidText>
+            {/* Confirm Password Field (Registration only) */}
+            {!isLogin && (
+              <div className="auth-form-group">
+                <label htmlFor="confirmPassword" className="auth-label">
+                  Confirm Password
+                </label>
+                <div className="auth-input-container">
+                  <Lock className="auth-input-icon" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    id="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange('confirmPassword')}
+                    className="auth-input auth-input-with-icon"
+                    placeholder="Confirm your password"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                {formErrors.confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.confirmPassword}</p>
+                )}
+              </div>
             )}
-          </button>
 
-          {/* Mode Toggle */}
-          <div className="text-center">
+            {/* Submit Button */}
             <button
-              type="button"
-              onClick={toggleMode}
-              disabled={loading}
-              className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors disabled:opacity-50"
+              type="submit"
+              disabled={isSubmitting}
+              className="auth-button"
             >
-              {isLogin 
-                ? "Don't have an account? Sign up" 
-                : "Already have an account? Sign in"
-              }
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="auth-spinner" />
+                  {isLogin ? 'Signing in...' : 'Creating account...'}
+                </>
+              ) : (
+                <FluidText sensitivity={1}>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                </FluidText>
+              )}
             </button>
-          </div>
-        </form>
 
-        {/* Footer Info */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
-            By {isLogin ? 'signing in' : 'creating an account'}, you can save your API configurations, 
-            view sync history, and access advanced features like rollback and real-time updates.
-          </p>
+            {/* Mode Toggle */}
+            <div className="text-center mt-4">
+              <button
+                type="button"
+                onClick={toggleMode}
+                disabled={isSubmitting}
+                className="auth-toggle-link"
+              >
+                {isLogin 
+                  ? "Don't have an account? Sign up" 
+                  : "Already have an account? Sign in"
+                }
+              </button>
+            </div>
+          </form>
+
+          {/* Footer Info */}
+          <div className="auth-footer">
+            <p className="auth-footer-text">
+              By {isLogin ? 'signing in' : 'creating an account'}, you can save your API configurations, 
+              view sync history, and access advanced features like rollback and real-time updates.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

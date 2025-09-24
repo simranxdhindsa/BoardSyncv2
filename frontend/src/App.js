@@ -1,3 +1,5 @@
+// Final Fixed App.js - Replace frontend/src/App.js
+
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Dashboard from './components/Dashboard';
@@ -22,19 +24,19 @@ function AppContent() {
   const [navLeft, setNavLeft] = useState(null);
   const [navRight, setNavRight] = useState(null);
 
-  // Show loading spinner while checking authentication
+  // Show loading spinner ONLY while checking authentication (initializing)
   if (initializing) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ zIndex: 2000, background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)' }}>
+        <div className="flex items-center bg-white/80 backdrop-blur-md rounded-lg p-6 shadow-lg">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
-          <span className="text-gray-600">Loading...</span>
+          <span className="text-gray-600 font-medium">Initializing application...</span>
         </div>
       </div>
     );
   }
 
-  // Show login form if not authenticated
+  // Show login form if not authenticated - NO BACKGROUND, NO LOADING STATE
   if (!isAuthenticated) {
     return <LoginForm onSuccess={() => setCurrentView('dashboard')} />;
   }
@@ -201,6 +203,9 @@ function AppContent() {
 
   const navContent = getNavigationContent();
 
+  // ONLY show background for authenticated users NOT in settings
+  const showBackground = isAuthenticated && currentView !== 'settings';
+
   return (
     <div className="App" style={{ 
       position: 'relative', 
@@ -208,18 +213,32 @@ function AppContent() {
       display: 'flex',
       flexDirection: 'column'
     }}>
-      <div className="luxury-background-container">
-        <LuxuryBackground 
-          currentView={currentView}
-          analysisData={analysisData}
-          selectedColumn={selectedColumn}
-          isLoading={loading}
-        />
-      </div>
+      {/* CONDITIONAL Background - only for dashboard/results */}
+      {showBackground && (
+        <>
+          <div className="luxury-background-container">
+            <LuxuryBackground 
+              currentView={currentView}
+              analysisData={analysisData}
+              selectedColumn={selectedColumn}
+              isLoading={loading}
+            />
+          </div>
+          
+          <div className="luxury-canvas-blur-separator" />
+        </>
+      )}
       
-      <div className="luxury-canvas-blur-separator" />
-      
-      <div className="luxury-canvas-content-layer" style={{ flex: '1', paddingBottom: '80px' }}>
+      {/* Main content layer with conditional styling */}
+      <div 
+        className={showBackground ? "luxury-canvas-content-layer" : ""}
+        style={{ 
+          flex: '1', 
+          paddingBottom: showBackground ? '80px' : '0px',
+          position: 'relative',
+          zIndex: showBackground ? 1 : 'auto'
+        }}
+      >
         <NavBar
           title={currentView === 'dashboard' ? 'Dashboard' : 
                  currentView === 'settings' ? 'Settings' : 'Analysis Results'}
@@ -255,11 +274,14 @@ function AppContent() {
         </NavBar>
       </div>
       
-      <footer className="app-footer">
-        <div className="credit-footer">
-          Made with Frustration By Simran • Enhanced with Authentication
-        </div>
-      </footer>
+      {/* Footer - only for authenticated users NOT in settings */}
+      {showBackground && (
+        <footer className="app-footer">
+          <div className="credit-footer">
+            Made with Frustration By Simran • Enhanced with Authentication
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

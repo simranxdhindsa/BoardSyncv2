@@ -1,0 +1,110 @@
+/* Minimal Settings CSS - Use if the full version has issues */
+/* Create as: frontend/src/styles/settings-minimal.css */
+
+.settings-container {
+  position: relative;
+  z-index: 10;
+  min-height: 100vh;
+  background: transparent;
+}
+
+.settings-header, .settings-content, .settings-tabs {
+  background: rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 16px !important;
+  padding: 1.5rem !important;
+  margin-bottom: 1rem !important;
+  position: relative !important;
+  z-index: 11 !important;
+}
+
+.settings-input, .settings-select {
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 8px !important;
+  padding: 0.75rem !important;
+  width: 100% !important;
+  position: relative !important;
+  z-index: 12 !important;
+}
+
+.settings-input:focus, .settings-select:focus {
+  outline: 2px solid #3b82f6 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.settings-button {
+  background: #3b82f6 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 0.75rem 1.5rem !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 12 !important;
+}
+
+.settings-button:hover {
+  background: #2563eb !important;
+}
+
+.settings-button-secondary {
+  background: rgba(255, 255, 255, 0.6) !important;
+  color: #374151 !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 8px !important;
+  padding: 0.75rem 1.5rem !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 12 !important;
+}
+
+.settings-tab {
+  background: transparent !important;
+  border: none !important;
+  padding: 1rem 1.5rem !important;
+  cursor: pointer !important;
+  position: relative !important;
+  z-index: 12 !important;
+}
+
+.settings-tab.active {
+  background: rgba(59, 130, 246, 0.2) !important;
+  color: #1e40af !important;
+}
+
+.settings-label {
+  display: block !important;
+  margin-bottom: 0.5rem !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+}
+
+.settings-form-group {
+  margin-bottom: 1.5rem !important;
+}
+
+.settings-form-row {
+  display: flex !important;
+  gap: 1rem !important;
+  align-items: end !important;
+}
+
+.settings-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 1rem !important;
+  margin-top: 2rem !important;
+  padding-top: 1rem !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.settings-spinner {
+  animation: spin 1s linear infinite !important;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

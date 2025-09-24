@@ -24,21 +24,40 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	auth := router.PathPrefix("/api/auth").Subrouter()
 
-	auth.HandleFunc("/register", h.Register).Methods("POST")
-	auth.HandleFunc("/login", h.Login).Methods("POST")
+	// Add CORS middleware to auth routes
+	auth.Use(utils.CORSMiddleware)
+
+	// Register routes with OPTIONS support
+	auth.HandleFunc("/register", h.Register).Methods("POST", "OPTIONS")
+	auth.HandleFunc("/login", h.Login).Methods("POST", "OPTIONS")
 
 	// Protected routes - create a subrouter with middleware
 	protected := auth.PathPrefix("").Subrouter()
 	protected.Use(h.service.Middleware)
 
-	protected.HandleFunc("/refresh", h.RefreshToken).Methods("POST")
-	protected.HandleFunc("/me", h.GetProfile).Methods("GET")
-	protected.HandleFunc("/change-password", h.ChangePassword).Methods("POST")
-	protected.HandleFunc("/logout", h.Logout).Methods("POST")
+	protected.HandleFunc("/refresh", h.RefreshToken).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/me", h.GetProfile).Methods("GET", "OPTIONS")
+	protected.HandleFunc("/change-password", h.ChangePassword).Methods("POST", "OPTIONS")
+	protected.HandleFunc("/logout", h.Logout).Methods("POST", "OPTIONS")
+}
+
+// Handle OPTIONS requests for all auth endpoints
+func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Access-Control-Max-Age", "86400")
+	w.WriteHeader(http.StatusOK)
 }
 
 // Register handles user registration
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.SendBadRequest(w, "Invalid request body")
@@ -72,6 +91,12 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 // Login handles user authentication
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.SendBadRequest(w, "Invalid request body")
@@ -99,6 +124,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 // RefreshToken handles token refresh
 func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	user, ok := GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")
@@ -116,6 +147,12 @@ func (h *Handler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 
 // GetProfile returns the current user's profile
 func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	user, ok := GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")
@@ -133,6 +170,12 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 // ChangePassword handles password changes
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	user, ok := GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")
@@ -173,6 +216,12 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
 // Logout handles user logout (client-side token invalidation)
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
 	// Since we're using stateless JWT tokens, logout is handled client-side
 	// by removing the token from storage. We just return a success response.
 	utils.SendSuccess(w, nil, "Logged out successfully")

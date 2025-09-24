@@ -13,13 +13,19 @@ import (
 
 	"asana-youtrack-sync/auth"
 	"asana-youtrack-sync/cache"
-	configpkg "asana-youtrack-sync/config" // Use alias to avoid naming conflict
+	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/database"
 	"asana-youtrack-sync/sync"
 	"asana-youtrack-sync/utils"
 )
 
 func main() {
+	// Load configuration first (for legacy endpoints)
+	loadConfig()
+
+	// Initialize ignored tickets
+	loadIgnoredTickets()
+
 	// Initialize database
 	dbPath := getEnvDefault("DB_PATH", "./sync_app.db")
 	db, err := database.InitDB(dbPath)
@@ -33,9 +39,9 @@ func main() {
 
 	// Initialize services
 	jwtSecret := getEnvDefault("JWT_SECRET", "your-super-secret-jwt-key-change-in-production")
-	authService := auth.NewService(db, jwtSecret)  // Use updated service
-	configService := configpkg.NewService(db)      // Pass DB directly
-	rollbackService := sync.NewRollbackService(db) // Pass DB directly
+	authService := auth.NewService(db, jwtSecret)
+	configService := configpkg.NewService(db)
+	rollbackService := sync.NewRollbackService(db)
 
 	// Initialize WebSocket manager
 	wsManager := sync.NewWebSocketManager()
@@ -43,7 +49,7 @@ func main() {
 
 	// Initialize handlers
 	authHandler := auth.NewHandler(authService)
-	configHandler := configpkg.NewHandler(configService) // Use the alias
+	configHandler := configpkg.NewHandler(configService)
 
 	// Create router
 	router := mux.NewRouter()
@@ -73,12 +79,14 @@ func main() {
 func registerRoutes(
 	router *mux.Router,
 	authHandler *auth.Handler,
-	configHandler *configpkg.Handler, // Use the alias
+	configHandler *configpkg.Handler,
 	authService *auth.Service,
 	wsManager *sync.WebSocketManager,
 	rollbackService *sync.RollbackService,
-	cacheManager *cache.CacheManager, // Now using the cache manager
+	cacheManager *cache.CacheManager,
 ) {
+	// NEW API ROUTES (with authentication)
+
 	// Health check
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		utils.SendSuccess(w, map[string]string{"status": "healthy"}, "Service is running")
@@ -102,6 +110,20 @@ func registerRoutes(
 	syncAPI.HandleFunc("/history", handleSyncHistory(rollbackService)).Methods("GET")
 	syncAPI.HandleFunc("/rollback/{id}", handleSyncRollback(rollbackService, wsManager)).Methods("POST")
 
+	// LEGACY API ROUTES (without authentication - for backward compatibility)
+
+	// Legacy health and status
+	router.HandleFunc("/status", statusCheck).Methods("GET")
+	router.HandleFunc("/analyze", analyzeTicketsHandler).Methods("GET", "OPTIONS")
+	router.HandleFunc("/create", createMissingTicketsHandler).Methods("GET", "POST", "OPTIONS")
+	router.HandleFunc("/create-single", createSingleTicketHandler).Methods("POST", "OPTIONS")
+	router.HandleFunc("/sync", syncMismatchedTicketsHandler).Methods("GET", "POST", "OPTIONS")
+	router.HandleFunc("/ignore", manageIgnoredTicketsHandler).Methods("GET", "POST", "OPTIONS")
+	router.HandleFunc("/auto-sync", autoSyncHandler).Methods("GET", "POST", "OPTIONS")
+	router.HandleFunc("/auto-create", autoCreateHandler).Methods("GET", "POST", "OPTIONS")
+	router.HandleFunc("/tickets", getTicketsByTypeHandler).Methods("GET", "OPTIONS")
+	router.HandleFunc("/delete-tickets", deleteTicketsHandler).Methods("POST", "OPTIONS")
+
 	// Static file serving for frontend
 	staticDir := getEnvDefault("STATIC_DIR", "./frontend/")
 	router.PathPrefix("/frontend/").Handler(http.StripPrefix("/frontend/", http.FileServer(http.Dir(staticDir))))
@@ -115,7 +137,27 @@ func registerRoutes(
 	router.HandleFunc("/api/docs", handleAPIDocs).Methods("GET")
 }
 
-// Sync handlers
+// Load configuration from environment variables
+func loadConfig() {
+	config = Config{
+		Port:              getEnvDefault("PORT", "8080"),
+		SyncServiceAPIKey: getEnvDefault("SYNC_SERVICE_API_KEY", ""),
+		AsanaPAT:          getEnvDefault("ASANA_PAT", ""),
+		AsanaProjectID:    getEnvDefault("ASANA_PROJECT_ID", ""),
+		YouTrackBaseURL:   getEnvDefault("YOUTRACK_BASE_URL", ""),
+		YouTrackToken:     getEnvDefault("YOUTRACK_TOKEN", ""),
+		YouTrackProjectID: getEnvDefault("YOUTRACK_PROJECT_ID", ""),
+		PollIntervalMS:    getEnvDefaultInt("POLL_INTERVAL_MS", 60000),
+	}
+
+	log.Printf("Configuration loaded:")
+	log.Printf("  Port: %s", config.Port)
+	log.Printf("  Asana Project: %s", config.AsanaProjectID)
+	log.Printf("  YouTrack Project: %s", config.YouTrackProjectID)
+	log.Printf("  YouTrack URL: %s", config.YouTrackBaseURL)
+}
+
+// Sync handlers (from existing code)
 func handleSyncStart(wsManager *sync.WebSocketManager, rollbackService *sync.RollbackService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth.GetUserFromContext(r)
@@ -256,7 +298,7 @@ func handleSyncRollback(rollbackService *sync.RollbackService, wsManager *sync.W
 	}
 }
 
-// Perform sync operation (placeholder implementation)
+// Perform sync operation
 func performSync(operation *sync.SyncOperation, wsManager *sync.WebSocketManager, rollbackService *sync.RollbackService) {
 	// Update status to in progress
 	rollbackService.UpdateOperationStatus(operation.ID, sync.StatusInProgress, nil)
@@ -289,7 +331,7 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 	docs := map[string]interface{}{
 		"title":       "Asana YouTrack Sync API",
 		"version":     "2.0.0",
-		"description": "Enhanced synchronization service with authentication",
+		"description": "Enhanced synchronization service with authentication and legacy support",
 		"endpoints": map[string]interface{}{
 			"authentication": map[string]string{
 				"POST /api/auth/register":        "Register new user",
@@ -306,24 +348,39 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 				"GET  /api/settings/youtrack/projects": "Get YouTrack projects",
 				"POST /api/settings/test-connections":  "Test API connections",
 			},
-			"sync": map[string]string{
+			"new_sync": map[string]string{
 				"POST /api/sync/start":         "Start sync operation",
 				"GET  /api/sync/status/{id}":   "Get sync status",
 				"GET  /api/sync/history":       "Get sync history",
 				"POST /api/sync/rollback/{id}": "Rollback sync operation",
+			},
+			"legacy_api": map[string]string{
+				"GET  /health":          "Health check",
+				"GET  /status":          "Service status",
+				"GET  /analyze":         "Analyze ticket differences",
+				"POST /create":          "Create missing tickets (bulk)",
+				"POST /create-single":   "Create individual ticket",
+				"GET/POST /sync":        "Sync mismatched tickets",
+				"GET/POST /ignore":      "Manage ignored tickets",
+				"GET/POST /auto-sync":   "Control auto-sync functionality",
+				"GET/POST /auto-create": "Control auto-create functionality",
+				"GET  /tickets":         "Get tickets by type",
+				"POST /delete-tickets":  "Delete tickets (bulk)",
 			},
 			"websocket": map[string]string{
 				"GET /ws": "WebSocket connection for real-time updates",
 			},
 		},
 		"features": []string{
-			"JWT-based authentication",
+			"JWT-based authentication (new API)",
+			"Legacy API support (no auth required)",
 			"User-specific settings storage",
 			"Real-time sync progress via WebSocket",
 			"Rollback capability",
 			"Connection pooling",
 			"Caching layer",
 			"Custom field mapping",
+			"Backward compatibility",
 		},
 	}
 
@@ -334,6 +391,16 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 func getEnvDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
+	}
+	return defaultValue
+}
+
+// Helper function to get environment variable as int with default
+func getEnvDefaultInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
 	}
 	return defaultValue
 }

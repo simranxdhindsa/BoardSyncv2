@@ -1,3 +1,5 @@
+// Fixed AuthContext - Replace frontend/src/contexts/AuthContext.js
+
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { getCurrentUser, isAuthenticated, clearAuth, createWebSocketConnection } from '../services/api';
 
@@ -14,18 +16,19 @@ const AUTH_ACTIONS = {
   SET_LOADING: 'SET_LOADING',
   SET_ERROR: 'SET_ERROR',
   CLEAR_ERROR: 'CLEAR_ERROR',
+  SET_INITIALIZING: 'SET_INITIALIZING',
   WEBSOCKET_CONNECT: 'WEBSOCKET_CONNECT',
   WEBSOCKET_DISCONNECT: 'WEBSOCKET_DISCONNECT',
   WEBSOCKET_MESSAGE: 'WEBSOCKET_MESSAGE'
 };
 
-// Initial state
+// Initial state - IMPORTANT: loading should be FALSE by default
 const initialState = {
   user: null,
   isAuthenticated: false,
-  loading: false,
+  loading: false, // Changed to false - this was causing the issue
   error: null,
-  initializing: true,
+  initializing: true, // Only this should be true initially
   websocket: null,
   websocketConnected: false,
   realtimeUpdates: []
@@ -68,6 +71,7 @@ const authReducer = (state, action) => {
         isAuthenticated: false,
         loading: false,
         error: null,
+        initializing: false, // Important: set to false after logout
         websocket: null,
         websocketConnected: false,
         realtimeUpdates: []
@@ -78,7 +82,15 @@ const authReducer = (state, action) => {
         ...state,
         user: action.payload.user,
         isAuthenticated: !!action.payload.user,
-        initializing: false
+        initializing: false,
+        loading: false // Ensure loading is false when setting user
+      };
+      
+    case AUTH_ACTIONS.SET_INITIALIZING:
+      return {
+        ...state,
+        initializing: action.payload.initializing,
+        loading: false // Separate initializing from loading
       };
       
     case AUTH_ACTIONS.SET_LOADING:
@@ -132,7 +144,8 @@ export const AuthProvider = ({ children }) => {
   // Initialize authentication on mount
   useEffect(() => {
     const initAuth = async () => {
-      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { loading: true } });
+      // Start initialization but don't set loading to true
+      dispatch({ type: AUTH_ACTIONS.SET_INITIALIZING, payload: { initializing: true } });
       
       try {
         if (isAuthenticated()) {
@@ -157,6 +170,9 @@ export const AuthProvider = ({ children }) => {
           type: AUTH_ACTIONS.SET_USER, 
           payload: { user: null } 
         });
+      } finally {
+        // Always set initializing to false when done
+        dispatch({ type: AUTH_ACTIONS.SET_INITIALIZING, payload: { initializing: false } });
       }
     };
 
@@ -211,7 +227,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login handler
+  // Login handler - uses its own loading state
   const login = async (credentials) => {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
     
@@ -238,7 +254,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register handler
+  // Register handler - uses its own loading state
   const register = async (userData) => {
     dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { loading: true } });
     
@@ -319,7 +335,7 @@ export const AuthProvider = ({ children }) => {
     // State
     user: state.user,
     isAuthenticated: state.isAuthenticated,
-    loading: state.loading,
+    loading: state.loading, // This should now be false by default
     error: state.error,
     initializing: state.initializing,
     websocketConnected: state.websocketConnected,
