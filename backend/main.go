@@ -54,9 +54,6 @@ func main() {
 	// Create router
 	router := mux.NewRouter()
 
-	// Add CORS middleware
-	router.Use(utils.CORSMiddleware)
-
 	// Register routes
 	registerRoutes(router, authHandler, configHandler, authService, wsManager, rollbackService, cacheManager)
 
@@ -85,15 +82,26 @@ func registerRoutes(
 	rollbackService *sync.RollbackService,
 	cacheManager *cache.CacheManager,
 ) {
-	// NEW API ROUTES (with authentication)
+	// Add CORS middleware to all routes
+	router.Use(utils.CORSMiddleware)
 
 	// Health check
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		utils.SendSuccess(w, map[string]string{"status": "healthy"}, "Service is running")
 	}).Methods("GET")
 
-	// Authentication routes
-	authHandler.RegisterRoutes(router)
+	// PUBLIC Authentication routes (NO MIDDLEWARE) - This is the key fix!
+	router.HandleFunc("/api/auth/register", authHandler.Register).Methods("POST", "OPTIONS")
+	router.HandleFunc("/api/auth/login", authHandler.Login).Methods("POST", "OPTIONS")
+
+	// PROTECTED Authentication routes (WITH MIDDLEWARE)
+	protectedAuth := router.PathPrefix("/api/auth").Subrouter()
+	protectedAuth.Use(authService.Middleware)
+
+	protectedAuth.HandleFunc("/refresh", authHandler.RefreshToken).Methods("POST", "OPTIONS")
+	protectedAuth.HandleFunc("/me", authHandler.GetProfile).Methods("GET", "OPTIONS")
+	protectedAuth.HandleFunc("/change-password", authHandler.ChangePassword).Methods("POST", "OPTIONS")
+	protectedAuth.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
 
 	// Settings routes (protected)
 	configHandler.RegisterRoutes(router, authService)
@@ -124,13 +132,14 @@ func registerRoutes(
 	router.HandleFunc("/tickets", getTicketsByTypeHandler).Methods("GET", "OPTIONS")
 	router.HandleFunc("/delete-tickets", deleteTicketsHandler).Methods("POST", "OPTIONS")
 
-	// Static file serving for frontend
+	// Static file serving for frontend - FIXED
 	staticDir := getEnvDefault("STATIC_DIR", "./frontend/")
 	router.PathPrefix("/frontend/").Handler(http.StripPrefix("/frontend/", http.FileServer(http.Dir(staticDir))))
 
-	// Serve index.html at root
+	// Serve index.html at root - FIXED
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, staticDir+"index.html")
+		indexPath := staticDir + "index.html"
+		http.ServeFile(w, r, indexPath)
 	}).Methods("GET")
 
 	// API documentation endpoint

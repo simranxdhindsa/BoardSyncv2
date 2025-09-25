@@ -22,13 +22,13 @@ const AUTH_ACTIONS = {
   WEBSOCKET_MESSAGE: 'WEBSOCKET_MESSAGE'
 };
 
-// Initial state - IMPORTANT: loading should be FALSE by default
+// Initial state
 const initialState = {
   user: null,
   isAuthenticated: false,
-  loading: false, // Changed to false - this was causing the issue
+  loading: false,
   error: null,
-  initializing: true, // Only this should be true initially
+  initializing: true,
   websocket: null,
   websocketConnected: false,
   realtimeUpdates: []
@@ -71,7 +71,7 @@ const authReducer = (state, action) => {
         isAuthenticated: false,
         loading: false,
         error: null,
-        initializing: false, // Important: set to false after logout
+        initializing: false,
         websocket: null,
         websocketConnected: false,
         realtimeUpdates: []
@@ -83,14 +83,14 @@ const authReducer = (state, action) => {
         user: action.payload.user,
         isAuthenticated: !!action.payload.user,
         initializing: false,
-        loading: false // Ensure loading is false when setting user
+        loading: false
       };
       
     case AUTH_ACTIONS.SET_INITIALIZING:
       return {
         ...state,
         initializing: action.payload.initializing,
-        loading: false // Separate initializing from loading
+        loading: false
       };
       
     case AUTH_ACTIONS.SET_LOADING:
@@ -129,7 +129,7 @@ const authReducer = (state, action) => {
     case AUTH_ACTIONS.WEBSOCKET_MESSAGE:
       return {
         ...state,
-        realtimeUpdates: [action.payload.message, ...state.realtimeUpdates.slice(0, 49)] // Keep last 50 updates
+        realtimeUpdates: [action.payload.message, ...state.realtimeUpdates.slice(0, 49)]
       };
       
     default:
@@ -144,34 +144,41 @@ export const AuthProvider = ({ children }) => {
   // Initialize authentication on mount
   useEffect(() => {
     const initAuth = async () => {
-      // Start initialization but don't set loading to true
+      console.log('🔍 Auth: Initializing authentication...');
       dispatch({ type: AUTH_ACTIONS.SET_INITIALIZING, payload: { initializing: true } });
       
       try {
         if (isAuthenticated()) {
-          const user = await getCurrentUser();
+          console.log('🔍 Auth: Token found, getting current user...');
+          const response = await getCurrentUser();
+          const user = response.data || response.user || response;
+          
+          console.log('🔍 Auth: Current user retrieved:', user);
           dispatch({ 
             type: AUTH_ACTIONS.SET_USER, 
-            payload: { user: user.data || user } 
+            payload: { user: user } 
           });
           
           // Connect to WebSocket for real-time updates
-          connectWebSocket(user.data?.id || user.id);
+          if (user.id) {
+            connectWebSocket(user.id);
+          }
         } else {
+          console.log('🔍 Auth: No token found');
           dispatch({ 
             type: AUTH_ACTIONS.SET_USER, 
             payload: { user: null } 
           });
         }
       } catch (error) {
-        console.error('Auth initialization failed:', error);
+        console.error('🔍 Auth: Initialization failed:', error);
         clearAuth();
         dispatch({ 
           type: AUTH_ACTIONS.SET_USER, 
           payload: { user: null } 
         });
       } finally {
-        // Always set initializing to false when done
+        console.log('🔍 Auth: Initialization complete');
         dispatch({ type: AUTH_ACTIONS.SET_INITIALIZING, payload: { initializing: false } });
       }
     };
@@ -184,10 +191,11 @@ export const AuthProvider = ({ children }) => {
     if (state.websocket || !userId) return;
     
     try {
+      console.log('🔍 Auth: Connecting WebSocket for user:', userId);
       const ws = createWebSocketConnection(userId);
       
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('🔍 Auth: WebSocket connected');
         dispatch({ 
           type: AUTH_ACTIONS.WEBSOCKET_CONNECT, 
           payload: { websocket: ws } 
@@ -197,18 +205,18 @@ export const AuthProvider = ({ children }) => {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('WebSocket message:', message);
+          console.log('🔍 Auth: WebSocket message:', message);
           dispatch({ 
             type: AUTH_ACTIONS.WEBSOCKET_MESSAGE, 
             payload: { message } 
           });
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          console.error('🔍 Auth: Failed to parse WebSocket message:', error);
         }
       };
       
       ws.onclose = () => {
-        console.log('WebSocket disconnected');
+        console.log('🔍 Auth: WebSocket disconnected');
         dispatch({ type: AUTH_ACTIONS.WEBSOCKET_DISCONNECT });
         
         // Attempt reconnection after 3 seconds
@@ -218,24 +226,39 @@ export const AuthProvider = ({ children }) => {
       };
       
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('🔍 Auth: WebSocket error:', error);
         dispatch({ type: AUTH_ACTIONS.WEBSOCKET_DISCONNECT });
       };
       
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
+      console.error('🔍 Auth: Failed to create WebSocket connection:', error);
     }
   };
 
-  // Login handler - uses its own loading state
+  // Login handler
   const login = async (credentials) => {
+    console.log('🔍 Auth: Starting login process...');
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
     
     try {
       const { login: loginAPI } = await import('../services/api');
       const response = await loginAPI(credentials);
       
-      const user = response.user || response.data;
+      console.log('🔍 Auth: Login API response:', response);
+      
+      // Handle different response structures
+      const user = response.data?.user || response.user || {
+        id: response.data?.id || response.id,
+        username: response.data?.username || response.username,
+        email: response.data?.email || response.email
+      };
+      
+      console.log('🔍 Auth: Extracted user from login:', user);
+      
+      if (!user.id && !user.username) {
+        throw new Error('Invalid login response format');
+      }
+      
       dispatch({ 
         type: AUTH_ACTIONS.LOGIN_SUCCESS, 
         payload: { user } 
@@ -246,6 +269,7 @@ export const AuthProvider = ({ children }) => {
       
       return response;
     } catch (error) {
+      console.error('🔍 Auth: Login failed:', error);
       dispatch({ 
         type: AUTH_ACTIONS.LOGIN_FAILURE, 
         payload: { error: error.message } 
@@ -254,17 +278,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register handler - uses its own loading state
+  // Register handler
   const register = async (userData) => {
+    console.log('🔍 Auth: Starting registration process...');
     dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { loading: true } });
     
     try {
       const { register: registerAPI } = await import('../services/api');
       const response = await registerAPI(userData);
       
+      console.log('🔍 Auth: Registration API response:', response);
+      
       // If registration includes auto-login
       if (response.token && response.user) {
         const user = response.user || response.data;
+        console.log('🔍 Auth: Auto-login after registration:', user);
+        
         dispatch({ 
           type: AUTH_ACTIONS.LOGIN_SUCCESS, 
           payload: { user } 
@@ -277,6 +306,7 @@ export const AuthProvider = ({ children }) => {
       
       return response;
     } catch (error) {
+      console.error('🔍 Auth: Registration failed:', error);
       dispatch({ 
         type: AUTH_ACTIONS.SET_ERROR, 
         payload: { error: error.message } 
@@ -287,6 +317,7 @@ export const AuthProvider = ({ children }) => {
 
   // Logout handler
   const logout = async () => {
+    console.log('🔍 Auth: Starting logout process...');
     dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: { loading: true } });
     
     try {
@@ -297,8 +328,10 @@ export const AuthProvider = ({ children }) => {
       
       const { logout: logoutAPI } = await import('../services/api');
       await logoutAPI();
+      
+      console.log('🔍 Auth: Logout completed');
     } catch (error) {
-      console.error('Logout API failed:', error);
+      console.error('🔍 Auth: Logout API failed:', error);
     } finally {
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
@@ -306,6 +339,7 @@ export const AuthProvider = ({ children }) => {
 
   // Update user info
   const updateUser = (userData) => {
+    console.log('🔍 Auth: Updating user data:', userData);
     dispatch({ 
       type: AUTH_ACTIONS.SET_USER, 
       payload: { user: { ...state.user, ...userData } } 
@@ -335,7 +369,7 @@ export const AuthProvider = ({ children }) => {
     // State
     user: state.user,
     isAuthenticated: state.isAuthenticated,
-    loading: state.loading, // This should now be false by default
+    loading: state.loading,
     error: state.error,
     initializing: state.initializing,
     websocketConnected: state.websocketConnected,

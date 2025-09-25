@@ -78,12 +78,14 @@ func deleteAsanaTask(taskID string) error {
 // ENHANCED: YouTrack API Functions with Subsystem Support
 func getYouTrackIssues() ([]YouTrackIssue, error) {
 	fmt.Printf("Connecting to YouTrack Cloud: %s\n", config.YouTrackBaseURL)
-	fmt.Printf("Looking for project: %s\n", config.YouTrackProjectID)
+	fmt.Printf("Looking for project with key: %s\n", config.YouTrackProjectID)
 
+	// Try multiple approaches to get issues
 	approaches := []func() ([]YouTrackIssue, error){
-		getYouTrackIssuesWithQuery,
-		getYouTrackIssuesSimpleCloud,
-		getYouTrackIssuesViaProjects,
+		getYouTrackIssuesWithProjectKey, // NEW: Use project key (ARD) directly
+		getYouTrackIssuesWithQuery,      // Existing query-based approach
+		getYouTrackIssuesSimpleCloud,    // Existing simple approach
+		getYouTrackIssuesViaProjects,    // Existing project-based approach
 	}
 
 	for i, approach := range approaches {
@@ -307,12 +309,67 @@ func performBulkDelete(ticketIDs []string, source string) DeleteResponse {
 
 	return response
 }
+func getYouTrackIssuesWithProjectKey() ([]YouTrackIssue, error) {
+	fmt.Println("   Trying direct project key approach...")
+
+	// Use the project key directly in the query
+	query := fmt.Sprintf("project: {%s}", config.YouTrackProjectID)
+	fields := "id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
+
+	fmt.Printf("   Using query: %s\n", query)
+
+	encodedQuery := strings.ReplaceAll(query, " ", "%20")
+	encodedQuery = strings.ReplaceAll(encodedQuery, "{", "%7B")
+	encodedQuery = strings.ReplaceAll(encodedQuery, "}", "%7D")
+
+	url := fmt.Sprintf("%s/api/issues?fields=%s&query=%s&top=200",
+		config.YouTrackBaseURL, fields, encodedQuery)
+
+	fmt.Printf("   Request URL: %s\n", url)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+config.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Cache-Control", "no-cache")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("network error: %v", err)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	fmt.Printf("   Status: %d\n", resp.StatusCode)
+
+	if resp.StatusCode == http.StatusOK {
+		var issues []YouTrackIssue
+		if err := json.Unmarshal(body, &issues); err != nil {
+			fmt.Printf("   JSON error: %v\n", err)
+			return nil, err
+		}
+		fmt.Printf("   Found %d issues with direct project key approach\n", len(issues))
+		return issues, nil
+	}
+
+	fmt.Printf("   Direct project key approach failed with status %d\n", resp.StatusCode)
+	return nil, fmt.Errorf("direct project key approach failed")
+}
 
 func getYouTrackIssuesWithQuery() ([]YouTrackIssue, error) {
+	fmt.Println("   Trying query-based approach...")
+
+	// Try different query formats for project key
 	queries := []string{
-		fmt.Sprintf("project:%s", config.YouTrackProjectID),
-		fmt.Sprintf("project: %s", config.YouTrackProjectID),
-		fmt.Sprintf("#%s", config.YouTrackProjectID),
+		fmt.Sprintf("project: {%s}", config.YouTrackProjectID), // NEW: Curly braces format
+		fmt.Sprintf("project:%s", config.YouTrackProjectID),    // Existing format
+		fmt.Sprintf("project: %s", config.YouTrackProjectID),   // Existing format with space
+		fmt.Sprintf("#%s", config.YouTrackProjectID),           // Existing hashtag format
 	}
 
 	fields := "id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
@@ -320,7 +377,13 @@ func getYouTrackIssuesWithQuery() ([]YouTrackIssue, error) {
 	for i, query := range queries {
 		fmt.Printf("   Query format %d: %s\n", i+1, query)
 
+		// Proper URL encoding for different query formats
 		encodedQuery := strings.ReplaceAll(query, " ", "%20")
+		if strings.Contains(query, "{") {
+			encodedQuery = strings.ReplaceAll(encodedQuery, "{", "%7B")
+			encodedQuery = strings.ReplaceAll(encodedQuery, "}", "%7D")
+		}
+
 		url := fmt.Sprintf("%s/api/issues?fields=%s&query=%s&top=200",
 			config.YouTrackBaseURL, fields, encodedQuery)
 
@@ -351,11 +414,12 @@ func getYouTrackIssuesWithQuery() ([]YouTrackIssue, error) {
 				fmt.Printf("   JSON error: %v\n", err)
 				continue
 			}
+			fmt.Printf("   Query approach succeeded with %d issues\n", len(issues))
 			return issues, nil
 		}
 	}
 
-	return nil, fmt.Errorf("query approach failed")
+	return nil, fmt.Errorf("all query formats failed")
 }
 
 func getYouTrackIssuesSimpleCloud() ([]YouTrackIssue, error) {
@@ -400,48 +464,61 @@ func getYouTrackIssuesSimpleCloud() ([]YouTrackIssue, error) {
 	fmt.Printf("   Filtering %d total issues for project '%s'\n", len(allIssues), config.YouTrackProjectID)
 
 	for _, issue := range allIssues {
+		// FIXED: Check project.ShortName instead of just ShortName
 		if issue.Project.ShortName == config.YouTrackProjectID {
 			projectIssues = append(projectIssues, issue)
 		}
 	}
 
+	fmt.Printf("   Found %d issues for project %s\n", len(projectIssues), config.YouTrackProjectID)
 	return projectIssues, nil
 }
 
 func getYouTrackIssuesViaProjects() ([]YouTrackIssue, error) {
 	fmt.Println("   Trying project-specific endpoint...")
 
-	url := fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
-		config.YouTrackBaseURL, config.YouTrackProjectID)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
+	// Try both the project key and internal project approach
+	urls := []string{
+		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
+			config.YouTrackBaseURL, config.YouTrackProjectID),
+		fmt.Sprintf("%s/api/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
+			config.YouTrackBaseURL, config.YouTrackProjectID),
 	}
 
-	req.Header.Set("Authorization", "Bearer "+config.YouTrackToken)
-	req.Header.Set("Accept", "application/json")
+	for i, url := range urls {
+		fmt.Printf("   Trying project URL %d: %s\n", i+1, url)
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("network error: %v", err)
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			continue
+		}
+
+		req.Header.Set("Authorization", "Bearer "+config.YouTrackToken)
+		req.Header.Set("Accept", "application/json")
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Printf("   Network error: %v\n", err)
+			continue
+		}
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("   Status: %d\n", resp.StatusCode)
+
+		if resp.StatusCode == http.StatusOK {
+			var issues []YouTrackIssue
+			if err := json.Unmarshal(body, &issues); err != nil {
+				fmt.Printf("   JSON parsing error: %v\n", err)
+				continue
+			}
+			fmt.Printf("   Project endpoint succeeded with %d issues\n", len(issues))
+			return issues, nil
+		}
 	}
-	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
-	fmt.Printf("   Status: %d\n", resp.StatusCode)
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("project endpoint failed with status %d", resp.StatusCode)
-	}
-
-	var issues []YouTrackIssue
-	if err := json.Unmarshal(body, &issues); err != nil {
-		return nil, fmt.Errorf("JSON parsing error: %v", err)
-	}
-
-	return issues, nil
+	return nil, fmt.Errorf("project endpoint approach failed")
 }
 
 func findYouTrackProject() (string, error) {
