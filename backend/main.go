@@ -19,6 +19,12 @@ import (
 	"asana-youtrack-sync/utils"
 )
 
+// Global variables to access services from handlers
+var (
+	configService *configpkg.Service
+	authService   *auth.Service
+)
+
 func main() {
 	// Load configuration first (for legacy endpoints)
 	loadConfig()
@@ -37,10 +43,10 @@ func main() {
 	// Initialize cache
 	cacheManager := cache.NewCacheManager()
 
-	// Initialize services
+	// Initialize services and make them globally accessible
 	jwtSecret := getEnvDefault("JWT_SECRET", "your-super-secret-jwt-key-change-in-production")
-	authService := auth.NewService(db, jwtSecret)
-	configService := configpkg.NewService(db)
+	authService = auth.NewService(db, jwtSecret)
+	configService = configpkg.NewService(db)
 	rollbackService := sync.NewRollbackService(db)
 
 	// Initialize WebSocket manager
@@ -85,12 +91,12 @@ func registerRoutes(
 	// Add CORS middleware to all routes
 	router.Use(utils.CORSMiddleware)
 
-	// Health check
+	// Health check (public)
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		utils.SendSuccess(w, map[string]string{"status": "healthy"}, "Service is running")
 	}).Methods("GET")
 
-	// PUBLIC Authentication routes (NO MIDDLEWARE) - This is the key fix!
+	// PUBLIC Authentication routes (NO MIDDLEWARE)
 	router.HandleFunc("/api/auth/register", authHandler.Register).Methods("POST", "OPTIONS")
 	router.HandleFunc("/api/auth/login", authHandler.Login).Methods("POST", "OPTIONS")
 
@@ -118,25 +124,27 @@ func registerRoutes(
 	syncAPI.HandleFunc("/history", handleSyncHistory(rollbackService)).Methods("GET")
 	syncAPI.HandleFunc("/rollback/{id}", handleSyncRollback(rollbackService, wsManager)).Methods("POST")
 
-	// LEGACY API ROUTES (without authentication - for backward compatibility)
+	// LEGACY API ROUTES (now WITH authentication for user-specific settings)
+	legacyAPI := router.PathPrefix("").Subrouter()
+	legacyAPI.Use(authService.Middleware) // Add auth to legacy routes
 
-	// Legacy health and status
-	router.HandleFunc("/status", statusCheck).Methods("GET")
-	router.HandleFunc("/analyze", analyzeTicketsHandler).Methods("GET", "OPTIONS")
-	router.HandleFunc("/create", createMissingTicketsHandler).Methods("GET", "POST", "OPTIONS")
-	router.HandleFunc("/create-single", createSingleTicketHandler).Methods("POST", "OPTIONS")
-	router.HandleFunc("/sync", syncMismatchedTicketsHandler).Methods("GET", "POST", "OPTIONS")
-	router.HandleFunc("/ignore", manageIgnoredTicketsHandler).Methods("GET", "POST", "OPTIONS")
-	router.HandleFunc("/auto-sync", autoSyncHandler).Methods("GET", "POST", "OPTIONS")
-	router.HandleFunc("/auto-create", autoCreateHandler).Methods("GET", "POST", "OPTIONS")
-	router.HandleFunc("/tickets", getTicketsByTypeHandler).Methods("GET", "OPTIONS")
-	router.HandleFunc("/delete-tickets", deleteTicketsHandler).Methods("POST", "OPTIONS")
+	// Legacy routes (now protected)
+	legacyAPI.HandleFunc("/status", statusCheck).Methods("GET")
+	legacyAPI.HandleFunc("/analyze", analyzeTicketsHandler).Methods("GET", "OPTIONS")
+	legacyAPI.HandleFunc("/create", createMissingTicketsHandler).Methods("GET", "POST", "OPTIONS")
+	legacyAPI.HandleFunc("/create-single", createSingleTicketHandler).Methods("POST", "OPTIONS")
+	legacyAPI.HandleFunc("/sync", syncMismatchedTicketsHandler).Methods("GET", "POST", "OPTIONS")
+	legacyAPI.HandleFunc("/ignore", manageIgnoredTicketsHandler).Methods("GET", "POST", "OPTIONS")
+	legacyAPI.HandleFunc("/auto-sync", autoSyncHandler).Methods("GET", "POST", "OPTIONS")
+	legacyAPI.HandleFunc("/auto-create", autoCreateHandler).Methods("GET", "POST", "OPTIONS")
+	legacyAPI.HandleFunc("/tickets", getTicketsByTypeHandler).Methods("GET", "OPTIONS")
+	legacyAPI.HandleFunc("/delete-tickets", deleteTicketsHandler).Methods("POST", "OPTIONS")
 
-	// Static file serving for frontend - FIXED
+	// Static file serving for frontend
 	staticDir := getEnvDefault("STATIC_DIR", "./frontend/")
 	router.PathPrefix("/frontend/").Handler(http.StripPrefix("/frontend/", http.FileServer(http.Dir(staticDir))))
 
-	// Serve index.html at root - FIXED
+	// Serve index.html at root
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		indexPath := staticDir + "index.html"
 		http.ServeFile(w, r, indexPath)
@@ -161,9 +169,7 @@ func loadConfig() {
 
 	log.Printf("Configuration loaded:")
 	log.Printf("  Port: %s", config.Port)
-	log.Printf("  Asana Project: %s", config.AsanaProjectID)
-	log.Printf("  YouTrack Project: %s", config.YouTrackProjectID)
-	log.Printf("  YouTrack URL: %s", config.YouTrackBaseURL)
+	log.Printf("  Note: Legacy .env config loaded but user-specific database settings will be used for API calls")
 }
 
 // Sync handlers (from existing code)
@@ -340,7 +346,7 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 	docs := map[string]interface{}{
 		"title":       "Asana YouTrack Sync API",
 		"version":     "2.0.0",
-		"description": "Enhanced synchronization service with authentication and legacy support",
+		"description": "Enhanced synchronization service with authentication and user-specific settings",
 		"endpoints": map[string]interface{}{
 			"authentication": map[string]string{
 				"POST /api/auth/register":        "Register new user",
@@ -364,17 +370,17 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 				"POST /api/sync/rollback/{id}": "Rollback sync operation",
 			},
 			"legacy_api": map[string]string{
-				"GET  /health":          "Health check",
-				"GET  /status":          "Service status",
-				"GET  /analyze":         "Analyze ticket differences",
-				"POST /create":          "Create missing tickets (bulk)",
-				"POST /create-single":   "Create individual ticket",
-				"GET/POST /sync":        "Sync mismatched tickets",
-				"GET/POST /ignore":      "Manage ignored tickets",
-				"GET/POST /auto-sync":   "Control auto-sync functionality",
-				"GET/POST /auto-create": "Control auto-create functionality",
-				"GET  /tickets":         "Get tickets by type",
-				"POST /delete-tickets":  "Delete tickets (bulk)",
+				"GET  /health":          "Health check (public)",
+				"GET  /status":          "Service status (protected)",
+				"GET  /analyze":         "Analyze ticket differences (protected)",
+				"POST /create":          "Create missing tickets (protected)",
+				"POST /create-single":   "Create individual ticket (protected)",
+				"GET/POST /sync":        "Sync mismatched tickets (protected)",
+				"GET/POST /ignore":      "Manage ignored tickets (protected)",
+				"GET/POST /auto-sync":   "Control auto-sync functionality (protected)",
+				"GET/POST /auto-create": "Control auto-create functionality (protected)",
+				"GET  /tickets":         "Get tickets by type (protected)",
+				"POST /delete-tickets":  "Delete tickets (protected)",
 			},
 			"websocket": map[string]string{
 				"GET /ws": "WebSocket connection for real-time updates",
@@ -382,14 +388,19 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 		},
 		"features": []string{
 			"JWT-based authentication (new API)",
-			"Legacy API support (no auth required)",
-			"User-specific settings storage",
+			"User-specific settings from database",
+			"Legacy API support with authentication",
 			"Real-time sync progress via WebSocket",
 			"Rollback capability",
 			"Connection pooling",
 			"Caching layer",
 			"Custom field mapping",
-			"Backward compatibility",
+			"Multi-tenant support",
+		},
+		"important_changes": []string{
+			"All legacy API endpoints now require authentication",
+			"Settings are user-specific and stored in database",
+			"No longer uses global .env configuration for API calls",
 		},
 	}
 
