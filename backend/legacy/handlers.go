@@ -340,7 +340,7 @@ func (h *Handler) SyncMismatchedTickets(w http.ResponseWriter, r *http.Request) 
 
 // ManageIgnoredTickets manages ignored tickets (both temporary and permanent)
 func (h *Handler) ManageIgnoredTickets(w http.ResponseWriter, r *http.Request) {
-	user, ok := auth.GetUserFromContext(r)
+	_, ok := auth.GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")
 		return

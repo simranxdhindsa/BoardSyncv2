@@ -54,13 +54,13 @@ type AsanaProject struct {
 	Name string `json:"name"`
 }
 
-// YouTrackProject represents a YouTrack project - FIXED STRUCTURE
+// YouTrackProject represents a YouTrack project
 type YouTrackProject struct {
-	ID        string `json:"id"`        // Internal UUID like "0-2"
-	Name      string `json:"name"`      // Display name like "My Project"
-	ShortName string `json:"shortName"` // Project key like "ARD" - THIS IS WHAT WE WANT
-	Archived  bool   `json:"archived"`  // Whether project is archived
-	RingId    string `json:"ringId"`    // Alternative ID field
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ShortName string `json:"shortName"`
+	Archived  bool   `json:"archived"`
+	RingId    string `json:"ringId"`
 }
 
 // Service handles settings management
@@ -163,7 +163,6 @@ func (s *Service) GetAsanaProjects(userID int) ([]Project, error) {
 		return nil, fmt.Errorf("Asana PAT not configured")
 	}
 
-	// Create HTTP request to Asana API
 	req, err := http.NewRequest("GET", "https://app.asana.com/api/1.0/projects", nil)
 	if err != nil {
 		return nil, fmt.Errorf("request creation error: %w", err)
@@ -196,7 +195,6 @@ func (s *Service) GetAsanaProjects(userID int) ([]Project, error) {
 		return nil, fmt.Errorf("JSON unmarshal error: %w", err)
 	}
 
-	// Convert to common Project format
 	projects := make([]Project, len(response.Data))
 	for i, project := range response.Data {
 		projects[i] = Project{
@@ -208,9 +206,7 @@ func (s *Service) GetAsanaProjects(userID int) ([]Project, error) {
 	return projects, nil
 }
 
-// GetYouTrackProjects fetches YouTrack projects using user's token - FIXED
-// Replace your GetYouTrackProjects function in backend/config/settings.go with this:
-
+// GetYouTrackProjects fetches YouTrack projects using user's token
 func (s *Service) GetYouTrackProjects(userID int) ([]Project, error) {
 	settings, err := s.GetSettings(userID)
 	if err != nil {
@@ -221,85 +217,84 @@ func (s *Service) GetYouTrackProjects(userID int) ([]Project, error) {
 		return nil, fmt.Errorf("YouTrack credentials not configured")
 	}
 
-	fmt.Printf("DEBUG: Getting YouTrack projects from: %s\n", settings.YouTrackBaseURL)
-
-	// Use the EXACT API call that works - with proper fields parameter
-	url := fmt.Sprintf("%s/api/admin/projects?fields=id,name,shortName,archived&$top=50&archived=false",
-		settings.YouTrackBaseURL)
-
-	fmt.Printf("DEBUG: API URL: %s\n", url)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("request creation error: %w", err)
+	// Try multiple API endpoints
+	endpoints := []string{
+		fmt.Sprintf("%s/api/admin/projects?fields=id,name,shortName,archived&$top=50&archived=false", settings.YouTrackBaseURL),
+		fmt.Sprintf("%s/api/projects?fields=id,name,shortName,archived&$top=50", settings.YouTrackBaseURL),
+		fmt.Sprintf("%s/api/admin/projects?fields=shortName,name&$top=50", settings.YouTrackBaseURL),
+		fmt.Sprintf("%s/api/admin/projects", settings.YouTrackBaseURL),
 	}
 
-	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
-	req.Header.Set("Accept", "application/json")
+	var lastError error
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("API request error: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("DEBUG: API Error Response: %s\n", string(body))
-		return nil, fmt.Errorf("YouTrack API error: status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("response read error: %w", err)
-	}
-
-	fmt.Printf("DEBUG: Raw API Response: %s\n", string(body))
-
-	// Parse the JSON response
-	var projects []YouTrackProject
-	if err := json.Unmarshal(body, &projects); err != nil {
-		fmt.Printf("DEBUG: JSON parsing error: %v\n", err)
-		return nil, fmt.Errorf("JSON unmarshal error: %w", err)
-	}
-
-	fmt.Printf("DEBUG: Parsed %d YouTrack projects\n", len(projects))
-
-	// Convert to common Project format using shortName
-	result := make([]Project, len(projects))
-	for i, project := range projects {
-		// Use shortName as the project ID (this should be "ARD")
-		projectKey := project.ShortName
-
-		// Debug logging for each project
-		fmt.Printf("DEBUG: Project %d:\n", i)
-		fmt.Printf("  ID: '%s'\n", project.ID)
-		fmt.Printf("  Name: '%s'\n", project.Name)
-		fmt.Printf("  ShortName: '%s'\n", project.ShortName)
-
-		// Fallback if shortName is empty
-		if projectKey == "" {
-			fmt.Printf("  WARNING: shortName is empty, using ID as fallback\n")
-			projectKey = project.ID
+	for _, url := range endpoints {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			lastError = err
+			continue
 		}
 
-		displayName := project.Name
-		if project.ShortName != "" {
-			displayName = fmt.Sprintf("%s (%s)", project.Name, project.ShortName)
+		req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Cache-Control", "no-cache")
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			lastError = err
+			continue
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			lastError = err
+			continue
 		}
 
-		result[i] = Project{
-			ID:   projectKey, // This should now be "ARD"
-			Name: displayName,
-		}
+		if resp.StatusCode == http.StatusOK {
+			var projects []YouTrackProject
+			if err := json.Unmarshal(body, &projects); err != nil {
+				lastError = err
+				continue
+			}
 
-		fmt.Printf("  Final Project: ID='%s', Name='%s'\n", projectKey, displayName)
-		fmt.Println()
+			result := make([]Project, len(projects))
+			for i, project := range projects {
+				projectKey := project.ShortName
+				if projectKey == "" {
+					projectKey = project.ID
+				}
+
+				displayName := project.Name
+				if project.ShortName != "" {
+					displayName = fmt.Sprintf("%s (%s)", project.Name, project.ShortName)
+				}
+
+				result[i] = Project{
+					ID:   projectKey,
+					Name: displayName,
+				}
+			}
+
+			return result, nil
+		} else {
+			switch resp.StatusCode {
+			case 401:
+				return nil, fmt.Errorf("YouTrack authentication failed. Please check your token")
+			case 403:
+				return nil, fmt.Errorf("YouTrack access forbidden. Your token may not have sufficient permissions")
+			case 404:
+				lastError = fmt.Errorf("endpoint not found")
+				continue
+			default:
+				lastError = fmt.Errorf("YouTrack API error: status %d", resp.StatusCode)
+			}
+		}
 	}
 
-	fmt.Printf("DEBUG: Returning %d projects\n", len(result))
-	return result, nil
+	return nil, fmt.Errorf("all YouTrack endpoints failed: %v", lastError)
 }
 
 // TestConnections tests API connections with current settings
