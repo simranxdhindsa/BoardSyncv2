@@ -53,15 +53,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
                 <span className="text-red-600 ml-2">• Delete Mode</span>
               )}
             </h1>
-            {/* <p className="text-sm text-gray-600">
-              {getTypeInfo().description}
-              
-              {column && column !== 'all_syncable' && (
-                <span className="text-blue-600 ml-1">
-                  (filtered by {column.replace('_', ' ')} column)
-                </span>
-              )}
-            </p> */}
           </div>
         </div>
       </div>
@@ -154,18 +145,52 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     setLoading(true);
     setError(null);
     
-    console.log('Loading tickets for type:', type, 'column:', column); // DEBUG
+    console.log('🔍 Loading tickets for type:', type, 'column:', column);
     
     try {
-      // CRITICAL: Ensure we pass the column parameter correctly
-      const response = await getTicketsByType(type, column || '');
-      console.log('Received tickets response:', response); // DEBUG
+      // ENHANCED: Ensure we pass the column parameter correctly with proper encoding
+      const columnParam = column && column !== 'all_syncable' ? column : '';
+      console.log('🔍 Requesting tickets with params:', { type, column: columnParam });
       
-      setTickets(response.tickets || []);
+      const response = await getTicketsByType(type, columnParam);
+      console.log('🔍 Raw API response:', response);
+      
+      // ENHANCED: Handle multiple response structures
+      let ticketData = [];
+      
+      if (response.data) {
+        // Structure: { data: { tickets: [...] } } or { data: [...] }
+        ticketData = response.data.tickets || response.data;
+      } else if (response.tickets) {
+        // Structure: { tickets: [...] }
+        ticketData = response.tickets;
+      } else if (Array.isArray(response)) {
+        // Structure: [...]
+        ticketData = response;
+      } else {
+        // Unknown structure, log for debugging
+        console.warn('🔍 Unknown response structure:', response);
+        ticketData = [];
+      }
+      
+      console.log('🔍 Extracted ticket data:', ticketData);
+      console.log('🔍 Ticket count:', Array.isArray(ticketData) ? ticketData.length : 'Not an array');
+      
+      // Ensure we have an array
+      if (!Array.isArray(ticketData)) {
+        console.warn('🔍 Ticket data is not an array, converting:', ticketData);
+        ticketData = [];
+      }
+      
+      setTickets(ticketData);
       setDeleteMode(false);
+      
+      console.log('✅ Successfully loaded', ticketData.length, 'tickets for type:', type);
+      
     } catch (err) {
-      console.error('Failed to load tickets:', err); // DEBUG
+      console.error('❌ Failed to load tickets:', err);
       setError(err.message);
+      setTickets([]);
     } finally {
       setLoading(false);
     }
@@ -405,11 +430,24 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
   };
 
   const renderTicketCard = (ticket, index) => {
-    const ticketId = ticket.gid || ticket.asana_task?.gid || ticket.id || ticket;
-    const ticketName = ticket.name || ticket.asana_task?.name || ticket.summary || ticketId;
+    // ENHANCED: Better ticket ID extraction with multiple fallbacks
+    const ticketId = ticket.gid || 
+                    ticket.asana_task?.gid || 
+                    ticket.youtrack_issue?.id ||
+                    ticket.id || 
+                    ticket;
+                    
+    const ticketName = ticket.name || 
+                      ticket.asana_task?.name || 
+                      ticket.youtrack_issue?.summary ||
+                      ticket.summary || 
+                      ticketId;
+                      
     const isIgnored = ignoredTickets.has(ticketId);
     const isSelected = selectedTickets.has(ticketId);
     const canBeDeleted = type !== 'ignored';
+    
+    console.log('🎫 Rendering ticket:', { ticketId, ticketName, type, ticket });
     
     // Handle ignored tickets (which are just IDs)
     if (type === 'ignored' && typeof ticket === 'string') {
@@ -441,6 +479,16 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
         </div>
       );
     }
+
+    // ENHANCED: Handle different ticket structures
+    const ticketTags = ticket.tags || 
+                      ticket.asana_tags || 
+                      ticket.asana_task?.tags ||
+                      [];
+
+    const ticketSection = ticket.memberships?.[0]?.section?.name ||
+                         ticket.asana_task?.memberships?.[0]?.section?.name ||
+                         'No Section';
 
     return (
       <div 
@@ -475,11 +523,9 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
             </div>
             
             {/* Show section info if available */}
-            {ticket.memberships?.[0]?.section?.name && (
-              <p className={`text-sm ${isSelected ? 'text-red-600' : 'text-gray-500'}`}>
-                Section: {ticket.memberships[0].section.name}
-              </p>
-            )}
+            <p className={`text-sm ${isSelected ? 'text-red-600' : 'text-gray-500'}`}>
+              Section: {ticketSection}
+            </p>
             
             {/* Show status comparison for mismatched tickets */}
             {type === 'mismatched' && (
@@ -576,11 +622,11 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
         </div>
         
         {/* Show tags if available */}
-        {(ticket.tags || ticket.asana_tags) && (
+        {ticketTags && ticketTags.length > 0 && (
           <div className="mt-3">
             <div className={`text-xs mb-1 ${isSelected ? 'text-red-600' : 'text-gray-500'}`}>Tags:</div>
             <div className="flex flex-wrap gap-1">
-              {(ticket.tags || ticket.asana_tags || []).map((tag, tagIndex) => (
+              {ticketTags.map((tag, tagIndex) => (
                 <span key={tagIndex} className={`tag-glass inline-flex items-center ${isSelected ? 'bg-red-100 text-red-800' : ''}`}>
                   <Tag className="w-3 h-3 mr-1" />
                   {typeof tag === 'string' ? tag : tag.name}
@@ -624,10 +670,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
               <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
               <p className="text-red-800">Error loading tickets: {error}</p>
             </div>
-            
-            {/* <div className="mt-2 text-sm text-red-600">
-              Debug: Type={type}, Column={column || 'none'}
-            </div> */}
           </div>
         )}
 
@@ -747,7 +789,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
             <IconComponent className={`w-16 h-16 mx-auto text-${typeInfo.color}-400 mb-4`} />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               No {typeInfo.title.toLowerCase()} found
-              
             </h3>
             <p className="text-gray-600">
               {type === 'ignored' && 'No tickets are currently being ignored.'}
@@ -759,17 +800,23 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
               {type === 'missing' && (!column || column === 'all_syncable') && 'All Asana tickets already exist in YouTrack.'}
               {!['ignored', 'matched', 'mismatched', 'missing'].includes(type) && 'No tickets found for this category.'}
             </p>
-            {/* NEW: Debug info for troubleshooting */}
-            {/* <div className="mt-4 text-xs text-gray-400">
-              Debug: Loaded {tickets.length} tickets for type="{type}" column="{column || 'none'}"
-            </div> */}
+            
+            {/* Enhanced debug info */}
+            {process.env.NODE_ENV !== 'production' && (
+              <div className="mt-4 text-xs text-gray-400 bg-gray-100 rounded p-3">
+                <div>Debug Info:</div>
+                <div>Type: "{type}", Column: "{column || 'none'}"</div>
+                <div>Loaded tickets: {tickets.length}</div>
+                <div>Error: {error || 'none'}</div>
+              </div>
+            )}
           </div>
         ) : (
           <>
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 {typeInfo.title} ({tickets.length})
-                {/* NEW: Show column context */}
+                {/* Show column context */}
                 {column && column !== 'all_syncable' && (
                   <span className="text-blue-600 text-lg font-normal ml-2">
                     • {column.replace('_', ' ').toUpperCase()} Column
@@ -799,6 +846,16 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {tickets.map((ticket, index) => renderTicketCard(ticket, index))}
             </div>
+
+            {/* Enhanced debug info in development */}
+            {process.env.NODE_ENV !== 'production' && tickets.length > 0 && (
+              <div className="mt-8 p-4 bg-gray-100 rounded-lg text-xs">
+                <h4 className="font-semibold mb-2">Debug - First Ticket Structure:</h4>
+                <pre className="whitespace-pre-wrap overflow-auto max-h-32">
+                  {JSON.stringify(tickets[0], null, 2)}
+                </pre>
+              </div>
+            )}
           </>
         )}
       </div>
