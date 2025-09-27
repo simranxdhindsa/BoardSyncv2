@@ -26,9 +26,39 @@ const AnalysisResults = ({
   const [reAnalyzeLoading, setReAnalyzeLoading] = useState(false);
   const [currentAnalysisData, setCurrentAnalysisData] = useState(analysisData);
 
-  if (!currentAnalysisData) return null;
+  // CRITICAL FIX: Safer data extraction with proper null checks
+  const safeAnalysisData = currentAnalysisData || {};
+  const analysis = safeAnalysisData.analysis || {};
+  const summary = safeAnalysisData.summary || {
+    findings_alerts: 0,
+    matched: 0,
+    mismatched: 0,
+    missing_youtrack: 0,
+    tag_mismatches: 0,
+    ignored: 0,
+    ready_for_stage: 0,
+    findings_tickets: 0
+  };
 
-  const { analysis, summary } = currentAnalysisData;
+  // Early return if no data
+  if (!currentAnalysisData || !currentAnalysisData.summary) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="text-center">
+          <AlertTriangle className="w-12 h-12 text-yellow-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Analysis Data</h2>
+          <p className="text-gray-600 mb-4">Please run an analysis first to see results.</p>
+          <button
+            onClick={onBack}
+            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // NEW: Re-analyze the same column
   const handleReAnalyze = async () => {
@@ -192,8 +222,8 @@ const AnalysisResults = ({
           </button>
         </div>
 
-        {/* High Priority Alerts */}
-        {summary.findings_alerts > 0 && (
+        {/* High Priority Alerts - SAFE ACCESS */}
+        {summary && summary.findings_alerts > 0 && (
           <div className="glass-panel bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
             <div className="flex items-center mb-4">
               <AlertTriangle className="w-6 h-6 text-red-600 mr-2" />
@@ -209,7 +239,7 @@ const AnalysisResults = ({
           </div>
         )}
 
-        {/* Summary Cards with Glass Theme - CLICKABLE */}
+        {/* Summary Cards with Glass Theme - CLICKABLE - SAFE ACCESS */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           <div 
             className="glass-panel bg-green-50 border border-green-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
@@ -219,7 +249,7 @@ const AnalysisResults = ({
               <CheckCircle className="w-6 h-6 text-green-600 mr-2" />
               <div>
                 <h3 className="text-sm font-semibold text-green-900">Matched</h3>
-                <p className="text-2xl font-bold text-green-600">{summary.matched}</p>
+                <p className="text-2xl font-bold text-green-600">{summary.matched || 0}</p>
               </div>
             </div>
             <div className="mt-2 flex items-center text-xs text-green-700">
@@ -236,7 +266,7 @@ const AnalysisResults = ({
               <Clock className="w-6 h-6 text-yellow-600 mr-2" />
               <div>
                 <h3 className="text-sm font-semibold text-yellow-900">Mismatched</h3>
-                <p className="text-2xl font-bold text-yellow-600">{summary.mismatched}</p>
+                <p className="text-2xl font-bold text-yellow-600">{summary.mismatched || 0}</p>
               </div>
             </div>
             <div className="mt-2 flex items-center text-xs text-yellow-700">
@@ -253,7 +283,7 @@ const AnalysisResults = ({
               <Plus className="w-6 h-6 text-blue-600 mr-2" />
               <div>
                 <h3 className="text-sm font-semibold text-blue-900">Missing</h3>
-                <p className="text-2xl font-bold text-blue-600">{summary.missing_youtrack}</p>
+                <p className="text-2xl font-bold text-blue-600">{summary.missing_youtrack || 0}</p>
               </div>
             </div>
             <div className="mt-2 flex items-center text-xs text-blue-700">
@@ -285,14 +315,14 @@ const AnalysisResults = ({
               <div>
                 <h3 className="text-sm font-semibold text-indigo-900">Sync Rate</h3>
                 <p className="text-2xl font-bold text-indigo-600">
-                  {Math.round((summary.matched / (summary.matched + summary.mismatched)) * 100) || 0}%
+                  {Math.round(((summary.matched || 0) / ((summary.matched || 0) + (summary.mismatched || 0))) * 100) || 0}%
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Mismatched Tickets */}
+        {/* Mismatched Tickets - SAFE ACCESS */}
         {summary.mismatched > 0 && (
           <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -417,7 +447,7 @@ const AnalysisResults = ({
           </div>
         )}
 
-        {/* Missing Tickets */}
+        {/* Missing Tickets - SAFE ACCESS */}
         {summary.missing_youtrack > 0 && (
           <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -514,13 +544,13 @@ const AnalysisResults = ({
           </div>
         )}
 
-        {/* Display Only Sections */}
-        {(summary.ready_for_stage > 0 || summary.findings_tickets > 0) && (
+        {/* Display Only Sections - SAFE ACCESS */}
+        {((summary.ready_for_stage || 0) > 0 || (summary.findings_tickets || 0) > 0) && (
           <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Display Only Sections</h2>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {summary.ready_for_stage > 0 && (
+              {(summary.ready_for_stage || 0) > 0 && (
                 <div>
                   <h3 className="text-lg font-medium text-gray-700 mb-3">
                     Ready for Stage ({summary.ready_for_stage})
@@ -549,7 +579,7 @@ const AnalysisResults = ({
                 </div>
               )}
 
-              {summary.findings_tickets > 0 && (
+              {(summary.findings_tickets || 0) > 0 && (
                 <div>
                   <h3 className="text-lg font-medium text-gray-700 mb-3">
                     Findings ({summary.findings_tickets})

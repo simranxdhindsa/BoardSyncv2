@@ -2,16 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const LuxuryBackground = ({ 
   currentView, 
-  analysisData, 
   selectedColumn, 
-  isLoading,
-  // NEW: Status indicators
+  // Status indicators
   autoSyncRunning = false,
   autoCreateRunning = false 
 }) => {
   const canvasRef = useRef(null);
   const animationIdRef = useRef(null);
-  const mouseRef = useRef({ x: 0, y: 0 });
+  const mouseRef = useRef({ x: 0, y: 0, normalizedX: 0, normalizedY: 0 });
   const dotsRef = useRef([]);
   const connectionsRef = useRef([]);
   const lastViewRef = useRef('');
@@ -20,12 +18,12 @@ const LuxuryBackground = ({
   const [mouseZoom, setMouseZoom] = useState({ x: 0, y: 0, active: false });
   const animationTimeRef = useRef(0);
 
-  // Enhanced configuration with status indicator support
+  // Enhanced configuration with mouse clustering
   const config = {
-    dotCount: 65,
+    dotCount: 250,
     maxConnections: 2,
     connectionDistance: 200,
-    cursorConnectionDistance: 180,
+    cursorConnectionDistance: 210,
     dotSize: 2.2,
     lineWidth: 1.8,
     glowIntensity: 0.8,
@@ -38,10 +36,17 @@ const LuxuryBackground = ({
     floatAmplitude: 25,
     waveSpeed: 0.0015,
     breathingSpeed: 0.001,
-    // NEW: Status indicator properties
+    // Status indicator properties
     statusPulseSpeed: 0.002,
     statusGlowIntensity: 1.2,
-    statusSizeMultiplier: 1.3
+    statusSizeMultiplier: 1.3,
+    // Mouse clustering properties - ENHANCED
+    clusterRadius: 100,           // Larger area to gather dots from
+    clusterStrength: 0.01,         // Stronger attraction
+    maxClusterDistance: 5,      // How far dots can move to cluster
+    clusterResponseSpeed: 0.15,   // How quickly dots respond to clustering
+    minClusterDots: 6,            // Target number of dots to gather around mouse
+    clusterZoneRadius: 120        // Tight cluster zone around mouse
   };
 
   // Simple distance calculation utility
@@ -51,7 +56,7 @@ const LuxuryBackground = ({
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  // Enhanced Dot class with status indicator support
+  // Enhanced Dot class with mouse attraction
   class Dot {
     constructor(x, y, index) {
       this.baseX = x;
@@ -79,15 +84,15 @@ const LuxuryBackground = ({
       this.breathingOffset = Math.random() * Math.PI * 2;
       this.baseSize = this.size;
       
-      // NEW: Status indicator properties
+      // Status indicator properties
       this.zone = null;
       this.isStatusDot = false;
       this.statusType = null;
       this.statusPulseOffset = Math.random() * Math.PI * 2;
-      this.statusTransition = 0; // 0 to 1 for smooth transitions
+      this.statusTransition = 0;
     }
 
-    // NEW: Determine zone and update status
+    // Determine zone and update status
     updateZone(canvasWidth) {
       this.zone = this.baseX < canvasWidth / 2 ? 'left' : 'right';
       
@@ -108,33 +113,79 @@ const LuxuryBackground = ({
       
       // Smooth transition for status change
       if (this.isStatusDot && (!wasStatusDot || oldStatusType !== this.statusType)) {
-        // Becoming a status dot or changing type
         this.statusTransition = Math.min(1, this.statusTransition + 0.05);
       } else if (!this.isStatusDot && wasStatusDot) {
-        // No longer a status dot
         this.statusTransition = Math.max(0, this.statusTransition - 0.03);
       } else if (this.isStatusDot) {
-        // Maintain status dot state
         this.statusTransition = Math.min(1, this.statusTransition + 0.02);
       } else {
-        // Normal dot
         this.statusTransition = Math.max(0, this.statusTransition - 0.02);
       }
     }
 
-    update(time, canvasWidth) {
+    // Enhanced update method with mouse clustering
+    update(time, canvasWidth, mouse, allDots) {
       // Update zone and status
       this.updateZone(canvasWidth);
       
-      // Continuous floating animation
-      const floatX = Math.sin(time * config.floatSpeed * this.floatSpeedMultiplier + this.floatOffsetX) * config.floatAmplitude;
-      const floatY = Math.cos(time * config.floatSpeed * this.floatSpeedMultiplier + this.floatOffsetY) * config.floatAmplitude * 0.7;
+      // Ensure mouse object exists
+      const safeMouseX = mouse?.x || 0;
+      const safeMouseY = mouse?.y || 0;
       
-      // Wave-like movement across the screen
-      const waveX = Math.sin(time * config.waveSpeed + this.index * 0.1) * 15;
-      const waveY = Math.cos(time * config.waveSpeed * 0.7 + this.index * 0.15) * 10;
+      // Calculate distance to mouse
+      const mouseDistance = Math.sqrt(
+        Math.pow(safeMouseX - this.baseX, 2) + Math.pow(safeMouseY - this.baseY, 2)
+      );
       
-      // NEW: Enhanced movement for status dots
+      // ENHANCED CLUSTERING LOGIC
+      let clusterAttractionX = 0;
+      let clusterAttractionY = 0;
+      
+      if (mouseDistance < config.clusterRadius) {
+        // Find how many dots are already in the cluster zone
+        const dotsInClusterZone = allDots.filter(dot => {
+          const distToMouse = Math.sqrt(
+            Math.pow(safeMouseX - dot.x, 2) + Math.pow(safeMouseY - dot.y, 2)
+          );
+          return distToMouse < config.clusterZoneRadius;
+        }).length;
+        
+        // If we need more dots in the cluster, attract this dot more strongly
+        const clusterNeedFactor = Math.max(0, (config.minClusterDots - dotsInClusterZone) / config.minClusterDots);
+        
+        // Base attraction strength
+        let attractionFactor = (1 - mouseDistance / config.clusterRadius) * config.clusterStrength;
+        
+        // Boost attraction if we need more dots in the cluster
+        attractionFactor *= (1 + clusterNeedFactor * 2);
+        
+        // Make dots from farther away come to join the cluster
+        if (mouseDistance > config.clusterZoneRadius && clusterNeedFactor > 0.3) {
+          attractionFactor *= 1.5; // Extra boost for distant dots
+        }
+        
+        // Calculate direction vector toward mouse
+        if (mouseDistance > 0) {
+          const directionX = (safeMouseX - this.baseX) / mouseDistance;
+          const directionY = (safeMouseY - this.baseY) / mouseDistance;
+          
+          // Apply clustering with enhanced distance
+          const clusterDistance = Math.min(config.maxClusterDistance, mouseDistance * attractionFactor);
+          clusterAttractionX = directionX * clusterDistance * attractionFactor;
+          clusterAttractionY = directionY * clusterDistance * attractionFactor;
+        }
+      }
+      
+      // Continuous floating animation (heavily reduced when clustering)
+      const floatReduction = mouseDistance < config.clusterRadius ? 0.1 : 1;
+      const floatX = Math.sin(time * config.floatSpeed * this.floatSpeedMultiplier + this.floatOffsetX) * config.floatAmplitude * floatReduction;
+      const floatY = Math.cos(time * config.floatSpeed * this.floatSpeedMultiplier + this.floatOffsetY) * config.floatAmplitude * 0.7 * floatReduction;
+      
+      // Wave-like movement (also heavily reduced when clustering)
+      const waveX = Math.sin(time * config.waveSpeed + this.index * 0.1) * 15 * floatReduction;
+      const waveY = Math.cos(time * config.waveSpeed * 0.7 + this.index * 0.15) * 10 * floatReduction;
+      
+      // Status-based movement
       let statusFloatX = 0, statusFloatY = 0;
       if (this.isStatusDot && this.statusTransition > 0) {
         const statusPulse = Math.sin(time * config.statusPulseSpeed + this.statusPulseOffset);
@@ -142,44 +193,67 @@ const LuxuryBackground = ({
         statusFloatY = Math.cos(time * config.statusPulseSpeed * 0.7 + this.statusPulseOffset) * 3 * this.statusTransition;
       }
       
-      // Update target position with all animations
-      this.targetX = this.baseX + floatX + waveX + statusFloatX;
-      this.targetY = this.baseY + floatY + waveY + statusFloatY;
+      // Combine all movements - clustering dominates when mouse is near
+      this.targetX = this.baseX + floatX + waveX + clusterAttractionX + statusFloatX;
+      this.targetY = this.baseY + floatY + waveY + clusterAttractionY + statusFloatY;
 
-      // Smooth movement to animated target position
+      // Enhanced smooth movement for clustering effect
       const dx = this.targetX - this.x;
       const dy = this.targetY - this.y;
-      this.vx += dx * 0.08;
-      this.vy += dy * 0.08;
-      this.vx *= 0.90;
-      this.vy *= 0.90;
+      
+      // Faster response when clustering
+      const responseSpeed = mouseDistance < config.clusterRadius ? config.clusterResponseSpeed : 0.08;
+      this.vx += dx * responseSpeed;
+      this.vy += dy * responseSpeed;
+      this.vx *= 0.85; // Slightly more damping for smoother clustering
+      this.vy *= 0.85;
       this.x += this.vx;
       this.y += this.vy;
 
-      // Enhanced size calculation with status effects
+      // Enhanced size calculation for clustered dots
       const breathingScale = 1 + Math.sin(time * config.breathingSpeed + this.breathingOffset) * 0.2;
       let statusSizeBoost = 1;
+      
+      // Dots in cluster get larger and more prominent
+      const clusterSizeBoost = mouseDistance < config.clusterZoneRadius ? 1.4 : 
+                              mouseDistance < config.clusterRadius ? 1.2 : 1;
       
       if (this.isStatusDot && this.statusTransition > 0) {
         const statusPulse = Math.sin(time * config.statusPulseSpeed * 2 + this.statusPulseOffset);
         statusSizeBoost = 1 + (statusPulse * 0.3 + 0.3) * this.statusTransition * config.statusSizeMultiplier;
       }
       
-      this.size = this.baseSize * breathingScale * statusSizeBoost;
+      this.size = this.baseSize * breathingScale * statusSizeBoost * clusterSizeBoost;
 
-      // Enhanced glow with status effects
-      this.glowIntensity *= 0.92;
+      // Enhanced glow effects for clustering
+      this.glowIntensity *= 0.88;
+      
+      // Strong glow for clustered dots
+      if (mouseDistance < config.clusterZoneRadius) {
+        const clusterGlow = 0.9;
+        this.glowIntensity = Math.max(this.glowIntensity, clusterGlow);
+      } else if (mouseDistance < config.clusterRadius) {
+        const clusterGlow = (1 - mouseDistance / config.clusterRadius) * 0.7;
+        this.glowIntensity = Math.max(this.glowIntensity, clusterGlow);
+      }
       
       if (this.isStatusDot && this.statusTransition > 0) {
         const statusGlow = Math.sin(time * config.statusPulseSpeed * 1.5 + this.statusPulseOffset) * 0.5 + 0.5;
         this.glowIntensity = Math.max(this.glowIntensity, statusGlow * config.statusGlowIntensity * this.statusTransition);
       }
       
-      // Update opacity based on connections and status
+      // Enhanced opacity for clustered dots
       if (this.connections.length > 0) {
         this.opacity = Math.min(1, this.baseOpacity + 0.5);
       } else if (this.isStatusDot && this.statusTransition > 0) {
         this.opacity = Math.min(1, this.baseOpacity + 0.3 * this.statusTransition);
+      } else if (mouseDistance < config.clusterZoneRadius) {
+        // Dots in tight cluster are very visible
+        this.opacity = Math.min(1, this.baseOpacity + 0.6);
+      } else if (mouseDistance < config.clusterRadius) {
+        // Dots being attracted are more visible
+        const clusterOpacityBoost = (1 - mouseDistance / config.clusterRadius) * 0.4;
+        this.opacity = Math.min(1, this.baseOpacity + clusterOpacityBoost);
       } else {
         this.opacity = this.baseOpacity;
       }
@@ -199,26 +273,23 @@ const LuxuryBackground = ({
       const alpha = this.opacity;
       const glowAlpha = Math.min(0.9, this.glowIntensity);
       
-      // NEW: Status-aware colors
+      // Status-aware colors
       if (this.isStatusDot && this.statusTransition > 0) {
         const normalAlpha = alpha * (1 - this.statusTransition);
         const statusAlpha = alpha * this.statusTransition;
         
         if (this.statusType === 'sync') {
-          // Auto-sync colors (green/blue theme)
           gradient.addColorStop(0, `rgba(16, 185, 129, ${statusAlpha * 0.9})`);
           gradient.addColorStop(0.3, `rgba(34, 197, 94, ${statusAlpha * 0.7})`);
           gradient.addColorStop(0.7, `rgba(59, 130, 246, ${statusAlpha * 0.5})`);
           gradient.addColorStop(1, `rgba(148, 163, 184, ${normalAlpha * 0.3})`);
         } else if (this.statusType === 'create') {
-          // Auto-create colors (blue/purple theme)
           gradient.addColorStop(0, `rgba(59, 130, 246, ${statusAlpha * 0.9})`);
           gradient.addColorStop(0.3, `rgba(99, 102, 241, ${statusAlpha * 0.7})`);
           gradient.addColorStop(0.7, `rgba(139, 92, 246, ${statusAlpha * 0.5})`);
           gradient.addColorStop(1, `rgba(148, 163, 184, ${normalAlpha * 0.3})`);
         }
         
-        // Enhanced glow for status dots
         if (this.glowIntensity > 0.1) {
           const glowColor = this.statusType === 'sync' 
             ? `rgba(16, 185, 129, ${glowAlpha * this.statusTransition})`
@@ -232,7 +303,6 @@ const LuxuryBackground = ({
         gradient.addColorStop(0.5, `rgba(100, 116, 139, ${alpha * 0.7})`);
         gradient.addColorStop(1, `rgba(148, 163, 184, 0)`);
         
-        // Normal glow effect
         if (this.glowIntensity > 0.1) {
           ctx.shadowColor = `rgba(30, 64, 175, ${glowAlpha})`;
           ctx.shadowBlur = 18;
@@ -244,7 +314,6 @@ const LuxuryBackground = ({
       ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
       ctx.fill();
 
-      // Reset shadow
       ctx.shadowBlur = 0;
     }
 
@@ -254,7 +323,7 @@ const LuxuryBackground = ({
     }
   }
 
-  // Enhanced Connection class with status networking support
+  // Connection class
   class Connection {
     constructor(point1, point2, isCursorConnection = false) {
       this.point1 = point1;
@@ -264,8 +333,6 @@ const LuxuryBackground = ({
       this.targetOpacity = isCursorConnection ? 0.9 : 0.7;
       this.createdAt = Date.now();
       this.isActive = true;
-      
-      // NEW: Status connection properties
       this.isStatusConnection = false;
       this.statusType = null;
       this.isLongDistance = false;
@@ -274,7 +341,6 @@ const LuxuryBackground = ({
 
     update() {
       if (this.isActive) {
-        // Enhanced opacity for status connections
         const targetOpacity = this.isStatusConnection ? 0.9 : 
                             (this.isCursorConnection ? 0.9 : 0.7);
         this.opacity = Math.min(targetOpacity, this.opacity + 0.08);
@@ -298,19 +364,16 @@ const LuxuryBackground = ({
 
       if (finalOpacity <= 0) return;
 
-      // NEW: Enhanced pulsing effect for status connections
       if (this.isStatusConnection) {
         const pulseEffect = Math.sin(animationTimeRef.current * 0.003 + this.pulseOffset) * 0.3 + 0.7;
         finalOpacity *= pulseEffect;
       }
 
-      // Status-aware connection colors with enhanced effects
       const gradient = ctx.createLinearGradient(
         this.point1.x, this.point1.y,
         this.point2.x, this.point2.y
       );
 
-      // Determine connection color scheme
       let statusType = this.statusType;
       if (!statusType) {
         if (this.point1.isStatusDot) statusType = this.point1.statusType;
@@ -330,23 +393,7 @@ const LuxuryBackground = ({
           gradient.addColorStop(0, `rgba(30, 64, 175, ${finalOpacity})`);
           gradient.addColorStop(1, `rgba(15, 23, 42, ${finalOpacity * 0.8})`);
         }
-      } else if (this.isStatusConnection) {
-        // Enhanced status connection colors with pulsing gradient
-        if (statusType === 'sync') {
-          const pulseIntensity = Math.sin(animationTimeRef.current * 0.004 + this.pulseOffset) * 0.2 + 0.8;
-          gradient.addColorStop(0, `rgba(16, 185, 129, ${finalOpacity * pulseIntensity})`);
-          gradient.addColorStop(0.3, `rgba(34, 197, 94, ${finalOpacity * 1.2 * pulseIntensity})`);
-          gradient.addColorStop(0.7, `rgba(59, 130, 246, ${finalOpacity * 0.8 * pulseIntensity})`);
-          gradient.addColorStop(1, `rgba(16, 185, 129, ${finalOpacity * pulseIntensity})`);
-        } else if (statusType === 'create') {
-          const pulseIntensity = Math.sin(animationTimeRef.current * 0.004 + this.pulseOffset + Math.PI) * 0.2 + 0.8;
-          gradient.addColorStop(0, `rgba(59, 130, 246, ${finalOpacity * pulseIntensity})`);
-          gradient.addColorStop(0.3, `rgba(99, 102, 241, ${finalOpacity * 1.2 * pulseIntensity})`);
-          gradient.addColorStop(0.7, `rgba(139, 92, 246, ${finalOpacity * 0.8 * pulseIntensity})`);
-          gradient.addColorStop(1, `rgba(59, 130, 246, ${finalOpacity * pulseIntensity})`);
-        }
       } else {
-        // Regular connection colors
         if (statusType === 'sync') {
           gradient.addColorStop(0, `rgba(16, 185, 129, ${finalOpacity})`);
           gradient.addColorStop(0.5, `rgba(34, 197, 94, ${finalOpacity * 0.9})`);
@@ -362,86 +409,14 @@ const LuxuryBackground = ({
         }
       }
 
-      // Enhanced glow effects for status connections
-      let shadowColor, shadowBlur;
-      if (this.isStatusConnection) {
-        const glowIntensity = Math.sin(animationTimeRef.current * 0.005 + this.pulseOffset) * 0.4 + 0.6;
-        if (statusType === 'sync') {
-          shadowColor = `rgba(16, 185, 129, ${finalOpacity * 0.8 * glowIntensity})`;
-          shadowBlur = this.isLongDistance ? 20 : 15;
-        } else if (statusType === 'create') {
-          shadowColor = `rgba(59, 130, 246, ${finalOpacity * 0.8 * glowIntensity})`;
-          shadowBlur = this.isLongDistance ? 20 : 15;
-        }
-      } else if (statusType === 'sync') {
-        shadowColor = `rgba(16, 185, 129, ${finalOpacity * 0.6})`;
-        shadowBlur = this.isCursorConnection ? 15 : 8;
-      } else if (statusType === 'create') {
-        shadowColor = `rgba(59, 130, 246, ${finalOpacity * 0.6})`;
-        shadowBlur = this.isCursorConnection ? 15 : 8;
-      } else {
-        shadowColor = this.isCursorConnection ? 
-          `rgba(30, 64, 175, ${finalOpacity * 0.6})` : 
-          `rgba(71, 85, 105, ${finalOpacity * 0.4})`;
-        shadowBlur = this.isCursorConnection ? 10 : 6;
-      }
-
-      // Enhanced line width for status connections
       const lineWidth = this.isStatusConnection ? config.lineWidth * 1.4 : config.lineWidth;
 
-      ctx.shadowColor = shadowColor;
-      ctx.shadowBlur = shadowBlur;
       ctx.strokeStyle = gradient;
       ctx.lineWidth = lineWidth;
       ctx.beginPath();
       ctx.moveTo(this.point1.x, this.point1.y);
       ctx.lineTo(this.point2.x, this.point2.y);
       ctx.stroke();
-
-      // NEW: Add particle effect along status connections
-      if (this.isStatusConnection && finalOpacity > 0.5) {
-        this.drawConnectionParticle(ctx, finalOpacity);
-      }
-
-      // Reset shadow
-      ctx.shadowBlur = 0;
-    }
-
-    // NEW: Draw moving particle along status connection
-    drawConnectionParticle(ctx, opacity) {
-      const time = animationTimeRef.current * 0.002;
-      const progress = (Math.sin(time + this.pulseOffset) + 1) / 2; // 0 to 1
-      
-      const particleX = this.point1.x + (this.point2.x - this.point1.x) * progress;
-      const particleY = this.point1.y + (this.point2.y - this.point1.y) * progress;
-      
-      const particleSize = 2;
-      const particleOpacity = opacity * 0.8;
-      
-      const particleGradient = ctx.createRadialGradient(
-        particleX, particleY, 0,
-        particleX, particleY, particleSize * 2
-      );
-      
-      if (this.statusType === 'sync') {
-        particleGradient.addColorStop(0, `rgba(34, 197, 94, ${particleOpacity})`);
-        particleGradient.addColorStop(1, `rgba(16, 185, 129, 0)`);
-      } else if (this.statusType === 'create') {
-        particleGradient.addColorStop(0, `rgba(99, 102, 241, ${particleOpacity})`);
-        particleGradient.addColorStop(1, `rgba(59, 130, 246, 0)`);
-      }
-      
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = this.statusType === 'sync' ? 
-        `rgba(34, 197, 94, ${particleOpacity})` : 
-        `rgba(99, 102, 241, ${particleOpacity})`;
-      
-      ctx.fillStyle = particleGradient;
-      ctx.beginPath();
-      ctx.arc(particleX, particleY, particleSize, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.shadowBlur = 0;
     }
 
     deactivate() {
@@ -449,10 +424,10 @@ const LuxuryBackground = ({
     }
   }
 
-  // Initialize dots with better spacing and movement setup
+  // Initialize dots
   const initializeDots = (width, height) => {
     const dots = [];
-    const minDistance = 140;
+    const minDistance = 120;
     
     for (let i = 0; i < config.dotCount; i++) {
       let x, y, validPosition = false, attempts = 0;
@@ -478,7 +453,7 @@ const LuxuryBackground = ({
     return dots;
   };
 
-  // Enhanced rearrange function that updates base positions
+  // Rearrange dots
   const rearrangeDots = (width, height) => {
     const minDistance = 140;
     
@@ -508,7 +483,7 @@ const LuxuryBackground = ({
     });
   };
 
-  // Find nearby dots for connections
+  // Find nearby dots
   const findNearbyDots = (dot, excludeDots = []) => {
     return dotsRef.current
       .filter(other => other !== dot && !excludeDots.includes(other))
@@ -516,12 +491,10 @@ const LuxuryBackground = ({
       .sort((a, b) => calculateDistance(dot, a) - calculateDistance(dot, b));
   };
 
-  // Update connections between dots
+  // Update dot connections
   const updateDotConnections = () => {
-    // Clear existing non-cursor connections
     connectionsRef.current = connectionsRef.current.filter(conn => conn.isCursorConnection);
 
-    // Create new dot-to-dot connections
     dotsRef.current.forEach(dot => {
       if (dot.connections.length < 1) {
         const nearby = findNearbyDots(dot, dot.connections);
@@ -548,11 +521,10 @@ const LuxuryBackground = ({
     });
   };
 
-  // Enhanced cursor connections with improved zoom effect
+  // Update cursor connections
   const updateCursorConnections = () => {
     const mouse = mouseRef.current;
     
-    // Remove old cursor connections
     connectionsRef.current = connectionsRef.current.filter(conn => {
       if (conn.isCursorConnection) {
         conn.deactivate();
@@ -561,13 +533,11 @@ const LuxuryBackground = ({
       return true;
     });
 
-    // Find nearest dots to cursor
     const nearestDots = dotsRef.current
       .filter(dot => calculateDistance(dot, mouse) <= config.cursorConnectionDistance)
       .sort((a, b) => calculateDistance(a, mouse) - calculateDistance(b, mouse))
       .slice(0, config.maxConnections);
 
-    // Update zoom effect with smoother activation
     if (nearestDots.length > 0) {
       const closestDistance = calculateDistance(nearestDots[0], mouse);
       const zoomStrength = Math.max(0, 1 - (closestDistance / config.cursorConnectionDistance));
@@ -581,7 +551,6 @@ const LuxuryBackground = ({
       setMouseZoom(prev => ({ ...prev, active: false, strength: 0 }));
     }
 
-    // Create cursor connections
     nearestDots.forEach(dot => {
       const cursorPoint = { x: mouse.x, y: mouse.y };
       const connection = new Connection(cursorPoint, dot, true);
@@ -589,7 +558,6 @@ const LuxuryBackground = ({
       dot.addGlow();
     });
 
-    // Create triangular connections between cursor-connected dots
     if (nearestDots.length >= 2) {
       for (let i = 0; i < nearestDots.length - 1; i++) {
         for (let j = i + 1; j < nearestDots.length; j++) {
@@ -607,7 +575,7 @@ const LuxuryBackground = ({
     }
   };
 
-  // Enhanced animation loop with time-based animation and status support
+  // Animation loop
   const animate = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -616,10 +584,9 @@ const LuxuryBackground = ({
     const width = canvas.width;
     const height = canvas.height;
     
-    // Update animation time
     animationTimeRef.current += 16;
 
-    // Clear canvas with darker gradient background
+    // Clear canvas
     const gradient = ctx.createLinearGradient(0, 0, width, height);
     gradient.addColorStop(0, '#f8fafc');
     gradient.addColorStop(0.3, '#e2e8f0');
@@ -629,29 +596,24 @@ const LuxuryBackground = ({
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Update dots with time-based animation and status support
+    // Update dots with mouse clustering - pass all dots for clustering logic
     dotsRef.current.forEach(dot => {
       dot.connections = [];
-      dot.update(animationTimeRef.current, width);
+      dot.update(animationTimeRef.current, width, mouseRef.current, dotsRef.current);
     });
 
-    // Update connections
     updateDotConnections();
     updateCursorConnections();
 
-    // Clean up dead connections
     connectionsRef.current = connectionsRef.current.filter(conn => conn.update());
 
-    // Draw connections
     connectionsRef.current.forEach(conn => conn.draw(ctx));
-
-    // Draw dots
     dotsRef.current.forEach(dot => dot.draw(ctx));
 
     animationIdRef.current = requestAnimationFrame(animate);
   };
 
-  // Enhanced mouse movement handler
+  // Mouse movement handler
   const handleMouseMove = (event) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -659,11 +621,13 @@ const LuxuryBackground = ({
     const rect = canvas.getBoundingClientRect();
     mouseRef.current = {
       x: event.clientX - rect.left,
-      y: event.clientY - rect.top
+      y: event.clientY - rect.top,
+      normalizedX: (event.clientX / window.innerWidth) * 2 - 1,
+      normalizedY: -(event.clientY / window.innerHeight) * 2 + 1
     };
   };
 
-  // Handle window resize
+  // Handle resize
   const handleResize = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -678,7 +642,7 @@ const LuxuryBackground = ({
     }
   };
 
-  // Enhanced navigation change handler
+  // Handle navigation changes
   const handleNavigationChange = () => {
     if (currentView !== lastViewRef.current || selectedColumn !== lastColumnRef.current) {
       lastViewRef.current = currentView;
@@ -686,10 +650,8 @@ const LuxuryBackground = ({
 
       setIsTransitioning(true);
 
-      // Faster fade out all connections
       connectionsRef.current.forEach(conn => conn.deactivate());
 
-      // Much faster rearrangement
       setTimeout(() => {
         if (canvasRef.current) {
           rearrangeDots(canvasRef.current.width, canvasRef.current.height);
@@ -699,7 +661,7 @@ const LuxuryBackground = ({
     }
   };
 
-  // Initialize and cleanup
+  // Initialize
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -744,7 +706,6 @@ const LuxuryBackground = ({
         }}
       />
       
-      {/* Enhanced transition indicator */}
       {isTransitioning && (
         <div
           style={{
@@ -761,58 +722,7 @@ const LuxuryBackground = ({
           }}
         />
       )}
-      
-      {/* NEW: Status indicators */}
-      {(autoSyncRunning || autoCreateRunning) && (
-        <>
-          {/* Auto-sync indicator (left) */}
-          {autoSyncRunning && (
-            <div
-              style={{
-                position: 'fixed',
-                top: '20px',
-                left: '20px',
-                padding: '8px 16px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(16, 185, 129, 0.3)',
-                borderRadius: '20px',
-                color: '#059669',
-                fontSize: '12px',
-                fontWeight: '600',
-                zIndex: 5,
-                animation: 'statusPulse 2s ease-in-out infinite'
-              }}
-            >
-              ● Auto-Sync Active
-            </div>
-          )}
-          
-          {/* Auto-create indicator (right) */}
-          {autoCreateRunning && (
-            <div
-              style={{
-                position: 'fixed',
-                top: '20px',
-                right: autoSyncRunning ? '180px' : '20px',
-                padding: '8px 16px',
-                background: 'rgba(59, 130, 246, 0.15)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                borderRadius: '20px',
-                color: '#2563eb',
-                fontSize: '12px',
-                fontWeight: '600',
-                zIndex: 5,
-                animation: 'statusPulse 2s ease-in-out infinite 0.5s'
-              }}
-            >
-              ● Auto-Create Active
-            </div>
-          )}
-        </>
-      )}
-      
+
       <style jsx>{`
         @keyframes fastPulse {
           0%, 100% { 
@@ -823,22 +733,6 @@ const LuxuryBackground = ({
             transform: scale(1.4);
             opacity: 1;
           }
-        }
-        
-        @keyframes statusPulse {
-          0%, 100% { 
-            opacity: 0.8;
-            transform: scale(1);
-          }
-          50% { 
-            opacity: 1;
-            transform: scale(1.05);
-          }
-        }
-        
-        @keyframes simpleRotate {
-          from { transform: translate(-50%, -50%) rotate(45deg); }
-          to { transform: translate(-50%, -50%) rotate(405deg); }
         }
       `}</style>
     </>
