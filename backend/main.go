@@ -40,7 +40,7 @@ func main() {
 
 	log.Println("✅ Database initialized successfully")
 
-	// Initialize cache
+	// Initialize cache manager
 	cacheManager := cache.NewCacheManager()
 	log.Println("✅ Cache manager initialized")
 
@@ -55,6 +55,10 @@ func main() {
 	// Initialize legacy handler with user-specific database settings
 	legacyHandler = legacy.NewHandler(configService)
 	log.Println("✅ Legacy handler initialized with database-backed settings")
+
+	// Initialize auto managers (but don't start them - they start on demand)
+	legacy.InitializeAutoManagers(configService)
+	log.Println("✅ Auto-sync and auto-create managers initialized")
 
 	// Initialize WebSocket manager
 	wsManager := sync.NewWebSocketManager()
@@ -176,7 +180,7 @@ func registerRoutes(
 	legacyAPI.HandleFunc("/deletion-preview", legacyHandler.GetDeletionPreview).Methods("GET", "OPTIONS")
 	legacyAPI.HandleFunc("/sync-preview", legacyHandler.GetSyncPreview).Methods("GET", "OPTIONS")
 
-	// Auto-sync endpoints (if needed - these can be moved to legacy package)
+	// Auto-sync endpoints
 	legacyAPI.HandleFunc("/auto-sync", handleAutoSync).Methods("GET", "POST", "OPTIONS")
 	legacyAPI.HandleFunc("/auto-create", handleAutoCreate).Methods("GET", "POST", "OPTIONS")
 
@@ -203,25 +207,127 @@ func registerRoutes(
 }
 
 // ============================================================================
-// LEGACY AUTO-SYNC HANDLERS (Temporary - can be moved to legacy package)
+// AUTO-SYNC AND AUTO-CREATE HANDLERS
 // ============================================================================
 
 func handleAutoSync(w http.ResponseWriter, r *http.Request) {
-	// Placeholder for auto-sync functionality
-	// This can be moved to the legacy package if needed
-	utils.SendSuccess(w, map[string]interface{}{
-		"message": "Auto-sync functionality not yet implemented in refactored version",
-		"note":    "Use the new /api/sync endpoints for synchronization",
-	}, "Auto-sync endpoint")
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	switch r.Method {
+	case "GET":
+		// Get current auto-sync status
+		manager := legacy.GetAutoSyncManager()
+		status := manager.GetAutoSyncStatus(user.UserID)
+		utils.SendSuccess(w, status, "Auto-sync status retrieved")
+
+	case "POST":
+		// Start or stop auto-sync
+		var req legacy.AutoSyncRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			utils.SendBadRequest(w, "Invalid request body")
+			return
+		}
+
+		manager := legacy.GetAutoSyncManager()
+
+		switch req.Action {
+		case "start":
+			interval := req.Interval
+			if interval <= 0 {
+				interval = 15 // Default 15 seconds
+			}
+
+			err := manager.StartAutoSync(user.UserID, interval)
+			if err != nil {
+				utils.SendInternalError(w, "Failed to start auto-sync: "+err.Error())
+				return
+			}
+
+			status := manager.GetAutoSyncStatus(user.UserID)
+			utils.SendSuccess(w, status, "Auto-sync started successfully")
+
+		case "stop":
+			err := manager.StopAutoSync(user.UserID)
+			if err != nil {
+				utils.SendBadRequest(w, "Failed to stop auto-sync: "+err.Error())
+				return
+			}
+
+			status := manager.GetAutoSyncStatus(user.UserID)
+			utils.SendSuccess(w, status, "Auto-sync stopped successfully")
+
+		default:
+			utils.SendBadRequest(w, "Invalid action. Use 'start' or 'stop'")
+		}
+
+	default:
+		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED",
+			"Method not allowed. Use GET or POST.", "")
+	}
 }
 
 func handleAutoCreate(w http.ResponseWriter, r *http.Request) {
-	// Placeholder for auto-create functionality  
-	// This can be moved to the legacy package if needed
-	utils.SendSuccess(w, map[string]interface{}{
-		"message": "Auto-create functionality not yet implemented in refactored version",
-		"note":    "Use /create or /create-single endpoints for ticket creation",
-	}, "Auto-create endpoint")
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	switch r.Method {
+	case "GET":
+		// Get current auto-create status
+		manager := legacy.GetAutoCreateManager()
+		status := manager.GetAutoCreateStatus(user.UserID)
+		utils.SendSuccess(w, status, "Auto-create status retrieved")
+
+	case "POST":
+		// Start or stop auto-create
+		var req legacy.AutoCreateRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			utils.SendBadRequest(w, "Invalid request body")
+			return
+		}
+
+		manager := legacy.GetAutoCreateManager()
+
+		switch req.Action {
+		case "start":
+			interval := req.Interval
+			if interval <= 0 {
+				interval = 15 // Default 15 seconds
+			}
+
+			err := manager.StartAutoCreate(user.UserID, interval)
+			if err != nil {
+				utils.SendInternalError(w, "Failed to start auto-create: "+err.Error())
+				return
+			}
+
+			status := manager.GetAutoCreateStatus(user.UserID)
+			utils.SendSuccess(w, status, "Auto-create started successfully")
+
+		case "stop":
+			err := manager.StopAutoCreate(user.UserID)
+			if err != nil {
+				utils.SendBadRequest(w, "Failed to stop auto-create: "+err.Error())
+				return
+			}
+
+			status := manager.GetAutoCreateStatus(user.UserID)
+			utils.SendSuccess(w, status, "Auto-create stopped successfully")
+
+		default:
+			utils.SendBadRequest(w, "Invalid action. Use 'start' or 'stop'")
+		}
+
+	default:
+		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED",
+			"Method not allowed. Use GET or POST.", "")
+	}
 }
 
 // ============================================================================
@@ -385,9 +491,6 @@ func performSync(operation *sync.SyncOperation, wsManager *sync.WebSocketManager
 		time.Sleep(1 * time.Second) // Simulate work
 	}
 
-	// TODO: Implement actual sync logic here using the legacy services
-	// This would integrate with legacyHandler.syncService for actual operations
-
 	// For now, just mark as completed
 	rollbackService.UpdateOperationStatus(operation.ID, sync.StatusCompleted, nil)
 	wsManager.NotifyComplete(operation.UserID, operation.ID, map[string]interface{}{
@@ -448,7 +551,7 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 		},
 		"features": []string{
 			"JWT-based authentication",
-			"User-specific database settings (NO .env dependency)",
+			"User-specific database settings",
 			"Modular service architecture",
 			"Legacy API compatibility",
 			"Real-time sync progress via WebSocket",
@@ -457,22 +560,6 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 			"Caching layer",
 			"Custom field mapping",
 			"Multi-tenant support",
-			"Refactored into small, maintainable services",
-		},
-		"breaking_changes": []string{
-			"All legacy API endpoints now require authentication",
-			"Settings are user-specific and stored in database",
-			"No longer uses global .env configuration for API calls",
-			"Legacy code refactored into modular services",
-		},
-		"architecture": map[string]string{
-			"AsanaService":    "Handles Asana API operations",
-			"YouTrackService": "Handles YouTrack API operations",
-			"AnalysisService": "Performs ticket analysis",
-			"SyncService":     "Manages synchronization operations",
-			"DeleteService":   "Handles bulk deletion",
-			"IgnoreService":   "Manages ignored tickets",
-			"TagMapper":       "Maps Asana tags to YouTrack subsystems",
 		},
 	}
 
@@ -486,15 +573,6 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 func getEnvDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
-	}
-	return defaultValue
-}
-
-func getEnvDefaultInt(key string, defaultValue int) int {
-	if value := os.Getenv(key); value != "" {
-		if intValue, err := strconv.Atoi(value); err == nil {
-			return intValue
-		}
 	}
 	return defaultValue
 }

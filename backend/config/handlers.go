@@ -163,6 +163,7 @@ func (h *Handler) GetYouTrackProjects(w http.ResponseWriter, r *http.Request) {
 			utils.SendBadRequest(w, "YouTrack credentials not configured. Please update your settings first.")
 			return
 		}
+		// Return the actual error message for YouTrack issues
 		utils.SendInternalError(w, "Failed to fetch YouTrack projects: "+err.Error())
 		return
 	}

@@ -518,19 +518,5 @@ func (s *YouTrackService) FindIssueByAsanaID(userID int, asanaTaskID string) (st
 		}
 	}
 
-// FindIssueByAsanaID finds YouTrack issue by Asana task ID
-func (s *YouTrackService) FindIssueByAsanaID(userID int, asanaTaskID string) (string, error) {
-	issues, err := s.GetIssues(userID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get YouTrack issues: %w", err)
-	}
-
-	for _, issue := range issues {
-		asanaID := s.ExtractAsanaID(issue)
-		if asanaID == asanaTaskID {
-			return issue.ID, nil
-		}
-	}
-
 	return "", fmt.Errorf("no YouTrack issue found for Asana task %s", asanaTaskID)
 }
