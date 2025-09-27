@@ -15,7 +15,7 @@
       "asana_pat": "2/1211152632781904/1211174733477992:430bf0289effebf88b52890a618f43a9",
       "youtrack_base_url": "https://simran.youtrack.cloud",
       "youtrack_token": "perm-YWRtaW4=.NDQtMQ==.zkB8wnZI6eSi0sR3qzD1l4v7tdmNwT",
-      "asana_project_id": "1211174215104748",
+      "asana_project_id": "1211341745333034",
       "youtrack_project_id": "ARD",
       "custom_field_mappings": {
         "tag_mapping": {},
@@ -24,7 +24,7 @@
         "custom_fields": {}
       },
       "created_at": "2025-09-27T21:47:33.2780109+05:30",
-      "updated_at": "2025-09-27T21:51:06.0333875+05:30"
+      "updated_at": "2025-09-27T22:37:31.3892024+05:30"
     }
   },
   "operations": {},
