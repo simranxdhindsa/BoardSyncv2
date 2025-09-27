@@ -1,10 +1,9 @@
-// Fixed LoginForm Component - Replace frontend/src/components/auth/LoginForm.js
-
+// Updated LoginForm Component - components/auth/LoginForm.js
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Mail, Lock, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import FluidText from '../FluidText';
-import '../../styles/auth-glass-theme.css'; // Import the new CSS
+import '../../styles/auth-glass-theme.css';
 
 const LoginForm = ({ onSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -56,7 +55,7 @@ const LoginForm = ({ onSuccess }) => {
     
     if (!validateForm()) return;
     
-    setIsSubmitting(true); // Use local loading state
+    setIsSubmitting(true);
     
     try {
       if (isLogin) {
@@ -79,7 +78,7 @@ const LoginForm = ({ onSuccess }) => {
       console.error('Authentication failed:', err);
       // Error is handled by the auth context
     } finally {
-      setIsSubmitting(false); // Reset local loading state
+      setIsSubmitting(false);
     }
   };
 
@@ -111,35 +110,30 @@ const LoginForm = ({ onSuccess }) => {
   };
 
   return (
-    <>
-      {/* Background Overlay */}
-      <div className="auth-background-overlay" />
-      
-      {/* Main Container */}
-      <div className="auth-container">
-        <div className="auth-glass-panel">
-          {/* Header */}
-          <div className="auth-header">
-            <div className="auth-logo-container">
-              <img 
-                src="https://apyhub.com/logo.svg" 
-                alt="ApyHub" 
-                className="auth-logo"
-              />
-              <FluidText className="auth-title ml-3" sensitivity={1.5}>
-                Asana-YouTrack Sync
-              </FluidText>
-            </div>
-            <FluidText className="auth-title" sensitivity={1.2}>
-              {isLogin ? 'Welcome Back' : 'Create Account'}
+    <div className="auth-container">
+      <div className="auth-glass-panel">
+        {/* Header */}
+        <div className="auth-header">
+          <div className="auth-logo-container">
+            <img 
+              src="https://apyhub.com/logo.svg" 
+              alt="ApyHub" 
+              className="auth-logo"
+            />
+            <FluidText className="auth-title ml-3" sensitivity={1.5}>
+              Asana-YouTrack Sync
             </FluidText>
-            <p className="auth-subtitle">
-              {isLogin 
-                ? 'Sign in to access your sync dashboard' 
-                : 'Get started with personalized sync settings'
-              }
-            </p>
           </div>
+          <FluidText className="auth-title" sensitivity={1.2}>
+            {isLogin ? 'Welcome Back' : 'Create Account'}
+          </FluidText>
+          <p className="auth-subtitle">
+            {isLogin 
+              ? 'Sign in to access your sync dashboard' 
+              : 'Get started with personalized sync settings'
+            }
+          </p>
+        </div>
 
           {/* Error Display */}
           {error && (
@@ -294,8 +288,8 @@ const LoginForm = ({ onSuccess }) => {
           </div>
         </div>
       </div>
-    </>
-  );
-};
+    );
+  };
+
 
 export default LoginForm;

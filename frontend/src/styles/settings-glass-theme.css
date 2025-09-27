@@ -1,6 +1,7 @@
-/* Minimal Settings CSS - Use if the full version has issues */
-/* Create as: frontend/src/styles/settings-minimal.css */
+/* Settings Glass Theme CSS - frontend/src/styles/settings-glass-theme.css */
+/* Matches the luxury background and glass theme */
 
+/* Settings Container with Glass Theme */
 .settings-container {
   position: relative;
   z-index: 10;
@@ -8,103 +9,532 @@
   background: transparent;
 }
 
-.settings-header, .settings-content, .settings-tabs {
-  background: rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  border-radius: 16px !important;
-  padding: 1.5rem !important;
-  margin-bottom: 1rem !important;
-  position: relative !important;
-  z-index: 11 !important;
+/* Settings Header */
+.settings-header {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 20px;
+  box-shadow: 
+    0 12px 48px rgba(31, 38, 135, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    0 6px 24px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  z-index: 11;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
 }
 
-.settings-input, .settings-select {
-  background: rgba(255, 255, 255, 0.7) !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  border-radius: 8px !important;
-  padding: 0.75rem !important;
-  width: 100% !important;
-  position: relative !important;
-  z-index: 12 !important;
+.settings-header:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 20px 60px rgba(31, 38, 135, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 12px 32px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
 }
 
-.settings-input:focus, .settings-select:focus {
-  outline: 2px solid #3b82f6 !important;
-  background: rgba(255, 255, 255, 0.9) !important;
+/* Settings Tabs */
+.settings-tabs {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  box-shadow: 
+    0 8px 24px rgba(31, 38, 135, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  position: relative;
+  z-index: 11;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
 }
 
-.settings-button {
-  background: #3b82f6 !important;
-  color: white !important;
-  border: none !important;
-  border-radius: 8px !important;
-  padding: 0.75rem 1.5rem !important;
-  cursor: pointer !important;
-  position: relative !important;
-  z-index: 12 !important;
-}
-
-.settings-button:hover {
-  background: #2563eb !important;
-}
-
-.settings-button-secondary {
-  background: rgba(255, 255, 255, 0.6) !important;
-  color: #374151 !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  border-radius: 8px !important;
-  padding: 0.75rem 1.5rem !important;
-  cursor: pointer !important;
-  position: relative !important;
-  z-index: 12 !important;
+.settings-tab-border {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .settings-tab {
-  background: transparent !important;
-  border: none !important;
-  padding: 1rem 1.5rem !important;
-  cursor: pointer !important;
-  position: relative !important;
-  z-index: 12 !important;
+  background: transparent;
+  border: none;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  z-index: 12;
+  color: #4b5563;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  justify-content: center;
+}
+
+.settings-tab:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #1e293b;
 }
 
 .settings-tab.active {
-  background: rgba(59, 130, 246, 0.2) !important;
-  color: #1e40af !important;
+  background: rgba(59, 130, 246, 0.2);
+  color: #1e40af;
+  border-radius: 12px;
+  margin: 4px;
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 
+    0 4px 12px rgba(59, 130, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-.settings-label {
-  display: block !important;
-  margin-bottom: 0.5rem !important;
-  font-weight: 600 !important;
-  color: #374151 !important;
+/* Settings Content */
+.settings-content {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 20px;
+  box-shadow: 
+    0 12px 48px rgba(31, 38, 135, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    0 6px 24px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 11;
+  padding: 2rem;
 }
 
+/* Settings Section Headers */
+.settings-section-header {
+  color: #1e293b;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.settings-section-description {
+  color: #4b5563;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Settings Form Groups */
 .settings-form-group {
-  margin-bottom: 1.5rem !important;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  box-shadow: 
+    0 4px 16px rgba(31, 38, 135, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
 }
 
+.settings-form-group:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 
+    0 6px 20px rgba(31, 38, 135, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+/* Settings Form Rows */
 .settings-form-row {
-  display: flex !important;
-  gap: 1rem !important;
-  align-items: end !important;
+  display: flex;
+  gap: 1rem;
+  align-items: end;
 }
 
+/* Settings Input Containers with Icons */
+.settings-input-container {
+  position: relative;
+  z-index: 12;
+}
+
+.settings-input-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  z-index: 13;
+  pointer-events: none;
+}
+
+.settings-input-with-icon {
+  padding-left: 2.5rem;
+}
+
+.settings-input-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  z-index: 13;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  background: none;
+  border: none;
+}
+
+.settings-input-toggle:hover {
+  color: #6b7280;
+}
+
+/* Settings Labels */
+.settings-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+/* Settings Inputs */
+.settings-input, .settings-select {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  color: #374151;
+  font-weight: 500;
+  position: relative;
+  z-index: 12;
+  transition: all 0.3s ease;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.settings-input:focus, .settings-select:focus {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(59, 130, 246, 0.6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 8px 24px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  outline: none;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+
+.settings-input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+/* Settings Buttons */
+.settings-button {
+  background: rgba(59, 130, 246, 0.9);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(59, 130, 246, 0.6);
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  position: relative;
+  z-index: 12;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-button:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+}
+
+.settings-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Settings Secondary Buttons */
+.settings-button-secondary {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  color: #374151;
+  font-weight: 600;
+  position: relative;
+  z-index: 12;
+  transition: all 0.3s ease;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-button-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Settings Error Messages */
+.settings-error {
+  background: rgba(239, 68, 68, 0.15);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  color: #991b1b;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);
+}
+
+/* Settings Success Messages */
+.settings-success {
+  background: rgba(16, 185, 129, 0.15);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  color: #065f46;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.1);
+}
+
+/* Settings Connection Status */
+.settings-connection-status {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.settings-connection-success {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #065f46;
+}
+
+.settings-connection-error {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #991b1b;
+}
+
+/* Settings Profile Section */
+.settings-profile-avatar {
+  width: 4rem;
+  height: 4rem;
+  background: rgba(59, 130, 246, 0.2);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.1);
+}
+
+.settings-profile-info {
+  flex: 1;
+}
+
+.settings-profile-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.settings-profile-email {
+  color: #4b5563;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.settings-profile-date {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+/* Settings Mapping Container */
+.settings-mapping-container {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.settings-mapping-item {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: between;
+  font-size: 0.875rem;
+}
+
+/* Settings Divider */
+.settings-divider {
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  margin: 1.5rem 0;
+}
+
+/* Settings Actions */
 .settings-actions {
-  display: flex !important;
-  justify-content: flex-end !important;
-  gap: 1rem !important;
-  margin-top: 2rem !important;
-  padding-top: 1rem !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.3) !important;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
 }
 
+/* Loading Spinner */
 .settings-spinner {
-  animation: spin 1s linear infinite !important;
+  animation: settings-spin 1s linear infinite;
+  margin-right: 0.5rem;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes settings-spin {
+  from { 
+    transform: rotate(0deg); 
+  }
+  to { 
+    transform: rotate(360deg); 
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .settings-header,
+  .settings-content,
+  .settings-tabs {
+    margin: 1rem;
+    padding: 1.5rem;
+    border-radius: 16px;
+  }
+  
+  .settings-form-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .settings-button, 
+  .settings-button-secondary {
+    padding: 0.875rem 1.25rem;
+  }
+  
+  .settings-actions {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-header,
+  .settings-content,
+  .settings-tabs {
+    margin: 0.5rem;
+    padding: 1.25rem;
+    border-radius: 12px;
+  }
+  
+  .settings-section-header {
+    font-size: 1.25rem;
+  }
+  
+  .settings-profile-avatar {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  .settings-profile-name {
+    font-size: 1.125rem;
+  }
+}
+
+/* Accessibility */
+.settings-input:focus,
+.settings-select:focus,
+.settings-button:focus,
+.settings-button-secondary:focus,
+.settings-tab:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.5);
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .settings-header,
+  .settings-content,
+  .settings-tabs {
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid rgba(0, 0, 0, 0.2);
+  }
+  
+  .settings-input,
+  .settings-select {
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(0, 0, 0, 0.3);
+  }
+  
+  .settings-button {
+    background: rgba(59, 130, 246, 1);
+    border: 2px solid rgba(30, 64, 175, 1);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .settings-header,
+  .settings-content,
+  .settings-tabs,
+  .settings-button,
+  .settings-button-secondary,
+  .settings-input,
+  .settings-select,
+  .settings-tab,
+  .settings-form-group {
+    transition: none;
+    transform: none;
+  }
+  
+  .settings-spinner {
+    animation: none;
+  }
 }

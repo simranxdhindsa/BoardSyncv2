@@ -1,5 +1,4 @@
-// Fixed UserSettings Component - Replace frontend/src/components/settings/UserSettings.js
-
+// Updated UserSettings Component - components/settings/UserSettings.js
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
@@ -7,8 +6,7 @@ import {
   updateUserSettings, 
   getAsanaProjects, 
   getYouTrackProjects,
-  testConnections,
-  logout 
+  testConnections
 } from '../../services/api';
 import { 
   Settings, 
@@ -22,12 +20,13 @@ import {
   LogOut,
   User,
   Shield,
-  Zap,
   Plus,
-  X
+  X,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import FluidText from '../FluidText';
-import '../../styles/settings-glass-theme.css'; // Import the new CSS
+import '../../styles/settings-glass-theme.css';
 
 const UserSettings = ({ onBack }) => {
   const { user, logout: authLogout } = useAuth();
@@ -65,6 +64,12 @@ const UserSettings = ({ onBack }) => {
   // Field mapping state
   const [newMapping, setNewMapping] = useState({ type: 'tag_mapping', key: '', value: '' });
   const [activeTab, setActiveTab] = useState('api');
+  
+  // Password visibility state
+  const [showPasswords, setShowPasswords] = useState({
+    asana_pat: false,
+    youtrack_token: false
+  });
 
   // Load user settings on mount
   useEffect(() => {
@@ -97,6 +102,14 @@ const UserSettings = ({ onBack }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Toggle password visibility
+  const togglePasswordVisibility = (field) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
   };
 
   const handleInputChange = (field) => (e) => {
@@ -365,13 +378,33 @@ const UserSettings = ({ onBack }) => {
                   <label className="settings-label">
                     Personal Access Token (PAT)
                   </label>
-                  <input
-                    type="password"
-                    value={settings.asana_pat}
-                    onChange={handleInputChange('asana_pat')}
-                    placeholder="Enter your Asana PAT"
-                    className="settings-input"
-                  />
+                  <div className="auth-input-container">
+                    <input
+                      type={showPasswords.asana_pat ? 'text' : 'password'}
+                      value={settings.asana_pat}
+                      onChange={handleInputChange('asana_pat')}
+                      placeholder="Enter your Asana PAT"
+                      className="settings-input"
+                      style={{ paddingRight: '3rem' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility('asana_pat')}
+                      className="auth-input-toggle"
+                      style={{ 
+                        position: 'absolute',
+                        right: '0.75rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        zIndex: 13
+                      }}
+                    >
+                      {showPasswords.asana_pat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="settings-form-row">
@@ -429,13 +462,33 @@ const UserSettings = ({ onBack }) => {
                   <label className="settings-label">
                     API Token
                   </label>
-                  <input
-                    type="password"
-                    value={settings.youtrack_token}
-                    onChange={handleInputChange('youtrack_token')}
-                    placeholder="Enter your YouTrack API token"
-                    className="settings-input"
-                  />
+                  <div className="auth-input-container">
+                    <input
+                      type={showPasswords.youtrack_token ? 'text' : 'password'}
+                      value={settings.youtrack_token}
+                      onChange={handleInputChange('youtrack_token')}
+                      placeholder="Enter your YouTrack API token"
+                      className="settings-input"
+                      style={{ paddingRight: '3rem' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility('youtrack_token')}
+                      className="auth-input-toggle"
+                      style={{ 
+                        position: 'absolute',
+                        right: '0.75rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        zIndex: 13
+                      }}
+                    >
+                      {showPasswords.youtrack_token ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="settings-form-row">
@@ -573,16 +626,16 @@ const UserSettings = ({ onBack }) => {
               </div>
 
               {/* Existing Mappings */}
-              {Object.entries(settings.custom_field_mappings).map(([mappingType, mappings]) => (
+              {Object.entries(settings.custom_field_mappings || {}).map(([mappingType, mappings]) => (
                 <div key={mappingType} className="space-y-3">
                   <h4 className="text-sm font-medium text-gray-900 capitalize">
                     {mappingType.replace('_', ' ')}
                   </h4>
-                  {Object.keys(mappings).length === 0 ? (
+                  {!mappings || Object.keys(mappings).length === 0 ? (
                     <p className="text-gray-500 text-sm italic">No mappings configured</p>
                   ) : (
                     <div className="space-y-2">
-                      {Object.entries(mappings).map(([key, value]) => (
+                      {Object.entries(mappings || {}).map(([key, value]) => (
                         <div key={key} className="settings-mapping-item">
                           <div className="flex items-center space-x-3">
                             <span className="font-medium text-gray-900">{key}</span>
@@ -625,7 +678,7 @@ const UserSettings = ({ onBack }) => {
                     <h3 className="settings-profile-name">{user?.username}</h3>
                     <p className="settings-profile-email">{user?.email}</p>
                     <p className="settings-profile-date">
-                      Member since {new Date(user?.created_at).toLocaleDateString()}
+                      Member since {new Date(user?.created_at || Date.now()).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -640,7 +693,7 @@ const UserSettings = ({ onBack }) => {
                 </h4>
                 
                 <button
-                  onClick={() => {/* TODO: Implement change password modal */}}
+                  onClick={() => alert('Change password feature coming soon!')}
                   className="settings-button-secondary"
                 >
                   <Key className="w-4 h-4 mr-2" />

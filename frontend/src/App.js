@@ -1,5 +1,4 @@
-// Final Fixed App.js - Replace frontend/src/App.js
-
+// Updated App.js - Matches your existing structure
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Dashboard from './components/Dashboard';
@@ -36,9 +35,37 @@ function AppContent() {
     );
   }
 
-  // Show login form if not authenticated - NO BACKGROUND, NO LOADING STATE
+  // Show login form if not authenticated - WITH BACKGROUND
   if (!isAuthenticated) {
-    return <LoginForm onSuccess={() => setCurrentView('dashboard')} />;
+    return (
+      <div className="App" style={{ 
+        position: 'relative', 
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {/* Background for login page */}
+        <div className="luxury-background-container">
+          <LuxuryBackground 
+            currentView="login"
+            analysisData={null}
+            selectedColumn=""
+            isLoading={false}
+          />
+        </div>
+        
+        <div className="luxury-canvas-blur-separator" />
+        
+        {/* Login form with proper layering */}
+        <div className="luxury-canvas-content-layer" style={{ 
+          flex: '1', 
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <LoginForm onSuccess={() => setCurrentView('dashboard')} />
+        </div>
+      </div>
+    );
   }
 
   // Handle column selection
@@ -203,8 +230,8 @@ function AppContent() {
 
   const navContent = getNavigationContent();
 
-  // ONLY show background for authenticated users NOT in settings
-  const showBackground = isAuthenticated && currentView !== 'settings';
+  // ALWAYS show background for authenticated users (including settings)
+  const showBackground = isAuthenticated;
 
   return (
     <div className="App" style={{ 
@@ -213,7 +240,7 @@ function AppContent() {
       display: 'flex',
       flexDirection: 'column'
     }}>
-      {/* CONDITIONAL Background - only for dashboard/results */}
+      {/* GLOBAL Background - shown on ALL pages for authenticated users */}
       {showBackground && (
         <>
           <div className="luxury-background-container">
@@ -274,7 +301,7 @@ function AppContent() {
         </NavBar>
       </div>
       
-      {/* Footer - only for authenticated users NOT in settings */}
+      {/* Footer - shown for all authenticated views */}
       {showBackground && (
         <footer className="app-footer">
           <div className="credit-footer">
