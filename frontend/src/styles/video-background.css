@@ -1,6 +1,4 @@
-/* Simple Video Background Styles - Add this to your existing CSS or create new file */
 
-/* Video background container - ensures it stays behind everything */
 .video-background-container {
   position: fixed !important;
   top: 0;
@@ -69,4 +67,4 @@
 @keyframes pulse {
   0%, 100% { opacity: 0.8; }
   50% { opacity: 1; }
-}
+} 

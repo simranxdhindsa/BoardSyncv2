@@ -327,8 +327,13 @@ export const analyzeTickets = async (columnFilter = '') => {
 };
 
 // Ticket Creation
-export const createMissingTickets = async () => {
-  const response = await fetch(`${API_BASE}/create`, {
+export const createMissingTickets = async (column = '') => {
+  let url = `${API_BASE}/create`;
+  if (column && column !== 'all_syncable') {
+    url += `?column=${encodeURIComponent(column)}`;
+  }
+  
+  const response = await fetch(url, {
     method: 'POST',
     headers: getAuthHeaders(),
   });
