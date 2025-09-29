@@ -3,77 +3,34 @@
     "1": {
       "id": 1,
       "username": "simranxdhindsa",
-      "email": "gfdgfd@rdghc.ikj",
-      "password_hash": "TsJ5oCULA7j1i/JqW/rwdQ==$NxgY9TPFwVCe9a8HWj+DGxS2f1EO5glhiP/hp3l8otQ=",
-      "created_at": "2025-09-28T02:43:50.7646382+05:30",
-      "updated_at": "2025-09-28T02:43:50.7646382+05:30"
-    },
-    "2": {
-      "id": 2,
-      "username": "testuser",
-      "email": "test@example.com",
-      "password_hash": "96vwJIYnzv3NHLpxpWQxuw==$r1B5rmHYrxp2biBfWe9WWPTlhmnPCv1O8UvAtW5tT3I=",
-      "created_at": "2025-09-28T02:57:04.9944555+05:30",
-      "updated_at": "2025-09-28T02:57:04.9944555+05:30"
+      "email": "simrandargapur@gmail.com",
+      "created_at": "2025-09-30T00:14:39.327902+05:30",
+      "updated_at": "2025-09-30T00:14:39.327902+05:30"
     }
   },
   "settings": {
     "1": {
       "id": 1,
       "user_id": 1,
-      "asana_pat": "2/1211152632781904/1211174733477992:430bf0289effebf88b52890a618f43a9",
-      "youtrack_base_url": "https://simran.youtrack.cloud",
-      "youtrack_token": "perm-YWRtaW4=.NDQtMQ==.zkB8wnZI6eSi0sR3qzD1l4v7tdmNwT",
-      "asana_project_id": "1211341745333034",
-      "youtrack_project_id": "ARD",
-      "custom_field_mappings": {
-        "tag_mapping": {},
-        "priority_mapping": {},
-        "status_mapping": {},
-        "custom_fields": {}
-      },
-      "created_at": "2025-09-28T02:43:50.7646382+05:30",
-      "updated_at": "2025-09-29T13:32:27.7063409+05:30"
-    },
-    "2": {
-      "id": 2,
-      "user_id": 2,
       "asana_pat": "",
       "youtrack_base_url": "",
       "youtrack_token": "",
       "asana_project_id": "",
       "youtrack_project_id": "",
       "custom_field_mappings": {
-        "tag_mapping": {},
-        "priority_mapping": {},
-        "status_mapping": {},
-        "custom_fields": {}
+        "tag_mapping": null,
+        "priority_mapping": null,
+        "status_mapping": null,
+        "custom_fields": null
       },
-      "created_at": "2025-09-28T02:57:04.9944555+05:30",
-      "updated_at": "2025-09-28T02:57:04.9944555+05:30"
+      "created_at": "2025-09-30T00:14:39.327902+05:30",
+      "updated_at": "2025-09-30T00:14:39.327902+05:30"
     }
   },
-  "operations": {
-    "1": {
-      "id": 1,
-      "user_id": 1,
-      "operation_type": "custom_sync",
-      "operation_data": {
-        "direction": "one_way",
-        "options": {
-          "custom_field_mapping": true,
-          "filter_by_tags": [
-            "backend",
-            "frontend"
-          ]
-        }
-      },
-      "status": "completed",
-      "created_at": "2025-09-28T02:53:28.0822508+05:30",
-      "completed_at": "2025-09-28T02:53:34.1910928+05:30"
-    }
-  },
-  "next_user_id": 3,
-  "next_settings_id": 3,
-  "next_operation_id": 2
+  "operations": {},
+  "ignored_tickets": {},
+  "next_user_id": 2,
+  "next_settings_id": 2,
+  "next_operation_id": 1,
+  "next_ignored_id": 1
 }

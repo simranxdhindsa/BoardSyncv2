@@ -22,17 +22,19 @@ import (
 
 // Global variables to access services from handlers
 var (
+	db            *database.DB
 	configService *configpkg.Service
 	authService   *auth.Service
 	legacyHandler *legacy.Handler
 )
 
 func main() {
-	log.Println("Starting Enhanced Asana YouTrack Sync Service v4.0 - Legacy Refactored")
+	log.Println("Starting Enhanced Asana YouTrack Sync Service v4.0 - Database-backed Ignored Tickets")
 
 	// Initialize database
 	dbPath := getEnvDefault("DB_PATH", "./sync_app.db")
-	db, err := database.InitDB(dbPath)
+	var err error
+	db, err = database.InitDB(dbPath)
 	if err != nil {
 		log.Fatal("Failed to initialize database:", err)
 	}
@@ -52,12 +54,12 @@ func main() {
 
 	log.Println("✅ Core services initialized")
 
-	// Initialize legacy handler with user-specific database settings
-	legacyHandler = legacy.NewHandler(configService)
-	log.Println("✅ Legacy handler initialized with database-backed settings")
+	// Initialize legacy handler with database and user-specific settings
+	legacyHandler = legacy.NewHandler(db, configService)
+	log.Println("✅ Legacy handler initialized with database-backed ignored tickets")
 
 	// Initialize auto managers (but don't start them - they start on demand)
-	legacy.InitializeAutoManagers(configService)
+	legacy.InitializeAutoManagers(db, configService)
 	log.Println("✅ Auto-sync and auto-create managers initialized")
 
 	// Initialize WebSocket manager
@@ -83,7 +85,8 @@ func main() {
 	log.Printf("🚀 Server starting on port %s", port)
 	log.Printf("🔗 WebSocket endpoint: ws://localhost:%s/ws", port)
 	log.Println("🔐 All legacy API endpoints now require authentication")
-	log.Println("📊 User settings are loaded from database, not .env file")
+	log.Println("📊 User settings and ignored tickets are stored in database per project")
+	log.Println("🗂️  Each Asana project has its own ignored tickets list")
 
 	server := &http.Server{
 		Addr:         ":" + port,
@@ -331,7 +334,7 @@ func handleAutoCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// NEW SYNC API HANDLERS
+// NEW SYNC API HANDLERS (Same as before, no changes needed)
 // ============================================================================
 
 func handleSyncStart(wsManager *sync.WebSocketManager, rollbackService *sync.RollbackService) http.HandlerFunc {
@@ -507,7 +510,7 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 	docs := map[string]interface{}{
 		"title":       "Enhanced Asana YouTrack Sync API",
 		"version":     "4.0.0",
-		"description": "Refactored synchronization service with modular architecture and database settings",
+		"description": "Refactored synchronization service with database-backed ignored tickets per project",
 		"endpoints": map[string]interface{}{
 			"authentication": map[string]string{
 				"POST /api/auth/register":        "Register new user",
@@ -552,6 +555,7 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 		"features": []string{
 			"JWT-based authentication",
 			"User-specific database settings",
+			"Database-backed ignored tickets per Asana project",
 			"Modular service architecture",
 			"Legacy API compatibility",
 			"Real-time sync progress via WebSocket",
@@ -560,6 +564,12 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 			"Caching layer",
 			"Custom field mapping",
 			"Multi-tenant support",
+		},
+		"ignored_tickets": map[string]string{
+			"storage":     "Database per user and Asana project",
+			"types":       "Temporary and Forever",
+			"persistence": "Forever ignored tickets persist across sessions",
+			"scope":       "Each Asana project has its own ignored tickets list",
 		},
 	}
 
@@ -584,6 +594,7 @@ func logConfigurationStatus() {
 	log.Println("   ✅ User-specific settings enabled")
 	log.Println("   ✅ Authentication required for all operations")
 	log.Println("   ✅ Modular service architecture")
+	log.Println("   ✅ Ignored tickets stored per user and project in database")
 }
 
 func logRouteRegistration() {

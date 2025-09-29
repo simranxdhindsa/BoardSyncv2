@@ -102,6 +102,16 @@ func (od *OperationData) Scan(value interface{}) error {
     }
 }
 
+// IgnoredTicket represents an ignored ticket for a user's project
+type IgnoredTicket struct {
+    ID             int       `json:"id" db:"id"`
+    UserID         int       `json:"user_id" db:"user_id"`
+    AsanaProjectID string    `json:"asana_project_id" db:"asana_project_id"`
+    TicketID       string    `json:"ticket_id" db:"ticket_id"`
+    IgnoreType     string    `json:"ignore_type" db:"ignore_type"` // "temp" or "forever"
+    CreatedAt      time.Time `json:"created_at" db:"created_at"`
+}
+
 // Project represents project information for dropdowns
 type Project struct {
     ID   string `json:"id"`

@@ -1,266 +1,280 @@
 package legacy
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"sync"
+	"asana-youtrack-sync/database"
+	configpkg "asana-youtrack-sync/config"
 )
 
-// IgnoreService handles ignored tickets functionality
+// IgnoreService handles ignored tickets functionality with database storage
 type IgnoreService struct {
-	tempIgnored    map[string]bool
-	foreverIgnored map[string]bool
-	mutex          sync.RWMutex
-	dataFile       string
+	db            *database.DB
+	configService *configpkg.Service
 }
 
 // NewIgnoreService creates a new ignore service
-func NewIgnoreService() *IgnoreService {
-	service := &IgnoreService{
-		tempIgnored:    make(map[string]bool),
-		foreverIgnored: make(map[string]bool),
-		dataFile:       "ignored_tickets.json",
+func NewIgnoreService(db *database.DB, configService *configpkg.Service) *IgnoreService {
+	return &IgnoreService{
+		db:            db,
+		configService: configService,
 	}
-	
-	// Load existing ignored tickets
-	service.loadIgnoredTickets()
-	return service
 }
 
-// IsIgnored checks if a ticket is ignored (temporarily or forever)
-func (s *IgnoreService) IsIgnored(ticketID string) bool {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return s.tempIgnored[ticketID] || s.foreverIgnored[ticketID]
+// IsIgnored checks if a ticket is ignored (temporarily or forever) for a user's current project
+func (s *IgnoreService) IsIgnored(userID int, ticketID string) bool {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil || settings.AsanaProjectID == "" {
+		return false
+	}
+
+	isIgnored, _ := s.db.IsTicketIgnored(userID, settings.AsanaProjectID, ticketID)
+	return isIgnored
 }
 
 // IsTemporarilyIgnored checks if a ticket is temporarily ignored
-func (s *IgnoreService) IsTemporarilyIgnored(ticketID string) bool {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return s.tempIgnored[ticketID]
+func (s *IgnoreService) IsTemporarilyIgnored(userID int, ticketID string) bool {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil || settings.AsanaProjectID == "" {
+		return false
+	}
+
+	isIgnored, ignoreType := s.db.IsTicketIgnored(userID, settings.AsanaProjectID, ticketID)
+	return isIgnored && ignoreType == "temp"
 }
 
 // IsForeverIgnored checks if a ticket is permanently ignored
-func (s *IgnoreService) IsForeverIgnored(ticketID string) bool {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return s.foreverIgnored[ticketID]
+func (s *IgnoreService) IsForeverIgnored(userID int, ticketID string) bool {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil || settings.AsanaProjectID == "" {
+		return false
+	}
+
+	isIgnored, ignoreType := s.db.IsTicketIgnored(userID, settings.AsanaProjectID, ticketID)
+	return isIgnored && ignoreType == "forever"
 }
 
 // AddTemporaryIgnore adds a ticket to temporary ignore list
-func (s *IgnoreService) AddTemporaryIgnore(ticketID string) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.tempIgnored[ticketID] = true
+func (s *IgnoreService) AddTemporaryIgnore(userID int, ticketID string) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.AsanaProjectID == "" {
+		return fmt.Errorf("no Asana project configured")
+	}
+
+	_, err = s.db.AddIgnoredTicket(userID, settings.AsanaProjectID, ticketID, "temp")
+	return err
 }
 
 // AddForeverIgnore adds a ticket to permanent ignore list
-func (s *IgnoreService) AddForeverIgnore(ticketID string) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.foreverIgnored[ticketID] = true
-	s.saveIgnoredTickets()
+func (s *IgnoreService) AddForeverIgnore(userID int, ticketID string) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.AsanaProjectID == "" {
+		return fmt.Errorf("no Asana project configured")
+	}
+
+	_, err = s.db.AddIgnoredTicket(userID, settings.AsanaProjectID, ticketID, "forever")
+	return err
 }
 
 // RemoveTemporaryIgnore removes a ticket from temporary ignore list
-func (s *IgnoreService) RemoveTemporaryIgnore(ticketID string) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	delete(s.tempIgnored, ticketID)
+func (s *IgnoreService) RemoveTemporaryIgnore(userID int, ticketID string) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.AsanaProjectID == "" {
+		return fmt.Errorf("no Asana project configured")
+	}
+
+	return s.db.RemoveIgnoredTicket(userID, settings.AsanaProjectID, ticketID, "temp")
 }
 
 // RemoveForeverIgnore removes a ticket from permanent ignore list
-func (s *IgnoreService) RemoveForeverIgnore(ticketID string) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	delete(s.foreverIgnored, ticketID)
-	s.saveIgnoredTickets()
-}
-
-// GetTemporarilyIgnored returns all temporarily ignored ticket IDs
-func (s *IgnoreService) GetTemporarilyIgnored() []string {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return s.getMapKeys(s.tempIgnored)
-}
-
-// GetForeverIgnored returns all permanently ignored ticket IDs
-func (s *IgnoreService) GetForeverIgnored() []string {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return s.getMapKeys(s.foreverIgnored)
-}
-
-// GetIgnoredTickets returns all ignored ticket IDs (temp + forever)
-func (s *IgnoreService) GetIgnoredTickets() []string {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	
-	allIgnored := make(map[string]bool)
-	
-	// Add temporary ignored tickets
-	for ticketID := range s.tempIgnored {
-		allIgnored[ticketID] = true
+func (s *IgnoreService) RemoveForeverIgnore(userID int, ticketID string) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
 	}
-	
-	// Add forever ignored tickets
-	for ticketID := range s.foreverIgnored {
-		allIgnored[ticketID] = true
+
+	if settings.AsanaProjectID == "" {
+		return fmt.Errorf("no Asana project configured")
 	}
-	
-	return s.getMapKeys(allIgnored)
+
+	return s.db.RemoveIgnoredTicket(userID, settings.AsanaProjectID, ticketID, "forever")
 }
 
-// ClearTemporaryIgnores clears all temporary ignores
-func (s *IgnoreService) ClearTemporaryIgnores() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.tempIgnored = make(map[string]bool)
+// GetTemporarilyIgnored returns all temporarily ignored ticket IDs for user's current project
+func (s *IgnoreService) GetTemporarilyIgnored(userID int) []string {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil || settings.AsanaProjectID == "" {
+		return []string{}
+	}
+
+	ignoredTickets, err := s.db.GetIgnoredTickets(userID, settings.AsanaProjectID)
+	if err != nil {
+		return []string{}
+	}
+
+	var tempIgnored []string
+	for _, ticket := range ignoredTickets {
+		if ticket.IgnoreType == "temp" {
+			tempIgnored = append(tempIgnored, ticket.TicketID)
+		}
+	}
+
+	return tempIgnored
 }
 
-// ClearForeverIgnores clears all permanent ignores
-func (s *IgnoreService) ClearForeverIgnores() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.foreverIgnored = make(map[string]bool)
-	s.saveIgnoredTickets()
+// GetForeverIgnored returns all permanently ignored ticket IDs for user's current project
+func (s *IgnoreService) GetForeverIgnored(userID int) []string {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil || settings.AsanaProjectID == "" {
+		return []string{}
+	}
+
+	ignoredTickets, err := s.db.GetIgnoredTickets(userID, settings.AsanaProjectID)
+	if err != nil {
+		return []string{}
+	}
+
+	var foreverIgnored []string
+	for _, ticket := range ignoredTickets {
+		if ticket.IgnoreType == "forever" {
+			foreverIgnored = append(foreverIgnored, ticket.TicketID)
+		}
+	}
+
+	return foreverIgnored
 }
 
-// ClearAllIgnores clears all ignores (temporary and permanent)
-func (s *IgnoreService) ClearAllIgnores() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.tempIgnored = make(map[string]bool)
-	s.foreverIgnored = make(map[string]bool)
-	s.saveIgnoredTickets()
+// GetIgnoredTickets returns all ignored ticket IDs (temp + forever) for user's current project
+func (s *IgnoreService) GetIgnoredTickets(userID int) []string {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil || settings.AsanaProjectID == "" {
+		return []string{}
+	}
+
+	ignoredTickets, err := s.db.GetIgnoredTickets(userID, settings.AsanaProjectID)
+	if err != nil {
+		return []string{}
+	}
+
+	var allIgnored []string
+	for _, ticket := range ignoredTickets {
+		allIgnored = append(allIgnored, ticket.TicketID)
+	}
+
+	return allIgnored
 }
 
-// GetIgnoreStatus returns the ignore status for multiple tickets
-func (s *IgnoreService) GetIgnoreStatus() map[string]interface{} {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	
+// ClearTemporaryIgnores clears all temporary ignores for user's current project
+func (s *IgnoreService) ClearTemporaryIgnores(userID int) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.AsanaProjectID == "" {
+		return fmt.Errorf("no Asana project configured")
+	}
+
+	return s.db.ClearIgnoredTickets(userID, settings.AsanaProjectID, "temp")
+}
+
+// ClearForeverIgnores clears all permanent ignores for user's current project
+func (s *IgnoreService) ClearForeverIgnores(userID int) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.AsanaProjectID == "" {
+		return fmt.Errorf("no Asana project configured")
+	}
+
+	return s.db.ClearIgnoredTickets(userID, settings.AsanaProjectID, "forever")
+}
+
+// ClearAllIgnores clears all ignores (temporary and permanent) for user's current project
+func (s *IgnoreService) ClearAllIgnores(userID int) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.AsanaProjectID == "" {
+		return fmt.Errorf("no Asana project configured")
+	}
+
+	return s.db.ClearIgnoredTickets(userID, settings.AsanaProjectID, "")
+}
+
+// GetIgnoreStatus returns the ignore status for user's current project
+func (s *IgnoreService) GetIgnoreStatus(userID int) map[string]interface{} {
+	tempIgnored := s.GetTemporarilyIgnored(userID)
+	foreverIgnored := s.GetForeverIgnored(userID)
+
 	return map[string]interface{}{
-		"temp_ignored":    s.getMapKeys(s.tempIgnored),
-		"forever_ignored": s.getMapKeys(s.foreverIgnored),
-		"temp_count":      len(s.tempIgnored),
-		"forever_count":   len(s.foreverIgnored),
-		"total_ignored":   len(s.tempIgnored) + len(s.foreverIgnored),
+		"temp_ignored":    tempIgnored,
+		"forever_ignored": foreverIgnored,
+		"temp_count":      len(tempIgnored),
+		"forever_count":   len(foreverIgnored),
+		"total_ignored":   len(tempIgnored) + len(foreverIgnored),
 	}
 }
 
 // ProcessIgnoreRequest processes an ignore action request
-func (s *IgnoreService) ProcessIgnoreRequest(ticketID, action, ignoreType string) error {
+func (s *IgnoreService) ProcessIgnoreRequest(userID int, ticketID, action, ignoreType string) error {
 	switch action {
 	case "add":
 		if ignoreType == "forever" {
-			s.AddForeverIgnore(ticketID)
+			return s.AddForeverIgnore(userID, ticketID)
 		} else {
-			s.AddTemporaryIgnore(ticketID)
+			return s.AddTemporaryIgnore(userID, ticketID)
 		}
 	case "remove":
 		if ignoreType == "forever" {
-			s.RemoveForeverIgnore(ticketID)
+			return s.RemoveForeverIgnore(userID, ticketID)
 		} else {
-			s.RemoveTemporaryIgnore(ticketID)
+			return s.RemoveTemporaryIgnore(userID, ticketID)
 		}
 	default:
 		return fmt.Errorf("invalid action: %s", action)
 	}
-	return nil
 }
 
 // MoveToForever moves a ticket from temporary to permanent ignore
-func (s *IgnoreService) MoveToForever(ticketID string) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	
-	delete(s.tempIgnored, ticketID)
-	s.foreverIgnored[ticketID] = true
-	s.saveIgnoredTickets()
+func (s *IgnoreService) MoveToForever(userID int, ticketID string) error {
+	if err := s.RemoveTemporaryIgnore(userID, ticketID); err != nil {
+		return err
+	}
+	return s.AddForeverIgnore(userID, ticketID)
 }
 
 // MoveToTemporary moves a ticket from permanent to temporary ignore
-func (s *IgnoreService) MoveToTemporary(ticketID string) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	
-	delete(s.foreverIgnored, ticketID)
-	s.tempIgnored[ticketID] = true
-	s.saveIgnoredTickets()
+func (s *IgnoreService) MoveToTemporary(userID int, ticketID string) error {
+	if err := s.RemoveForeverIgnore(userID, ticketID); err != nil {
+		return err
+	}
+	return s.AddTemporaryIgnore(userID, ticketID)
 }
 
-// loadIgnoredTickets loads ignored tickets from file
-func (s *IgnoreService) loadIgnoredTickets() {
-	data, err := os.ReadFile(s.dataFile)
-	if err != nil {
-		// File doesn't exist or can't be read, start with empty list
-		return
-	}
-
-	var ignored []string
-	if err := json.Unmarshal(data, &ignored); err != nil {
-		// Invalid JSON, start with empty list
-		return
-	}
-
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	
-	for _, id := range ignored {
-		s.foreverIgnored[id] = true
-	}
+// HasAnyIgnored checks if there are any ignored tickets for user's current project
+func (s *IgnoreService) HasAnyIgnored(userID int) bool {
+	ignored := s.GetIgnoredTickets(userID)
+	return len(ignored) > 0
 }
 
-// saveIgnoredTickets saves ignored tickets to file
-func (s *IgnoreService) saveIgnoredTickets() {
-	ignored := s.getMapKeys(s.foreverIgnored)
-	data, err := json.MarshalIndent(ignored, "", "  ")
-	if err != nil {
-		return
-	}
-	
-	os.WriteFile(s.dataFile, data, 0644)
-}
-
-// getMapKeys extracts keys from a map
-func (s *IgnoreService) getMapKeys(m map[string]bool) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-// HasAnyIgnored checks if there are any ignored tickets
-func (s *IgnoreService) HasAnyIgnored() bool {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	return len(s.tempIgnored) > 0 || len(s.foreverIgnored) > 0
-}
-
-// CountIgnored returns the total count of ignored tickets
-func (s *IgnoreService) CountIgnored() int {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-	
-	// Use a set to avoid double counting tickets that might be in both lists
-	allIgnored := make(map[string]bool)
-	for ticketID := range s.tempIgnored {
-		allIgnored[ticketID] = true
-	}
-	for ticketID := range s.foreverIgnored {
-		allIgnored[ticketID] = true
-	}
-	
-	return len(allIgnored)
-}
-
-// SetDataFile sets a custom data file path
-func (s *IgnoreService) SetDataFile(filePath string) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.dataFile = filePath
+// CountIgnored returns the total count of ignored tickets for user's current project
+func (s *IgnoreService) CountIgnored(userID int) int {
+	ignored := s.GetIgnoredTickets(userID)
+	return len(ignored)
 }

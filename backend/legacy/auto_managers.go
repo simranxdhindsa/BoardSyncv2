@@ -5,11 +5,13 @@ import (
 	"sync"
 	"time"
 
+	"asana-youtrack-sync/database"
 	configpkg "asana-youtrack-sync/config"
 )
 
 // AutoSyncManager manages automatic synchronization
 type AutoSyncManager struct {
+	db            *database.DB
 	configService *configpkg.Service
 	syncService   *SyncService
 	running       map[int]bool      // userID -> running status
@@ -22,6 +24,7 @@ type AutoSyncManager struct {
 
 // AutoCreateManager manages automatic ticket creation
 type AutoCreateManager struct {
+	db            *database.DB
 	configService *configpkg.Service
 	syncService   *SyncService
 	running       map[int]bool      // userID -> running status
@@ -40,11 +43,12 @@ var (
 )
 
 // InitializeAutoManagers initializes the auto sync and create managers
-func InitializeAutoManagers(configService *configpkg.Service) {
+func InitializeAutoManagers(db *database.DB, configService *configpkg.Service) {
 	managerOnce.Do(func() {
 		autoSyncManager = &AutoSyncManager{
+			db:            db,
 			configService: configService,
-			syncService:   NewSyncService(configService),
+			syncService:   NewSyncService(db, configService),
 			running:       make(map[int]bool),
 			stopChannels:  make(map[int]chan bool),
 			intervals:     make(map[int]int),
@@ -53,8 +57,9 @@ func InitializeAutoManagers(configService *configpkg.Service) {
 		}
 
 		autoCreateManager = &AutoCreateManager{
+			db:            db,
 			configService: configService,
-			syncService:   NewSyncService(configService),
+			syncService:   NewSyncService(db, configService),
 			running:       make(map[int]bool),
 			stopChannels:  make(map[int]chan bool),
 			intervals:     make(map[int]int),
