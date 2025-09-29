@@ -150,16 +150,17 @@ function AppContent() {
 
   // Handle create missing
   const handleCreateMissing = async () => {
-    setLoading(true);
-    try {
-      await createMissingTickets();
-      await refreshAnalysis();
-    } catch (error) {
-      throw new Error('Bulk create failed: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    // Pass the selectedColumn to the API call
+    await createMissingTickets(selectedColumn);
+    await refreshAnalysis();
+  } catch (error) {
+    throw new Error('Bulk create failed: ' + error.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Refresh analysis data
   const refreshAnalysis = async () => {
