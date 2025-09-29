@@ -20,8 +20,8 @@ type RegisterRequest struct {
 
 // LoginResponse represents a login response
 type LoginResponse struct {
-    Token     string `json:"token"`
-    User      UserInfo `json:"user"`
+    Token     string    `json:"token"`
+    User      UserInfo  `json:"user"`
     ExpiresAt time.Time `json:"expires_at"`
 }
 
@@ -55,4 +55,10 @@ type ChangePasswordRequest struct {
 // UserProfileRequest represents a user profile update request
 type UserProfileRequest struct {
     Email string `json:"email" validate:"email"`
+}
+
+// DeleteAccountRequest represents a delete account request
+type DeleteAccountRequest struct {
+    Password     string `json:"password" validate:"required"`
+    Confirmation string `json:"confirmation" validate:"required,eq=DELETE"`
 }

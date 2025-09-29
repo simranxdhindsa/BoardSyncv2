@@ -46,7 +46,8 @@ func InitDB(dbPath string) (*DB, error) {
 
 	// Load existing data
 	if err := database.loadData(); err != nil {
-		return nil, err
+		log.Printf("Warning: Failed to load existing data: %v\n", err)
+		// Don't fail initialization if load fails - start fresh
 	}
 
 	log.Println("Pure Go database initialized successfully")
@@ -82,21 +83,31 @@ func (db *DB) CreateUser(username, email, passwordHash string) (*User, error) {
 	db.users[user.ID] = user
 	db.nextUserID++
 
+	log.Printf("DB: Creating user: %s (ID: %d) with password hash length: %d\n", username, user.ID, len(passwordHash))
+
 	// Create default settings
 	settings := &UserSettings{
-		ID:                  db.nextSettingsID,
-		UserID:              user.ID,
-		CustomFieldMappings: CustomFieldMappings{},
-		CreatedAt:           time.Now(),
-		UpdatedAt:           time.Now(),
+		ID:     db.nextSettingsID,
+		UserID: user.ID,
+		CustomFieldMappings: CustomFieldMappings{
+			TagMapping:      make(map[string]string),
+			PriorityMapping: make(map[string]string),
+			StatusMapping:   make(map[string]string),
+			CustomFields:    make(map[string]string),
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	db.settings[settings.ID] = settings
 	db.nextSettingsID++
 
+	// CRITICAL: Save immediately after creating user
 	if err := db.saveData(); err != nil {
+		log.Printf("ERROR: Failed to save user data: %v\n", err)
 		return nil, err
 	}
 
+	log.Printf("DB: User created and saved successfully: %s\n", username)
 	return user, nil
 }
 
@@ -141,7 +152,15 @@ func (db *DB) UpdateUserPassword(userID int, passwordHash string) error {
 	if user, exists := db.users[userID]; exists {
 		user.PasswordHash = passwordHash
 		user.UpdatedAt = time.Now()
-		return db.saveData()
+		
+		// Save immediately after password update
+		if err := db.saveData(); err != nil {
+			log.Printf("ERROR: Failed to save password update: %v\n", err)
+			return err
+		}
+		
+		log.Printf("DB: Password updated successfully for user: %s\n", user.Username)
+		return nil
 	}
 	return fmt.Errorf("user not found")
 }
@@ -367,7 +386,114 @@ func (db *DB) ClearIgnoredTickets(userID int, asanaProjectID, ignoreType string)
 	return nil
 }
 
-// Data persistence
+// DeleteUser deletes a user and all their associated data
+func (db *DB) DeleteUser(userID int) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	// Check if user exists
+	user, exists := db.users[userID]
+	if !exists {
+		return fmt.Errorf("user not found")
+	}
+
+	username := user.Username
+	email := user.Email
+
+	log.Printf("DB: Starting deletion for user: %s (ID: %d, Email: %s)\n", username, userID, email)
+
+	// Delete user's settings
+	settingsDeleted := 0
+	for id, settings := range db.settings {
+		if settings.UserID == userID {
+			delete(db.settings, id)
+			settingsDeleted++
+		}
+	}
+	log.Printf("DB: Deleted %d settings records for user %d\n", settingsDeleted, userID)
+
+	// Delete user's operations
+	operationsDeleted := 0
+	for id, operation := range db.operations {
+		if operation.UserID == userID {
+			delete(db.operations, id)
+			operationsDeleted++
+		}
+	}
+	log.Printf("DB: Deleted %d operation records for user %d\n", operationsDeleted, userID)
+
+	// Delete user's ignored tickets
+	ignoredDeleted := 0
+	for id, ignored := range db.ignoredTickets {
+		if ignored.UserID == userID {
+			delete(db.ignoredTickets, id)
+			ignoredDeleted++
+		}
+	}
+	log.Printf("DB: Deleted %d ignored ticket records for user %d\n", ignoredDeleted, userID)
+
+	// Delete the user account
+	delete(db.users, userID)
+	log.Printf("DB: Deleted user account: %s (ID: %d)\n", username, userID)
+
+	// Calculate total records deleted
+	totalDeleted := settingsDeleted + operationsDeleted + ignoredDeleted + 1 // +1 for user account
+	log.Printf("DB: Total records deleted: %d (Settings: %d, Operations: %d, Ignored Tickets: %d, User: 1)\n", 
+		totalDeleted, settingsDeleted, operationsDeleted, ignoredDeleted)
+
+	// Save changes to disk
+	if err := db.saveData(); err != nil {
+		return fmt.Errorf("failed to save after deletion: %w", err)
+	}
+
+	log.Printf("DB: All changes saved to disk successfully for user deletion (ID: %d)\n", userID)
+	return nil
+}
+
+// GetUserDataSummary returns a summary of all user data (for confirmation before deletion)
+func (db *DB) GetUserDataSummary(userID int) (map[string]int, error) {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	// Check if user exists
+	if _, exists := db.users[userID]; !exists {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	summary := map[string]int{
+		"settings":        0,
+		"operations":      0,
+		"ignored_tickets": 0,
+	}
+
+	// Count settings
+	for _, settings := range db.settings {
+		if settings.UserID == userID {
+			summary["settings"]++
+		}
+	}
+
+	// Count operations
+	for _, operation := range db.operations {
+		if operation.UserID == userID {
+			summary["operations"]++
+		}
+	}
+
+	// Count ignored tickets
+	for _, ignored := range db.ignoredTickets {
+		if ignored.UserID == userID {
+			summary["ignored_tickets"]++
+		}
+	}
+
+	log.Printf("DB: Data summary for user %d - Settings: %d, Operations: %d, Ignored Tickets: %d\n",
+		userID, summary["settings"], summary["operations"], summary["ignored_tickets"])
+
+	return summary, nil
+}
+
+// Data persistence with improved error handling and atomic writes
 func (db *DB) saveData() error {
 	data := struct {
 		Users           map[int]*User          `json:"users"`
@@ -389,15 +515,40 @@ func (db *DB) saveData() error {
 		NextIgnoredID:   db.nextIgnoredID,
 	}
 
-	file, err := os.Create(db.dataDir + "/data.json")
+	filePath := db.dataDir + "/data.json"
+	
+	// Create a temporary file first for atomic write
+	tempPath := filePath + ".tmp"
+	file, err := os.Create(tempPath)
 	if err != nil {
+		log.Printf("ERROR: Failed to create temp file: %v\n", err)
 		return err
 	}
-	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	return encoder.Encode(data)
+	if err := encoder.Encode(data); err != nil {
+		file.Close()
+		os.Remove(tempPath)
+		log.Printf("ERROR: Failed to encode data: %v\n", err)
+		return err
+	}
+
+	if err := file.Close(); err != nil {
+		os.Remove(tempPath)
+		log.Printf("ERROR: Failed to close temp file: %v\n", err)
+		return err
+	}
+
+	// Rename temp file to actual file (atomic operation)
+	if err := os.Rename(tempPath, filePath); err != nil {
+		os.Remove(tempPath)
+		log.Printf("ERROR: Failed to rename temp file: %v\n", err)
+		return err
+	}
+
+	log.Printf("DB: Data saved successfully to %s\n", filePath)
+	return nil
 }
 
 func (db *DB) loadData() error {
@@ -405,6 +556,7 @@ func (db *DB) loadData() error {
 
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		log.Println("DB: No existing data file found, starting fresh")
 		return nil // No data to load, start fresh
 	}
 
@@ -426,20 +578,29 @@ func (db *DB) loadData() error {
 	}
 
 	if err := json.NewDecoder(file).Decode(&data); err != nil {
+		log.Printf("ERROR: Failed to decode data file: %v\n", err)
 		return err
 	}
 
 	if data.Users != nil {
 		db.users = data.Users
+		log.Printf("DB: Loaded %d users\n", len(data.Users))
+		// Debug: Print password hash lengths
+		for id, user := range data.Users {
+			log.Printf("DB: User %d (%s) - Password hash length: %d\n", id, user.Username, len(user.PasswordHash))
+		}
 	}
 	if data.Settings != nil {
 		db.settings = data.Settings
+		log.Printf("DB: Loaded %d settings\n", len(data.Settings))
 	}
 	if data.Operations != nil {
 		db.operations = data.Operations
+		log.Printf("DB: Loaded %d operations\n", len(data.Operations))
 	}
 	if data.IgnoredTickets != nil {
 		db.ignoredTickets = data.IgnoredTickets
+		log.Printf("DB: Loaded %d ignored tickets\n", len(data.IgnoredTickets))
 	}
 
 	db.nextUserID = data.NextUserID
@@ -447,10 +608,12 @@ func (db *DB) loadData() error {
 	db.nextOperationID = data.NextOperationID
 	db.nextIgnoredID = data.NextIgnoredID
 
+	log.Printf("DB: Data loaded successfully from %s\n", filePath)
 	return nil
 }
 
 // Close the database
 func (db *DB) Close() error {
+	log.Println("DB: Closing database and saving final state")
 	return db.saveData()
 }

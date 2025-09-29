@@ -305,7 +305,7 @@ function AppContent() {
       {showBackground && (
         <footer className="app-footer">
           <div className="credit-footer">
-            Made with Frustration By Simran • Enhanced with Authentication
+            Made with Frustration By Simran • Minor bugs included at no extra cost.
           </div>
         </footer>
       )}

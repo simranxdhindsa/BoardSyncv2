@@ -30,8 +30,22 @@ func NewSyncService(db *database.DB, configService *configpkg.Service) *SyncServ
 }
 
 // CreateMissingTickets creates missing tickets in YouTrack
-func (s *SyncService) CreateMissingTickets(userID int) (map[string]interface{}, error) {
-	analysis, err := s.analysisService.PerformAnalysis(userID, SyncableColumns)
+// Now accepts an optional column parameter to filter which tickets to create
+func (s *SyncService) CreateMissingTickets(userID int, column ...string) (map[string]interface{}, error) {
+	// Determine which columns to analyze
+	var columnsToAnalyze []string
+	
+	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
+		// Use specific column if provided
+		columnsToAnalyze = []string{column[0]}
+		fmt.Printf("CREATE: Creating tickets for specific column: %s (user %d)\n", column[0], userID)
+	} else {
+		// Use all syncable columns by default
+		columnsToAnalyze = SyncableColumns
+		fmt.Printf("CREATE: Creating tickets for all syncable columns (user %d)\n", userID)
+	}
+
+	analysis, err := s.analysisService.PerformAnalysis(userID, columnsToAnalyze)
 	if err != nil {
 		return nil, fmt.Errorf("analysis failed: %w", err)
 	}
@@ -41,6 +55,7 @@ func (s *SyncService) CreateMissingTickets(userID int) (map[string]interface{}, 
 			"status":  "success",
 			"message": "No missing tickets to create",
 			"created": 0,
+			"column":  columnsToAnalyze,
 		}, nil
 	}
 
@@ -89,6 +104,7 @@ func (s *SyncService) CreateMissingTickets(userID int) (map[string]interface{}, 
 		"created": created,
 		"skipped": skipped,
 		"total":   len(analysis.MissingYouTrack),
+		"column":  columnsToAnalyze,
 		"results": results,
 	}, nil
 }
@@ -163,8 +179,22 @@ func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]
 }
 
 // SyncMismatchedTickets synchronizes mismatched tickets
-func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest) (map[string]interface{}, error) {
-	analysis, err := s.analysisService.PerformAnalysis(userID, SyncableColumns)
+// Now accepts an optional column parameter to filter which tickets to sync
+func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest, column ...string) (map[string]interface{}, error) {
+	// Determine which columns to analyze
+	var columnsToAnalyze []string
+	
+	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
+		// Use specific column if provided
+		columnsToAnalyze = []string{column[0]}
+		fmt.Printf("SYNC: Syncing tickets for specific column: %s (user %d)\n", column[0], userID)
+	} else {
+		// Use all syncable columns by default
+		columnsToAnalyze = SyncableColumns
+		fmt.Printf("SYNC: Syncing tickets for all syncable columns (user %d)\n", userID)
+	}
+
+	analysis, err := s.analysisService.PerformAnalysis(userID, columnsToAnalyze)
 	if err != nil {
 		return nil, fmt.Errorf("analysis failed: %w", err)
 	}
@@ -186,7 +216,7 @@ func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest) 
 		ticket, exists := mismatchMap[req.TicketID]
 		if !exists {
 			result["status"] = "failed"
-			result["error"] = "Ticket not found in mismatched list"
+			result["error"] = "Ticket not found in mismatched list for this column"
 			results = append(results, result)
 			continue
 		}
@@ -253,14 +283,25 @@ func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest) 
 		"status":  "completed",
 		"synced":  synced,
 		"total":   len(requests),
+		"column":  columnsToAnalyze,
 		"results": results,
 		"note":    "Sync operations now include both status and tag/subsystem updates",
 	}, nil
 }
 
 // GetMismatchedTickets returns mismatched tickets for preview
-func (s *SyncService) GetMismatchedTickets(userID int) (map[string]interface{}, error) {
-	analysis, err := s.analysisService.PerformAnalysis(userID, SyncableColumns)
+// Now accepts an optional column parameter
+func (s *SyncService) GetMismatchedTickets(userID int, column ...string) (map[string]interface{}, error) {
+	// Determine which columns to analyze
+	var columnsToAnalyze []string
+	
+	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
+		columnsToAnalyze = []string{column[0]}
+	} else {
+		columnsToAnalyze = SyncableColumns
+	}
+
+	analysis, err := s.analysisService.PerformAnalysis(userID, columnsToAnalyze)
 	if err != nil {
 		return nil, fmt.Errorf("analysis failed: %w", err)
 	}
@@ -269,6 +310,7 @@ func (s *SyncService) GetMismatchedTickets(userID int) (map[string]interface{}, 
 		"status":     "success",
 		"message":    "Mismatched tickets available for sync",
 		"count":      len(analysis.Mismatched),
+		"column":     columnsToAnalyze,
 		"mismatched": analysis.Mismatched,
 		"usage": map[string]string{
 			"sync_all":       "POST with [{\"ticket_id\":\"ID\",\"action\":\"sync\"}] for each ticket",
