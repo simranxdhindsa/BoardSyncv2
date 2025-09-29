@@ -3,9 +3,18 @@
     "1": {
       "id": 1,
       "username": "simranxdhindsa",
-      "email": "simranxdhindsa@sf.com",
-      "created_at": "2025-09-27T21:47:33.2780109+05:30",
-      "updated_at": "2025-09-27T21:47:33.2780109+05:30"
+      "email": "gfdgfd@rdghc.ikj",
+      "password_hash": "TsJ5oCULA7j1i/JqW/rwdQ==$NxgY9TPFwVCe9a8HWj+DGxS2f1EO5glhiP/hp3l8otQ=",
+      "created_at": "2025-09-28T02:43:50.7646382+05:30",
+      "updated_at": "2025-09-28T02:43:50.7646382+05:30"
+    },
+    "2": {
+      "id": 2,
+      "username": "testuser",
+      "email": "test@example.com",
+      "password_hash": "96vwJIYnzv3NHLpxpWQxuw==$r1B5rmHYrxp2biBfWe9WWPTlhmnPCv1O8UvAtW5tT3I=",
+      "created_at": "2025-09-28T02:57:04.9944555+05:30",
+      "updated_at": "2025-09-28T02:57:04.9944555+05:30"
     }
   },
   "settings": {
@@ -23,12 +32,48 @@
         "status_mapping": {},
         "custom_fields": {}
       },
-      "created_at": "2025-09-27T21:47:33.2780109+05:30",
-      "updated_at": "2025-09-27T22:37:31.3892024+05:30"
+      "created_at": "2025-09-28T02:43:50.7646382+05:30",
+      "updated_at": "2025-09-29T13:32:27.7063409+05:30"
+    },
+    "2": {
+      "id": 2,
+      "user_id": 2,
+      "asana_pat": "",
+      "youtrack_base_url": "",
+      "youtrack_token": "",
+      "asana_project_id": "",
+      "youtrack_project_id": "",
+      "custom_field_mappings": {
+        "tag_mapping": {},
+        "priority_mapping": {},
+        "status_mapping": {},
+        "custom_fields": {}
+      },
+      "created_at": "2025-09-28T02:57:04.9944555+05:30",
+      "updated_at": "2025-09-28T02:57:04.9944555+05:30"
     }
   },
-  "operations": {},
-  "next_user_id": 2,
-  "next_settings_id": 2,
-  "next_operation_id": 1
+  "operations": {
+    "1": {
+      "id": 1,
+      "user_id": 1,
+      "operation_type": "custom_sync",
+      "operation_data": {
+        "direction": "one_way",
+        "options": {
+          "custom_field_mapping": true,
+          "filter_by_tags": [
+            "backend",
+            "frontend"
+          ]
+        }
+      },
+      "status": "completed",
+      "created_at": "2025-09-28T02:53:28.0822508+05:30",
+      "completed_at": "2025-09-28T02:53:34.1910928+05:30"
+    }
+  },
+  "next_user_id": 3,
+  "next_settings_id": 3,
+  "next_operation_id": 2
 }
