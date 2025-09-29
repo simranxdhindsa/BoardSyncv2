@@ -182,6 +182,71 @@ func (s *Service) ChangePassword(userID int, req ChangePasswordRequest) error {
 	return nil
 }
 
+// DeleteUserAccount deletes a user account and all associated data
+func (s *Service) DeleteUserAccount(userID int, password string) error {
+	fmt.Printf("AUTH: Attempting to delete account for user ID: %d\n", userID)
+
+	// Get user to verify password
+	user, err := s.db.GetUserByID(userID)
+	if err != nil {
+		fmt.Printf("AUTH: User not found: %d\n", userID)
+		return ErrUserNotFound
+	}
+
+	// Verify password before deletion
+	if !s.verifyPassword(password, user.PasswordHash) {
+		fmt.Printf("AUTH: Password verification failed for user: %s\n", user.Username)
+		return ErrInvalidCredentials
+	}
+
+	fmt.Printf("AUTH: Password verified, proceeding with account deletion for user: %s\n", user.Username)
+
+	// Delete user and all associated data
+	err = s.db.DeleteUser(userID)
+	if err != nil {
+		fmt.Printf("AUTH: Failed to delete user from database: %v\n", err)
+		return err
+	}
+
+	fmt.Printf("AUTH: Account and all associated data deleted successfully for user: %s (ID: %d)\n", user.Username, userID)
+	return nil
+}
+
+// GetUserDataSummary returns a summary of user's data for confirmation
+func (s *Service) GetUserDataSummary(userID int) (map[string]interface{}, error) {
+	fmt.Printf("AUTH: Getting data summary for user ID: %d\n", userID)
+
+	user, err := s.db.GetUserByID(userID)
+	if err != nil {
+		fmt.Printf("AUTH: User not found: %d\n", userID)
+		return nil, ErrUserNotFound
+	}
+
+	dataSummary, err := s.db.GetUserDataSummary(userID)
+	if err != nil {
+		fmt.Printf("AUTH: Failed to get data summary: %v\n", err)
+		return nil, err
+	}
+
+	totalRecords := dataSummary["settings"] + 
+		dataSummary["operations"] + 
+		dataSummary["ignored_tickets"]
+
+	fmt.Printf("AUTH: Data summary retrieved for user: %s (Total records: %d)\n", user.Username, totalRecords)
+
+	return map[string]interface{}{
+		"user": map[string]interface{}{
+			"id":         user.ID,
+			"username":   user.Username,
+			"email":      user.Email,
+			"created_at": user.CreatedAt.Format(time.RFC3339),
+		},
+		"data_summary": dataSummary,
+		"total_records": totalRecords,
+		"warning": "⚠️ This action is IRREVERSIBLE. All your data including settings, sync history, and ignored tickets will be permanently deleted.",
+	}, nil
+}
+
 // ValidateToken validates a JWT token and returns claims
 func (s *Service) ValidateToken(tokenString string) (*Claims, error) {
 	fmt.Printf("DEBUG: Validating token (length: %d)\n", len(tokenString))

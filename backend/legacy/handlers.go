@@ -54,6 +54,7 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 			"Authentication-based operations",
 			"Modular service architecture",
 			"Database-backed ignored tickets per project",
+			"Column-aware create and sync operations",
 		},
 		"columns": map[string]interface{}{
 			"syncable":     SyncableColumns,
@@ -100,9 +101,9 @@ func (h *Handler) StatusCheck(w http.ResponseWriter, r *http.Request) {
 		"ignored_tickets": h.ignoreService.CountIgnored(user.UserID),
 		"endpoints": []string{
 			"GET /analyze - Analyze ticket differences",
-			"POST /create - Create missing tickets (bulk)",
+			"POST /create?column=COLUMN - Create missing tickets (column-aware)",
 			"POST /create-single - Create individual ticket",
-			"GET/POST /sync - Sync mismatched tickets",
+			"GET/POST /sync?column=COLUMN - Sync mismatched tickets (column-aware)",
 			"GET/POST /ignore - Manage ignored tickets",
 			"GET /tickets - Get tickets by type",
 			"POST /delete-tickets - Delete tickets (bulk)",
@@ -249,7 +250,29 @@ func (h *Handler) CreateMissingTickets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.syncService.CreateMissingTickets(user.UserID)
+	// Get column filter from query parameters
+	columnFilter := r.URL.Query().Get("column")
+	
+	// Map frontend column names to backend names if needed
+	var mappedColumn string
+	if columnFilter != "" && columnFilter != "all_syncable" {
+		columnMap := map[string]string{
+			"backlog":         "backlog",
+			"in_progress":     "in progress",
+			"dev":             "dev",
+			"stage":           "stage",
+			"blocked":         "blocked",
+			"ready_for_stage": "ready for stage",
+		}
+		if mapped, exists := columnMap[columnFilter]; exists {
+			mappedColumn = mapped
+		} else {
+			mappedColumn = columnFilter
+		}
+		fmt.Printf("CREATE: Column filter '%s' mapped to '%s'\n", columnFilter, mappedColumn)
+	}
+
+	result, err := h.syncService.CreateMissingTickets(user.UserID, mappedColumn)
 	if err != nil {
 		utils.SendInternalError(w, fmt.Sprintf("Failed to create tickets: %v", err))
 		return
@@ -304,9 +327,31 @@ func (h *Handler) SyncMismatchedTickets(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Get column filter from query parameters
+	columnFilter := r.URL.Query().Get("column")
+	
+	// Map frontend column names to backend names if needed
+	var mappedColumn string
+	if columnFilter != "" && columnFilter != "all_syncable" {
+		columnMap := map[string]string{
+			"backlog":         "backlog",
+			"in_progress":     "in progress",
+			"dev":             "dev",
+			"stage":           "stage",
+			"blocked":         "blocked",
+			"ready_for_stage": "ready for stage",
+		}
+		if mapped, exists := columnMap[columnFilter]; exists {
+			mappedColumn = mapped
+		} else {
+			mappedColumn = columnFilter
+		}
+		fmt.Printf("SYNC: Column filter '%s' mapped to '%s'\n", columnFilter, mappedColumn)
+	}
+
 	if r.Method == "GET" {
 		// Return available mismatched tickets for preview
-		result, err := h.syncService.GetMismatchedTickets(user.UserID)
+		result, err := h.syncService.GetMismatchedTickets(user.UserID, mappedColumn)
 		if err != nil {
 			utils.SendInternalError(w, fmt.Sprintf("Failed to get mismatched tickets: %v", err))
 			return
@@ -333,7 +378,7 @@ func (h *Handler) SyncMismatchedTickets(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	result, err := h.syncService.SyncMismatchedTickets(user.UserID, requests)
+	result, err := h.syncService.SyncMismatchedTickets(user.UserID, requests, mappedColumn)
 	if err != nil {
 		utils.SendInternalError(w, fmt.Sprintf("Sync failed: %v", err))
 		return
