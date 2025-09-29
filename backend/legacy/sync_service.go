@@ -3,11 +3,13 @@ package legacy
 import (
 	"fmt"
 
+	"asana-youtrack-sync/database"
 	configpkg "asana-youtrack-sync/config"
 )
 
 // SyncService handles synchronization operations
 type SyncService struct {
+	db              *database.DB
 	configService   *configpkg.Service
 	asanaService    *AsanaService
 	youtrackService *YouTrackService
@@ -16,13 +18,14 @@ type SyncService struct {
 }
 
 // NewSyncService creates a new sync service
-func NewSyncService(configService *configpkg.Service) *SyncService {
+func NewSyncService(db *database.DB, configService *configpkg.Service) *SyncService {
 	return &SyncService{
+		db:              db,
 		configService:   configService,
 		asanaService:    NewAsanaService(configService),
 		youtrackService: NewYouTrackService(configService),
-		analysisService: NewAnalysisService(configService),
-		ignoreService:   NewIgnoreService(),
+		analysisService: NewAnalysisService(db, configService),
+		ignoreService:   NewIgnoreService(db, configService),
 	}
 }
 
@@ -58,7 +61,7 @@ func (s *SyncService) CreateMissingTickets(userID int) (map[string]interface{}, 
 			result["status"] = "skipped"
 			result["reason"] = "Duplicate ticket already exists"
 			skipped++
-		} else if s.ignoreService.IsIgnored(task.GID) {
+		} else if s.ignoreService.IsIgnored(userID, task.GID) {
 			result["status"] = "skipped"
 			result["reason"] = "Ticket is ignored"
 			skipped++
@@ -121,7 +124,7 @@ func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]
 		}, nil
 	}
 
-	if s.ignoreService.IsIgnored(taskID) {
+	if s.ignoreService.IsIgnored(userID, taskID) {
 		return map[string]interface{}{
 			"status":     "skipped",
 			"reason":     "Ticket is ignored",
@@ -190,7 +193,7 @@ func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest) 
 
 		switch req.Action {
 		case "sync":
-			if s.ignoreService.IsIgnored(req.TicketID) {
+			if s.ignoreService.IsIgnored(userID, req.TicketID) {
 				result["status"] = "skipped"
 				result["reason"] = "Ticket is ignored"
 			} else {
@@ -221,12 +224,22 @@ func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest) 
 			}
 
 		case "ignore_temp":
-			s.ignoreService.AddTemporaryIgnore(req.TicketID)
-			result["status"] = "ignored_temporarily"
+			err := s.ignoreService.AddTemporaryIgnore(userID, req.TicketID)
+			if err != nil {
+				result["status"] = "failed"
+				result["error"] = err.Error()
+			} else {
+				result["status"] = "ignored_temporarily"
+			}
 
 		case "ignore_forever":
-			s.ignoreService.AddForeverIgnore(req.TicketID)
-			result["status"] = "ignored_permanently"
+			err := s.ignoreService.AddForeverIgnore(userID, req.TicketID)
+			if err != nil {
+				result["status"] = "failed"
+				result["error"] = err.Error()
+			} else {
+				result["status"] = "ignored_permanently"
+			}
 
 		default:
 			result["status"] = "failed"
@@ -304,7 +317,7 @@ func (s *SyncService) GetSyncableTickets(userID int) (map[string]interface{}, er
 
 	// Add mismatched tickets
 	for _, ticket := range analysis.Mismatched {
-		if !s.ignoreService.IsIgnored(ticket.AsanaTask.GID) {
+		if !s.ignoreService.IsIgnored(userID, ticket.AsanaTask.GID) {
 			syncableTickets = append(syncableTickets, map[string]interface{}{
 				"ticket_id":       ticket.AsanaTask.GID,
 				"ticket_name":     ticket.AsanaTask.Name,
@@ -319,7 +332,7 @@ func (s *SyncService) GetSyncableTickets(userID int) (map[string]interface{}, er
 	return map[string]interface{}{
 		"syncable_tickets": syncableTickets,
 		"count":            len(syncableTickets),
-		"ignored_count":    s.ignoreService.CountIgnored(),
+		"ignored_count":    s.ignoreService.CountIgnored(userID),
 	}, nil
 }
 
@@ -398,7 +411,7 @@ func (s *SyncService) SyncTicketsByColumn(userID int, column string) (map[string
 	results := []map[string]interface{}{}
 
 	for _, ticket := range analysis.Mismatched {
-		if s.ignoreService.IsIgnored(ticket.AsanaTask.GID) {
+		if s.ignoreService.IsIgnored(userID, ticket.AsanaTask.GID) {
 			continue
 		}
 
@@ -475,7 +488,7 @@ func (s *SyncService) CreateTicketsByColumn(userID int, column string) (map[stri
 			result["status"] = "skipped"
 			result["reason"] = "Duplicate ticket already exists"
 			skipped++
-		} else if s.ignoreService.IsIgnored(task.GID) {
+		} else if s.ignoreService.IsIgnored(userID, task.GID) {
 			result["status"] = "skipped"
 			result["reason"] = "Ticket is ignored"
 			skipped++
@@ -527,8 +540,8 @@ func (s *SyncService) GetSyncPreview(userID int, ticketIDs []string) (map[string
 			item["ticket_name"] = ticket.AsanaTask.Name
 			item["current_youtrack_status"] = ticket.YouTrackStatus
 			item["target_asana_status"] = ticket.AsanaStatus
-			item["will_sync"] = !s.ignoreService.IsIgnored(ticketID)
-			item["ignored"] = s.ignoreService.IsIgnored(ticketID)
+			item["will_sync"] = !s.ignoreService.IsIgnored(userID, ticketID)
+			item["ignored"] = s.ignoreService.IsIgnored(userID, ticketID)
 			item["tags"] = s.asanaService.GetTags(ticket.AsanaTask)
 		} else {
 			item["error"] = "Ticket not found in mismatched list"

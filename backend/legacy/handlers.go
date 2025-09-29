@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"asana-youtrack-sync/auth"
+	"asana-youtrack-sync/database"
 	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/utils"
 )
 
 // Handler manages all legacy API endpoints
 type Handler struct {
+	db              *database.DB
 	configService   *configpkg.Service
 	analysisService *AnalysisService
 	syncService     *SyncService
@@ -22,13 +24,14 @@ type Handler struct {
 }
 
 // NewHandler creates a new legacy handler with all services
-func NewHandler(configService *configpkg.Service) *Handler {
+func NewHandler(db *database.DB, configService *configpkg.Service) *Handler {
 	return &Handler{
+		db:              db,
 		configService:   configService,
-		analysisService: NewAnalysisService(configService),
-		syncService:     NewSyncService(configService),
+		analysisService: NewAnalysisService(db, configService),
+		syncService:     NewSyncService(db, configService),
 		deleteService:   NewDeleteService(configService),
-		ignoreService:   NewIgnoreService(),
+		ignoreService:   NewIgnoreService(db, configService),
 	}
 }
 
@@ -50,6 +53,7 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 			"Bulk ticket deletion",
 			"Authentication-based operations",
 			"Modular service architecture",
+			"Database-backed ignored tickets per project",
 		},
 		"columns": map[string]interface{}{
 			"syncable":     SyncableColumns,
@@ -93,7 +97,7 @@ func (h *Handler) StatusCheck(w http.ResponseWriter, r *http.Request) {
 			"syncable":     SyncableColumns,
 			"display_only": DisplayOnlyColumns,
 		},
-		"ignored_tickets": h.ignoreService.CountIgnored(),
+		"ignored_tickets": h.ignoreService.CountIgnored(user.UserID),
 		"endpoints": []string{
 			"GET /analyze - Analyze ticket differences",
 			"POST /create - Create missing tickets (bulk)",
@@ -340,7 +344,7 @@ func (h *Handler) SyncMismatchedTickets(w http.ResponseWriter, r *http.Request) 
 
 // ManageIgnoredTickets manages ignored tickets (both temporary and permanent)
 func (h *Handler) ManageIgnoredTickets(w http.ResponseWriter, r *http.Request) {
-	_, ok := auth.GetUserFromContext(r)
+	user, ok := auth.GetUserFromContext(r)
 	if !ok {
 		utils.SendUnauthorized(w, "Authentication required")
 		return
@@ -349,7 +353,7 @@ func (h *Handler) ManageIgnoredTickets(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		// Return current ignore status
-		status := h.ignoreService.GetIgnoreStatus()
+		status := h.ignoreService.GetIgnoreStatus(user.UserID)
 		utils.SendSuccess(w, status, "Ignored tickets status retrieved")
 
 	case "POST":
@@ -365,7 +369,7 @@ func (h *Handler) ManageIgnoredTickets(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err := h.ignoreService.ProcessIgnoreRequest(req.TicketID, req.Action, req.Type)
+		err := h.ignoreService.ProcessIgnoreRequest(user.UserID, req.TicketID, req.Action, req.Type)
 		if err != nil {
 			utils.SendBadRequest(w, err.Error())
 			return
@@ -417,6 +421,13 @@ func (h *Handler) DeleteTickets(w http.ResponseWriter, r *http.Request) {
 	// Perform bulk deletion
 	response := h.deleteService.PerformBulkDelete(user.UserID, req.TicketIDs, req.Source)
 
+	// Perform fresh analysis after deletion
+	fmt.Printf("DELETE: Re-analyzing after deleting tickets for user %d\n", user.UserID)
+	updatedAnalysis, err := h.analysisService.PerformAnalysis(user.UserID, SyncableColumns)
+	if err != nil {
+		fmt.Printf("DELETE: Warning - failed to get updated analysis: %v\n", err)
+	}
+
 	// Set appropriate HTTP status based on result
 	httpStatus := http.StatusOK
 	if response.Status == "failed" {
@@ -425,14 +436,15 @@ func (h *Handler) DeleteTickets(w http.ResponseWriter, r *http.Request) {
 		httpStatus = http.StatusPartialContent
 	}
 
-	// Send response with proper status code
+	// Send response with proper status code and updated analysis
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(httpStatus)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":   response.Status != "failed",
-		"data":      response,
-		"message":   response.Summary,
-		"timestamp": time.Now(),
+		"success":          response.Status != "failed",
+		"data":             response,
+		"message":          response.Summary,
+		"updated_analysis": updatedAnalysis,
+		"timestamp":        time.Now(),
 	})
 
 	fmt.Printf("DELETE: Completed for user %d: %s\n", user.UserID, response.Summary)

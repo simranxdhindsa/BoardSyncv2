@@ -135,6 +135,8 @@ func (s *AsanaService) MapStateToYouTrack(task AsanaTask) string {
 		return "Backlog"
 	case strings.Contains(sectionName, "in progress"):
 		return "In Progress"
+	case strings.Contains(sectionName, "ready for stage"):
+		return "DEV"
 	case strings.Contains(sectionName, "dev") && !strings.Contains(sectionName, "ready"):
 		return "DEV"
 	case strings.Contains(sectionName, "stage") && !strings.Contains(sectionName, "ready"):
@@ -143,8 +145,6 @@ func (s *AsanaService) MapStateToYouTrack(task AsanaTask) string {
 		return "Blocked"
 	case strings.Contains(sectionName, "findings"):
 		return "FINDINGS_NO_SYNC"
-	case strings.Contains(sectionName, "ready for stage"):
-		return "READY_FOR_STAGE_NO_SYNC"
 	default:
 		return "Backlog"
 	}
