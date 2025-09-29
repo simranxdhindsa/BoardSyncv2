@@ -440,26 +440,6 @@ func (tm *TagMapper) BulkUpdateMappings(mappings map[string]string) error {
 	return tm.saveToFile()
 }
 
-// GetMappingHistory could be implemented to track changes over time
-// This is a placeholder for future enhancement
-func (tm *TagMapper) GetMappingHistory() []string {
-	// TODO: Implement mapping history tracking
-	return []string{"Mapping history not yet implemented"}
-}
-
-// ValidateAllMappings validates all current mappings
-func (tm *TagMapper) ValidateAllMappings() map[string]bool {
-	tm.mutex.RLock()
-	defer tm.mutex.RUnlock()
-	
-	results := make(map[string]bool)
-	for tag, subsystem := range tm.mappings {
-		results[tag] = tm.ValidateMapping(tag, subsystem)
-	}
-	
-	return results
-}
-
 // GetDefaultMappings returns the default tag mappings
 func (tm *TagMapper) GetDefaultMappings() map[string]string {
 	result := make(map[string]string)

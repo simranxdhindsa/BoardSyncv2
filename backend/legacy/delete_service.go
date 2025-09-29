@@ -186,11 +186,11 @@ func (s *DeleteService) getTicketName(userID int, ticketID string) string {
 func (s *DeleteService) setResponseStatus(response *DeleteResponse) {
 	if response.SuccessCount == response.RequestedCount {
 		response.Status = "success"
-		response.Summary = fmt.Sprintf("Successfully deleted all %d tickets from %s", 
+		response.Summary = fmt.Sprintf("Successfully deleted all %d tickets from %s",
 			response.SuccessCount, response.Source)
 	} else if response.SuccessCount > 0 {
 		response.Status = "partial"
-		response.Summary = fmt.Sprintf("Deleted %d of %d tickets from %s (%d failed)", 
+		response.Summary = fmt.Sprintf("Deleted %d of %d tickets from %s (%d failed)",
 			response.SuccessCount, response.RequestedCount, response.Source, response.FailureCount)
 	} else {
 		response.Status = "failed"

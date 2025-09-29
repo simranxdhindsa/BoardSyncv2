@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	configpkg "asana-youtrack-sync/config"
+	"asana-youtrack-sync/config"
 )
 
 // YouTrackService handles YouTrack API operations with user-specific settings
 type YouTrackService struct {
-	configService *configpkg.Service
+	configService *config.Service
 }
 
 // NewYouTrackService creates a new YouTrack service
-func NewYouTrackService(configService *configpkg.Service) *YouTrackService {
+func NewYouTrackService(configService *config.Service) *YouTrackService {
 	return &YouTrackService{
 		configService: configService,
 	}
@@ -38,7 +38,7 @@ func (s *YouTrackService) GetIssues(userID int) ([]YouTrackIssue, error) {
 	fmt.Printf("Getting YouTrack issues for user %d from project: %s\n", userID, settings.YouTrackProjectID)
 
 	// Try multiple approaches to get issues
-	approaches := []func(*configpkg.UserSettings) ([]YouTrackIssue, error){
+	approaches := []func(*config.UserSettings) ([]YouTrackIssue, error){
 		s.getIssuesWithProjectKey,
 		s.getIssuesWithQuery,
 		s.getIssuesSimpleCloud,
@@ -59,7 +59,7 @@ func (s *YouTrackService) GetIssues(userID int) ([]YouTrackIssue, error) {
 }
 
 // getIssuesWithProjectKey tries direct project key approach
-func (s *YouTrackService) getIssuesWithProjectKey(settings *configpkg.UserSettings) ([]YouTrackIssue, error) {
+func (s *YouTrackService) getIssuesWithProjectKey(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	query := fmt.Sprintf("project: {%s}", settings.YouTrackProjectID)
 	fields := "id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
 
@@ -74,7 +74,7 @@ func (s *YouTrackService) getIssuesWithProjectKey(settings *configpkg.UserSettin
 }
 
 // getIssuesWithQuery tries query-based approach
-func (s *YouTrackService) getIssuesWithQuery(settings *configpkg.UserSettings) ([]YouTrackIssue, error) {
+func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	queries := []string{
 		fmt.Sprintf("project: {%s}", settings.YouTrackProjectID),
 		fmt.Sprintf("project:%s", settings.YouTrackProjectID),
@@ -103,7 +103,7 @@ func (s *YouTrackService) getIssuesWithQuery(settings *configpkg.UserSettings) (
 }
 
 // getIssuesSimpleCloud tries simple issues endpoint
-func (s *YouTrackService) getIssuesSimpleCloud(settings *configpkg.UserSettings) ([]YouTrackIssue, error) {
+func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	url := fmt.Sprintf("%s/api/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)&top=200",
 		settings.YouTrackBaseURL)
 
@@ -124,7 +124,7 @@ func (s *YouTrackService) getIssuesSimpleCloud(settings *configpkg.UserSettings)
 }
 
 // getIssuesViaProjects tries project-specific endpoint
-func (s *YouTrackService) getIssuesViaProjects(settings *configpkg.UserSettings) ([]YouTrackIssue, error) {
+func (s *YouTrackService) getIssuesViaProjects(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	urls := []string{
 		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
 			settings.YouTrackBaseURL, settings.YouTrackProjectID),
@@ -142,7 +142,7 @@ func (s *YouTrackService) getIssuesViaProjects(settings *configpkg.UserSettings)
 }
 
 // makeRequest makes HTTP request to YouTrack API
-func (s *YouTrackService) makeRequest(settings *configpkg.UserSettings, url string) ([]YouTrackIssue, error) {
+func (s *YouTrackService) makeRequest(settings *config.UserSettings, url string) ([]YouTrackIssue, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -344,7 +344,7 @@ func (s *YouTrackService) DeleteIssue(userID int, issueID string) error {
 }
 
 // createOrUpdateIssue creates or updates a YouTrack issue
-func (s *YouTrackService) createOrUpdateIssue(settings *configpkg.UserSettings, issueID string, payload map[string]interface{}) error {
+func (s *YouTrackService) createOrUpdateIssue(settings *config.UserSettings, issueID string, payload map[string]interface{}) error {
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal payload: %w", err)
@@ -387,7 +387,7 @@ func (s *YouTrackService) createOrUpdateIssue(settings *configpkg.UserSettings, 
 }
 
 // createOrUpdateIssueWithoutSubsystem fallback for systems without Subsystem field
-func (s *YouTrackService) createOrUpdateIssueWithoutSubsystem(settings *configpkg.UserSettings, issueID string, payload map[string]interface{}) error {
+func (s *YouTrackService) createOrUpdateIssueWithoutSubsystem(settings *config.UserSettings, issueID string, payload map[string]interface{}) error {
 	// Remove subsystem from custom fields
 	if customFields, ok := payload["customFields"].([]map[string]interface{}); ok {
 		var filteredFields []map[string]interface{}
