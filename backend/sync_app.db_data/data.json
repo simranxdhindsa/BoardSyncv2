@@ -1,39 +1,62 @@
 {
   "users": {
-    "1": {
-      "id": 1,
+    "2": {
+      "id": 2,
       "username": "simranxdhindsa",
-      "email": "simrandargapur@gmail.com",
-      "password_hash": "3/kYo4B8wsR0w24Kh0OZqA==$Zm3sTP/z8o7jrloqHW0BPCY8+gyFQmamkcnrht56twY=",
-      "created_at": "2025-09-30T01:10:58.1514098+05:30",
-      "updated_at": "2025-09-30T01:10:58.1514098+05:30"
+      "email": "simran@abc.com",
+      "password_hash": "qns+LXIB9bpIX88NRY9X1Q==$LpzE/7MQLm1MzrM1QDpwX2djFjI+rwcT+6vg6HHs838=",
+      "created_at": "2025-09-30T11:42:26.7574046+05:30",
+      "updated_at": "2025-09-30T11:42:26.7574046+05:30"
+    },
+    "3": {
+      "id": 3,
+      "username": "test",
+      "email": "qa@apyhub.com",
+      "password_hash": "6yzp2QFf8UARP0XM4Fkbcw==$RIUc1WUwop7Rv3NJ4mKsQgCHhkGMkqNpREkEc5tpiyg=",
+      "created_at": "2025-09-30T11:47:31.648931+05:30",
+      "updated_at": "2025-09-30T11:47:31.648931+05:30"
     }
   },
   "settings": {
-    "1": {
-      "id": 1,
-      "user_id": 1,
-      "asana_pat": "2/1210448003360831/1211072669335360:f90e90671e1ace90afc7501d52263d9c",
-      "youtrack_base_url": "https://simran.youtrack.cloud",
-      "youtrack_token": "perm-YWRtaW4=.NDQtMQ==.zkB8wnZI6eSi0sR3qzD1l4v7tdmNwT",
-      "asana_project_id": "1207284744539269",
-      "youtrack_project_id": "ARD",
+    "2": {
+      "id": 2,
+      "user_id": 2,
+      "asana_pat": "",
+      "youtrack_base_url": "",
+      "youtrack_token": "",
+      "asana_project_id": "",
+      "youtrack_project_id": "",
       "custom_field_mappings": {
-        "tag_mapping": {
-          "mobile": "mobile"
-        },
+        "tag_mapping": {},
         "priority_mapping": {},
         "status_mapping": {},
         "custom_fields": {}
       },
-      "created_at": "2025-09-30T01:10:58.1524214+05:30",
-      "updated_at": "2025-09-30T01:39:18.8872717+05:30"
+      "created_at": "2025-09-30T11:42:26.7574046+05:30",
+      "updated_at": "2025-09-30T11:42:26.7574046+05:30"
+    },
+    "3": {
+      "id": 3,
+      "user_id": 3,
+      "asana_pat": "2/1211152632781904/1211174733477992:430bf0289effebf88b52890a618f43a9",
+      "youtrack_base_url": "https://simran.youtrack.cloud",
+      "youtrack_token": "perm-YWRtaW4=.NDQtMQ==.zkB8wnZI6eSi0sR3qzD1l4v7tdmNwT",
+      "asana_project_id": "1211174215104748",
+      "youtrack_project_id": "ARD",
+      "custom_field_mappings": {
+        "tag_mapping": {},
+        "priority_mapping": {},
+        "status_mapping": {},
+        "custom_fields": {}
+      },
+      "created_at": "2025-09-30T11:47:31.648931+05:30",
+      "updated_at": "2025-09-30T12:04:24.4571867+05:30"
     }
   },
   "operations": {},
   "ignored_tickets": {},
-  "next_user_id": 2,
-  "next_settings_id": 2,
+  "next_user_id": 4,
+  "next_settings_id": 4,
   "next_operation_id": 1,
   "next_ignored_id": 1
 }

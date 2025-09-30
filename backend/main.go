@@ -126,13 +126,15 @@ func registerRoutes(
 	// PROTECTED AUTHENTICATION ROUTES
 	// ========================================================================
 	
-	protectedAuth := router.PathPrefix("/api/auth").Subrouter()
-	protectedAuth.Use(authService.Middleware)
+protectedAuth := router.PathPrefix("/api/auth").Subrouter()
+protectedAuth.Use(authService.Middleware)
 
-	protectedAuth.HandleFunc("/refresh", authHandler.RefreshToken).Methods("POST", "OPTIONS")
-	protectedAuth.HandleFunc("/me", authHandler.GetProfile).Methods("GET", "OPTIONS")
-	protectedAuth.HandleFunc("/change-password", authHandler.ChangePassword).Methods("POST", "OPTIONS")
-	protectedAuth.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
+protectedAuth.HandleFunc("/refresh", authHandler.RefreshToken).Methods("POST", "OPTIONS")
+protectedAuth.HandleFunc("/me", authHandler.GetProfile).Methods("GET", "OPTIONS")
+protectedAuth.HandleFunc("/change-password", authHandler.ChangePassword).Methods("POST", "OPTIONS")
+protectedAuth.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
+protectedAuth.HandleFunc("/account/summary", authHandler.GetAccountDataSummary).Methods("GET", "OPTIONS")
+protectedAuth.HandleFunc("/account/delete", authHandler.DeleteAccount).Methods("POST", "OPTIONS")
 
 	// ========================================================================
 	// SETTINGS ROUTES (Protected)
