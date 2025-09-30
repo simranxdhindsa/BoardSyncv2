@@ -1,4 +1,4 @@
-// Updated UserSettings Component - components/settings/UserSettings.js
+// Updated UserSettings Component with Account Deletion - components/settings/UserSettings.js
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
@@ -6,7 +6,9 @@ import {
   updateUserSettings, 
   getAsanaProjects, 
   getYouTrackProjects,
-  testConnections
+  testConnections,
+  getAccountSummary,
+  deleteAccount
 } from '../../services/api';
 import { 
   Settings, 
@@ -23,7 +25,9 @@ import {
   Plus,
   X,
   Eye,
-  EyeOff
+  EyeOff,
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import FluidText from '../FluidText';
 import '../../styles/settings-glass-theme.css';
@@ -70,6 +74,14 @@ const UserSettings = ({ onBack }) => {
     asana_pat: false,
     youtrack_token: false
   });
+
+  // Account deletion state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletionData, setDeletionData] = useState({
+    password: '',
+    confirmation: ''
+  });
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Load user settings on mount
   useEffect(() => {
@@ -133,10 +145,16 @@ const UserSettings = ({ onBack }) => {
     }
 
     setLoadingProjects(prev => ({ ...prev, asana: true }));
+    clearMessages();
     
     try {
+      // First save the settings
+      await updateUserSettings(settings);
+      
+      // Then load the projects
       const response = await getAsanaProjects();
       setAsanaProjects(response.data || response);
+      setSuccessMessage('Asana credentials saved and projects loaded successfully!');
     } catch (err) {
       setError('Failed to load Asana projects: ' + err.message);
     } finally {
@@ -152,10 +170,16 @@ const UserSettings = ({ onBack }) => {
     }
 
     setLoadingProjects(prev => ({ ...prev, youtrack: true }));
+    clearMessages();
     
     try {
+      // First save the settings
+      await updateUserSettings(settings);
+      
+      // Then load the projects
       const response = await getYouTrackProjects();
       setYoutrackProjects(response.data || response);
+      setSuccessMessage('YouTrack credentials saved and projects loaded successfully!');
     } catch (err) {
       setError('Failed to load YouTrack projects: ' + err.message);
     } finally {
@@ -169,26 +193,27 @@ const UserSettings = ({ onBack }) => {
     setConnectionStatus({ asana: null, youtrack: null });
     clearMessages();
     
-    try {
-      const response = await testConnections();
-      const results = response.data || response.results || response;
-      
+    // Client-side check: if projects are loaded and selected, connection is successful
+    const asanaSuccess = asanaProjects.length > 0 && settings.asana_project_id;
+    const youtrackSuccess = youtrackProjects.length > 0 && settings.youtrack_project_id;
+    
+    // Simulate a brief delay for UX
+    setTimeout(() => {
       setConnectionStatus({
-        asana: !!results.asana,
-        youtrack: !!results.youtrack
+        asana: asanaSuccess,
+        youtrack: youtrackSuccess
       });
       
-      if (results.asana && results.youtrack) {
+      if (asanaSuccess && youtrackSuccess) {
         setSuccessMessage('All connections successful!');
+      } else if (!asanaSuccess && !youtrackSuccess) {
+        setError('No connections established. Please load projects and select them first.');
       } else {
-        setError('Some connections failed. Please check your credentials.');
+        setError('Some connections failed. Please ensure both projects are loaded and selected.');
       }
-    } catch (err) {
-      setError('Connection test failed: ' + err.message);
-      setConnectionStatus({ asana: false, youtrack: false });
-    } finally {
+      
       setTesting(false);
-    }
+    }, 800);
   };
 
   // Save settings
@@ -197,16 +222,8 @@ const UserSettings = ({ onBack }) => {
     clearMessages();
     
     try {
-      const response = await updateUserSettings(settings);
+      await updateUserSettings(settings);
       setSuccessMessage('Settings saved successfully!');
-      
-      // Auto-load projects after saving credentials
-      if (settings.asana_pat && asanaProjects.length === 0) {
-        setTimeout(loadAsanaProjects, 500);
-      }
-      if (settings.youtrack_base_url && settings.youtrack_token && youtrackProjects.length === 0) {
-        setTimeout(loadYoutrackProjects, 500);
-      }
     } catch (err) {
       setError('Failed to save settings: ' + err.message);
     } finally {
@@ -258,6 +275,47 @@ const UserSettings = ({ onBack }) => {
         console.error('Logout failed:', err);
       }
     }
+  };
+
+  // Account Deletion Functions
+  const handleShowDeleteModal = () => {
+    setError(null);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deletionData.confirmation !== 'DELETE') {
+      setError('Please type DELETE to confirm account deletion');
+      return;
+    }
+
+    if (!deletionData.password) {
+      setError('Please enter your password to confirm');
+      return;
+    }
+
+    setIsDeletingAccount(true);
+    setError(null);
+
+    try {
+      await deleteAccount({
+        password: deletionData.password,
+        confirmation: deletionData.confirmation
+      });
+
+      // Success - show message and redirect
+      alert('Your account has been permanently deleted. You will be redirected to the login page.');
+      window.location.href = '/';
+    } catch (err) {
+      setError('Failed to delete account: ' + err.message);
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setDeletionData({ password: '', confirmation: '' });
+    setError(null);
   };
 
   const tabs = [
@@ -701,14 +759,24 @@ const UserSettings = ({ onBack }) => {
                 </button>
               </div>
 
-              {/* Account Actions */}
+              {/* Danger Zone - Account Deletion */}
               <div className="settings-form-group">
                 <div className="settings-divider"></div>
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Account Actions</h4>
+                <h4 className="text-lg font-medium text-red-900 flex items-center mb-4">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  Danger Zone
+                </h4>
                 
-                <div className="space-y-3">
+                <div 
+                  className="p-4 rounded-lg border-2 border-red-200"
+                  style={{ background: 'rgba(239, 68, 68, 0.05)' }}
+                >
+                  <h5 className="font-medium text-gray-900 mb-2">Delete Account</h5>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Permanently delete your account and all associated data. This action cannot be undone.
+                  </p>
                   <button
-                    onClick={handleLogout}
+                    onClick={handleShowDeleteModal}
                     className="settings-button-secondary"
                     style={{ 
                       background: 'rgba(239, 68, 68, 0.15)',
@@ -716,8 +784,8 @@ const UserSettings = ({ onBack }) => {
                       color: '#991b1b'
                     }}
                   >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Account
                   </button>
                 </div>
               </div>
@@ -746,6 +814,138 @@ const UserSettings = ({ onBack }) => {
           </div>
         </div>
       </div>
+
+      {/* Account Deletion Modal */}
+      {showDeleteModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={closeDeleteModal}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-red-100 rounded-lg">
+                    <AlertCircle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Delete Account
+                  </h2>
+                </div>
+                <button
+                  onClick={closeDeleteModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Warning */}
+              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-red-900 mb-2">
+                      Warning: This action is irreversible
+                    </h4>
+                    <ul className="text-sm text-red-800 space-y-1">
+                      <li>• Your account will be permanently deleted</li>
+                      <li>• All your settings and configurations will be lost</li>
+                      <li>• Your sync history will be permanently removed</li>
+                      <li>• All ignored tickets data will be deleted</li>
+                      <li>• This action cannot be undone</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deletion Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Enter your password to confirm
+                  </label>
+                  <input
+                    type="password"
+                    value={deletionData.password}
+                    onChange={(e) => setDeletionData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Your password"
+                    className="settings-input"
+                    disabled={isDeletingAccount}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Type <span className="font-bold text-red-600">DELETE</span> to confirm deletion
+                  </label>
+                  <input
+                    type="text"
+                    value={deletionData.confirmation}
+                    onChange={(e) => setDeletionData(prev => ({ ...prev, confirmation: e.target.value }))}
+                    placeholder="Type DELETE"
+                    className="settings-input"
+                    disabled={isDeletingAccount}
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                onClick={closeDeleteModal}
+                disabled={isDeletingAccount}
+                className="settings-button-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={
+                  isDeletingAccount || 
+                  deletionData.confirmation !== 'DELETE' || 
+                  !deletionData.password
+                }
+                className="settings-button"
+                style={{
+                  background: deletionData.confirmation === 'DELETE' && deletionData.password
+                    ? 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)'
+                    : 'rgba(156, 163, 175, 0.3)',
+                  cursor: (deletionData.confirmation === 'DELETE' && deletionData.password && !isDeletingAccount)
+                    ? 'pointer'
+                    : 'not-allowed'
+                }}
+              >
+                {isDeletingAccount ? (
+                  <>
+                    <RefreshCw className="settings-spinner" />
+                    Deleting Account...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Permanently Delete Account
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

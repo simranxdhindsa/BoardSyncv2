@@ -212,3 +212,4 @@ func (h *Handler) TestConnections(w http.ResponseWriter, r *http.Request) {
 		"all_connected": allConnected,
 	}, message)
 }
+

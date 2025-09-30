@@ -147,6 +147,46 @@ export const changePassword = async (passwordData) => {
   return response.json();
 };
 
+export const getAccountSummary = async () => {
+  if (!authToken) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(`${API_BASE}/api/auth/account/summary`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error('Failed to get account summary');
+  }
+
+  return response.json();
+};
+
+export const deleteAccount = async (deleteData) => {
+  if (!authToken) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(`${API_BASE}/api/auth/account/delete`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(deleteData),
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    const error = await response.json().catch(() => ({ message: 'Account deletion failed' }));
+    throw new Error(error.message || 'Account deletion failed');
+  }
+
+  const result = await response.json();
+  // Clear auth after successful deletion
+  setAuthToken(null);
+  return result;
+};
+
 // ============================================================================
 // SETTINGS ENDPOINTS
 // ============================================================================
@@ -702,6 +742,8 @@ export const auth = {
   refreshToken,
   getCurrentUser,
   changePassword,
+  getAccountSummary,
+  deleteAccount,
   isAuthenticated,
   getToken,
   clearAuth

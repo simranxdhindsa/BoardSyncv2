@@ -1,4 +1,4 @@
-// Updated LoginForm Component - components/auth/LoginForm.js
+// LoginForm Component - frontend/src/components/auth/LoginForm.js
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { User, Mail, Lock, Eye, EyeOff, RefreshCw } from 'lucide-react';
@@ -15,10 +15,10 @@ const LoginForm = ({ onSuccess }) => {
     confirmPassword: ''
   });
   const [formErrors, setFormErrors] = useState({});
-  
-  // LOCAL loading state instead of using auth context loading
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, register, error, clearError } = useAuth();
+  const [localError, setLocalError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const { login, register, clearError } = useAuth();
 
   const validateForm = () => {
     const errors = {};
@@ -52,6 +52,8 @@ const LoginForm = ({ onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
+    setLocalError(null);
+    setSuccessMessage(null);
     
     if (!validateForm()) return;
     
@@ -63,20 +65,54 @@ const LoginForm = ({ onSuccess }) => {
           username: formData.username,
           password: formData.password
         });
+        
+        if (onSuccess) {
+          onSuccess();
+        }
       } else {
+        // Registration
         await register({
           username: formData.username,
           email: formData.email,
           password: formData.password
         });
-      }
-      
-      if (onSuccess) {
-        onSuccess();
+        
+        // Clear form
+        setFormData({
+          username: '',
+          email: '',
+          password: '',
+          confirmPassword: ''
+        });
+        
+        // Show success message and switch to login
+        setSuccessMessage('Account created successfully! Please login with your credentials.');
+        setIsLogin(true);
       }
     } catch (err) {
       console.error('Authentication failed:', err);
-      // Error is handled by the auth context
+      
+      // Better error messages for registration
+      let errorMessage = err.message || 'An error occurred';
+      
+      if (!isLogin) {
+        const errMsg = (err.message || '').toLowerCase();
+        const errResponse = (err.response?.data?.detail || '').toLowerCase();
+        const combinedErr = errMsg + ' ' + errResponse;
+        
+        if (combinedErr.includes('already exists') || 
+            combinedErr.includes('duplicate') ||
+            combinedErr.includes('already registered') ||
+            combinedErr.includes('username') && combinedErr.includes('taken') ||
+            combinedErr.includes('email') && combinedErr.includes('taken') ||
+            err.response?.status === 409) {
+          errorMessage = 'User already exists. Please choose a different username or try logging in instead.';
+        } else if (combinedErr.includes('email') && combinedErr.includes('exists')) {
+          errorMessage = 'An account with this email already exists. Please login instead.';
+        }
+      }
+      
+      setLocalError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -88,12 +124,19 @@ const LoginForm = ({ onSuccess }) => {
       [field]: e.target.value
     }));
     
-    // Clear field error when user starts typing
     if (formErrors[field]) {
       setFormErrors(prev => ({
         ...prev,
         [field]: ''
       }));
+    }
+    
+    if (localError) {
+      setLocalError(null);
+    }
+    
+    if (successMessage) {
+      setSuccessMessage(null);
     }
   };
 
@@ -101,6 +144,8 @@ const LoginForm = ({ onSuccess }) => {
     setIsLogin(!isLogin);
     setFormErrors({});
     clearError();
+    setLocalError(null);
+    setSuccessMessage(null);
     setFormData({
       username: '',
       email: '',
@@ -112,7 +157,6 @@ const LoginForm = ({ onSuccess }) => {
   return (
     <div className="auth-container">
       <div className="auth-glass-panel">
-        {/* Header */}
         <div className="auth-header">
           <div className="auth-logo-container">
             <img 
@@ -135,161 +179,157 @@ const LoginForm = ({ onSuccess }) => {
           </p>
         </div>
 
-          {/* Error Display */}
-          {error && (
-            <div className="auth-error">
-              <p>{error}</p>
-            </div>
-          )}
+        {localError && (
+          <div className="auth-error">
+            <p>{localError}</p>
+          </div>
+        )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="auth-form">
-            {/* Username Field */}
+        {successMessage && (
+          <div className="auth-success">
+            <p>{successMessage}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="auth-form-group">
+            <label htmlFor="username" className="auth-label">
+              Username
+            </label>
+            <div className="auth-input-container">
+              <User className="auth-input-icon" />
+              <input
+                type="text"
+                id="username"
+                value={formData.username}
+                onChange={handleInputChange('username')}
+                className="auth-input auth-input-with-icon"
+                placeholder="Enter your username"
+                disabled={isSubmitting}
+              />
+            </div>
+            {formErrors.username && (
+              <p className="text-red-500 text-xs mt-1">{formErrors.username}</p>
+            )}
+          </div>
+
+          {!isLogin && (
             <div className="auth-form-group">
-              <label htmlFor="username" className="auth-label">
-                Username
+              <label htmlFor="email" className="auth-label">
+                Email Address
               </label>
               <div className="auth-input-container">
-                <User className="auth-input-icon" />
+                <Mail className="auth-input-icon" />
                 <input
-                  type="text"
-                  id="username"
-                  value={formData.username}
-                  onChange={handleInputChange('username')}
+                  type="email"
+                  id="email"
+                  value={formData.email}
+                  onChange={handleInputChange('email')}
                   className="auth-input auth-input-with-icon"
-                  placeholder="Enter your username"
+                  placeholder="Enter your email"
                   disabled={isSubmitting}
                 />
               </div>
-              {formErrors.username && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.username}</p>
+              {formErrors.email && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
               )}
             </div>
+          )}
 
-            {/* Email Field (Registration only) */}
-            {!isLogin && (
-              <div className="auth-form-group">
-                <label htmlFor="email" className="auth-label">
-                  Email Address
-                </label>
-                <div className="auth-input-container">
-                  <Mail className="auth-input-icon" />
-                  <input
-                    type="email"
-                    id="email"
-                    value={formData.email}
-                    onChange={handleInputChange('email')}
-                    className="auth-input auth-input-with-icon"
-                    placeholder="Enter your email"
-                    disabled={isSubmitting}
-                  />
-                </div>
-                {formErrors.email && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>
-                )}
-              </div>
+          <div className="auth-form-group">
+            <label htmlFor="password" className="auth-label">
+              Password
+            </label>
+            <div className="auth-input-container">
+              <Lock className="auth-input-icon" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                value={formData.password}
+                onChange={handleInputChange('password')}
+                className="auth-input auth-input-with-icon"
+                style={{ paddingRight: '3rem' }}
+                placeholder="Enter your password"
+                disabled={isSubmitting}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="auth-input-toggle"
+                disabled={isSubmitting}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {formErrors.password && (
+              <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>
             )}
+          </div>
 
-            {/* Password Field */}
+          {!isLogin && (
             <div className="auth-form-group">
-              <label htmlFor="password" className="auth-label">
-                Password
+              <label htmlFor="confirmPassword" className="auth-label">
+                Confirm Password
               </label>
               <div className="auth-input-container">
                 <Lock className="auth-input-icon" />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  value={formData.password}
-                  onChange={handleInputChange('password')}
+                  id="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange('confirmPassword')}
                   className="auth-input auth-input-with-icon"
-                  style={{ paddingRight: '3rem' }}
-                  placeholder="Enter your password"
+                  placeholder="Confirm your password"
                   disabled={isSubmitting}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="auth-input-toggle"
-                  disabled={isSubmitting}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
               </div>
-              {formErrors.password && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>
+              {formErrors.confirmPassword && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.confirmPassword}</p>
               )}
             </div>
+          )}
 
-            {/* Confirm Password Field (Registration only) */}
-            {!isLogin && (
-              <div className="auth-form-group">
-                <label htmlFor="confirmPassword" className="auth-label">
-                  Confirm Password
-                </label>
-                <div className="auth-input-container">
-                  <Lock className="auth-input-icon" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    id="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange('confirmPassword')}
-                    className="auth-input auth-input-with-icon"
-                    placeholder="Confirm your password"
-                    disabled={isSubmitting}
-                  />
-                </div>
-                {formErrors.confirmPassword && (
-                  <p className="text-red-500 text-xs mt-1">{formErrors.confirmPassword}</p>
-                )}
-              </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="auth-button"
+          >
+            {isSubmitting ? (
+              <>
+                <RefreshCw className="auth-spinner" />
+                {isLogin ? 'Signing in...' : 'Creating account...'}
+              </>
+            ) : (
+              <FluidText sensitivity={1}>
+                {isLogin ? 'Sign In' : 'Create Account'}
+              </FluidText>
             )}
+          </button>
 
-            {/* Submit Button */}
+          <div className="text-center mt-4">
             <button
-              type="submit"
+              type="button"
+              onClick={toggleMode}
               disabled={isSubmitting}
-              className="auth-button"
+              className="auth-toggle-link"
             >
-              {isSubmitting ? (
-                <>
-                  <RefreshCw className="auth-spinner" />
-                  {isLogin ? 'Signing in...' : 'Creating account...'}
-                </>
-              ) : (
-                <FluidText sensitivity={1}>
-                  {isLogin ? 'Sign In' : 'Create Account'}
-                </FluidText>
-              )}
+              {isLogin 
+                ? "Don't have an account? Sign up" 
+                : "Already have an account? Sign in"
+              }
             </button>
-
-            {/* Mode Toggle */}
-            <div className="text-center mt-4">
-              <button
-                type="button"
-                onClick={toggleMode}
-                disabled={isSubmitting}
-                className="auth-toggle-link"
-              >
-                {isLogin 
-                  ? "Don't have an account? Sign up" 
-                  : "Already have an account? Sign in"
-                }
-              </button>
-            </div>
-          </form>
-
-          {/* Footer Info */}
-          <div className="auth-footer">
-            <p className="auth-footer-text">
-              By {isLogin ? 'signing in' : 'creating an account'}, you can save your API configurations, 
-              view sync history, and access advanced features like rollback and real-time updates.
-            </p>
           </div>
+        </form>
+
+        <div className="auth-footer">
+          <p className="auth-footer-text">
+            By {isLogin ? 'signing in' : 'creating an account'}, you can save your API configurations, 
+            view sync history, and access advanced features like rollback and real-time updates.
+          </p>
         </div>
       </div>
-    );
-  };
-
+    </div>
+  );
+};
 
 export default LoginForm;
