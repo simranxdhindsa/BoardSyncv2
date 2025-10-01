@@ -764,7 +764,7 @@ const UserSettings = ({ onBack }) => {
                 <div className="settings-divider"></div>
                 <h4 className="text-lg font-medium text-red-900 flex items-center mb-4">
                   <AlertCircle className="w-5 h-5 mr-2" />
-                  Danger Zone
+                  Delete Your Profile
                 </h4>
                 
                 <div 
