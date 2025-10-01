@@ -2,7 +2,7 @@
 
 const API_BASE =
   process.env.NODE_ENV === 'production'
-    ? process.env.REACT_APP_API_URL || 'https://boardsyncapi.onrender.com'
+    ? process.env.REACT_APP_API_URL || 'https://boardsyncv2.onrender.com'
     : 'http://localhost:8080';
 
 // Token management
