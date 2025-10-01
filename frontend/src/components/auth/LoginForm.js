@@ -323,8 +323,8 @@ const LoginForm = ({ onSuccess }) => {
 
         <div className="auth-footer">
           <p className="auth-footer-text">
-            By {isLogin ? 'signing in' : 'creating an account'}, you can save your API configurations, 
-            view sync history, and access advanced features like rollback and real-time updates.
+            By {isLogin ? 'signing in' : 'creating an account'}, you agree to our terms and conditions—and also promise to remember your password, because honestly… we haven’t built the “forgot password” button yet. 😅
+
           </p>
         </div>
       </div>
