@@ -1,0 +1,50 @@
+{
+  "users": {
+    "1": {
+      "id": 1,
+      "username": "simranxdhindsa",
+      "email": "simrandargapur@gmail.com",
+      "password_hash": "9nlH2Eozo38lF1RjhxuMow==$SVBbFUMtNFyvSKB+e9e01OV5OkNlM+BKNjVKskIuqrs=",
+      "created_at": "2025-10-03T22:28:50.0262884+05:30",
+      "updated_at": "2025-10-03T22:28:50.0262884+05:30"
+    }
+  },
+  "settings": {
+    "1": {
+      "id": 1,
+      "user_id": 1,
+      "asana_pat": "2/1210448003360831/1211072669335360:f90e90671e1ace90afc7501d52263d9c",
+      "youtrack_base_url": "https://simran.youtrack.cloud",
+      "youtrack_token": "perm-YWRtaW4=.NDQtMQ==.zkB8wnZI6eSi0sR3qzD1l4v7tdmNwT",
+      "asana_project_id": "1207284744539269",
+      "youtrack_project_id": "ARD",
+      "custom_field_mappings": {
+        "tag_mapping": {},
+        "priority_mapping": {},
+        "status_mapping": {},
+        "custom_fields": {}
+      },
+      "created_at": "2025-10-03T22:28:50.0268461+05:30",
+      "updated_at": "2025-10-03T23:21:02.356479+05:30"
+    }
+  },
+  "operations": {},
+  "ignored_tickets": {},
+  "ticket_mappings": {
+    "1": {
+      "id": 1,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211435892745719",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-518",
+      "created_at": "2025-10-03T23:21:49.9356341+05:30",
+      "updated_at": "2025-10-03T23:21:49.9356341+05:30"
+    }
+  },
+  "next_user_id": 2,
+  "next_settings_id": 2,
+  "next_operation_id": 1,
+  "next_ignored_id": 1,
+  "next_mapping_id": 2
+}

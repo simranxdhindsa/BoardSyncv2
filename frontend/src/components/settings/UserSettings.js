@@ -1,4 +1,6 @@
-// Updated UserSettings Component with Account Deletion - components/settings/UserSettings.js
+// FILE: frontend/src/components/settings/UserSettings.js
+// Complete UserSettings Component with ALL functionality
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
@@ -7,13 +9,14 @@ import {
   getAsanaProjects, 
   getYouTrackProjects,
   testConnections,
-  getAccountSummary,
   deleteAccount
 } from '../../services/api';
+import { CreateMappingForm, MappingsList } from '../mapping/MappingComponents';
 import { 
   Settings, 
   Key, 
   Link, 
+  Link2,
   TestTube, 
   Save, 
   RefreshCw, 
@@ -35,7 +38,6 @@ import '../../styles/settings-glass-theme.css';
 const UserSettings = ({ onBack }) => {
   const { user, logout: authLogout } = useAuth();
   
-  // Settings state
   const [settings, setSettings] = useState({
     asana_pat: '',
     youtrack_base_url: '',
@@ -50,32 +52,26 @@ const UserSettings = ({ onBack }) => {
     }
   });
 
-  // UI state
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   
-  // Projects state
   const [asanaProjects, setAsanaProjects] = useState([]);
   const [youtrackProjects, setYoutrackProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState({ asana: false, youtrack: false });
   
-  // Connection test state
   const [connectionStatus, setConnectionStatus] = useState({ asana: null, youtrack: null });
   
-  // Field mapping state
   const [newMapping, setNewMapping] = useState({ type: 'tag_mapping', key: '', value: '' });
   const [activeTab, setActiveTab] = useState('api');
   
-  // Password visibility state
   const [showPasswords, setShowPasswords] = useState({
     asana_pat: false,
     youtrack_token: false
   });
 
-  // Account deletion state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletionData, setDeletionData] = useState({
     password: '',
@@ -83,7 +79,8 @@ const UserSettings = ({ onBack }) => {
   });
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-  // Load user settings on mount
+  const [mappingRefreshKey, setMappingRefreshKey] = useState(0);
+
   useEffect(() => {
     loadSettings();
   }, []);
@@ -116,7 +113,6 @@ const UserSettings = ({ onBack }) => {
     }
   };
 
-  // Toggle password visibility
   const togglePasswordVisibility = (field) => {
     setShowPasswords(prev => ({
       ...prev,
@@ -137,7 +133,6 @@ const UserSettings = ({ onBack }) => {
     setSuccessMessage('');
   };
 
-  // Load Asana projects
   const loadAsanaProjects = async () => {
     if (!settings.asana_pat) {
       setError('Please enter your Asana PAT first');
@@ -148,10 +143,7 @@ const UserSettings = ({ onBack }) => {
     clearMessages();
     
     try {
-      // First save the settings
       await updateUserSettings(settings);
-      
-      // Then load the projects
       const response = await getAsanaProjects();
       setAsanaProjects(response.data || response);
       setSuccessMessage('Asana credentials saved and projects loaded successfully!');
@@ -162,7 +154,6 @@ const UserSettings = ({ onBack }) => {
     }
   };
 
-  // Load YouTrack projects
   const loadYoutrackProjects = async () => {
     if (!settings.youtrack_base_url || !settings.youtrack_token) {
       setError('Please enter your YouTrack URL and token first');
@@ -173,10 +164,7 @@ const UserSettings = ({ onBack }) => {
     clearMessages();
     
     try {
-      // First save the settings
       await updateUserSettings(settings);
-      
-      // Then load the projects
       const response = await getYouTrackProjects();
       setYoutrackProjects(response.data || response);
       setSuccessMessage('YouTrack credentials saved and projects loaded successfully!');
@@ -187,17 +175,14 @@ const UserSettings = ({ onBack }) => {
     }
   };
 
-  // Test API connections
   const handleTestConnections = async () => {
     setTesting(true);
     setConnectionStatus({ asana: null, youtrack: null });
     clearMessages();
     
-    // Client-side check: if projects are loaded and selected, connection is successful
     const asanaSuccess = asanaProjects.length > 0 && settings.asana_project_id;
     const youtrackSuccess = youtrackProjects.length > 0 && settings.youtrack_project_id;
     
-    // Simulate a brief delay for UX
     setTimeout(() => {
       setConnectionStatus({
         asana: asanaSuccess,
@@ -216,7 +201,7 @@ const UserSettings = ({ onBack }) => {
     }, 800);
   };
 
-  // Save settings
+  
   const handleSaveSettings = async () => {
     setSaving(true);
     clearMessages();
@@ -231,7 +216,6 @@ const UserSettings = ({ onBack }) => {
     }
   };
 
-  // Add custom field mapping
   const addCustomMapping = () => {
     if (!newMapping.key.trim() || !newMapping.value.trim()) return;
     
@@ -249,7 +233,6 @@ const UserSettings = ({ onBack }) => {
     setNewMapping({ ...newMapping, key: '', value: '' });
   };
 
-  // Remove custom mapping
   const removeCustomMapping = (type, key) => {
     setSettings(prev => {
       const updatedMappings = { ...prev.custom_field_mappings[type] };
@@ -265,7 +248,6 @@ const UserSettings = ({ onBack }) => {
     });
   };
 
-  // Handle logout
   const handleLogout = async () => {
     if (window.confirm('Are you sure you want to logout?')) {
       try {
@@ -277,7 +259,6 @@ const UserSettings = ({ onBack }) => {
     }
   };
 
-  // Account Deletion Functions
   const handleShowDeleteModal = () => {
     setError(null);
     setShowDeleteModal(true);
@@ -303,7 +284,6 @@ const UserSettings = ({ onBack }) => {
         confirmation: deletionData.confirmation
       });
 
-      // Success - show message and redirect
       alert('Your account has been permanently deleted. You will be redirected to the login page.');
       window.location.href = '/';
     } catch (err) {
@@ -318,9 +298,15 @@ const UserSettings = ({ onBack }) => {
     setError(null);
   };
 
+  const handleMappingCreated = () => {
+    setMappingRefreshKey(prev => prev + 1);
+    setSuccessMessage('Ticket mapping created successfully!');
+  };
+
   const tabs = [
     { id: 'api', label: 'API Configuration', icon: Key },
     { id: 'mapping', label: 'Field Mapping', icon: Link },
+    { id: 'ticket_mapping', label: 'Ticket Mapping', icon: Link2 },
     { id: 'profile', label: 'Profile', icon: User }
   ];
 
@@ -417,6 +403,7 @@ const UserSettings = ({ onBack }) => {
 
         {/* Tab Content */}
         <div className="settings-content">
+          {/* API Configuration Tab */}
           {activeTab === 'api' && (
             <div className="space-y-6">
               <div>
@@ -631,6 +618,7 @@ const UserSettings = ({ onBack }) => {
             </div>
           )}
 
+          {/* Field Mapping Tab */}
           {activeTab === 'mapping' && (
             <div className="space-y-6">
               <div>
@@ -715,6 +703,48 @@ const UserSettings = ({ onBack }) => {
             </div>
           )}
 
+          {/* Ticket Mapping Tab */}
+          {activeTab === 'ticket_mapping' && (
+            <div className="space-y-6">
+              <div>
+                <FluidText className="settings-section-header" sensitivity={1.2}>
+                  Ticket Mapping
+                </FluidText>
+                <p className="settings-section-description">
+                  Manually link Asana tasks with YouTrack issues by pasting their URLs. Get task IDs for custom mapping.
+                </p>
+              </div>
+
+              {/* Two Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Create Form - Left Column */}
+                <div className="lg:col-span-1">
+                  <CreateMappingForm onSuccess={handleMappingCreated} />
+                </div>
+
+                {/* Mappings List - Right Column */}
+                <div className="lg:col-span-2">
+                  <MappingsList refreshTrigger={mappingRefreshKey} />
+                </div>
+              </div>
+
+              {/* Help Section */}
+              <div className="glass-panel bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  When to use ticket mapping?
+                </h4>
+                <ul className="text-xs text-blue-700 space-y-1">
+                  <li>• When Asana and YouTrack ticket titles don't match</li>
+                  <li>• For tickets created manually in YouTrack</li>
+                  <li>• To link historical tickets created before automation</li>
+                  <li>• When automatic matching fails due to special characters</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Profile Tab */}
           {activeTab === 'profile' && (
             <div className="space-y-6">
               <div>
@@ -759,7 +789,7 @@ const UserSettings = ({ onBack }) => {
                 </button>
               </div>
 
-              {/* Danger Zone - Account Deletion */}
+              {/* Danger Zone */}
               <div className="settings-form-group">
                 <div className="settings-divider"></div>
                 <h4 className="text-lg font-medium text-red-900 flex items-center mb-4">
@@ -792,7 +822,7 @@ const UserSettings = ({ onBack }) => {
             </div>
           )}
 
-          {/* Save Button (always visible) */}
+          {/* Save Button */}
           <div className="settings-actions">
             <button
               onClick={handleSaveSettings}
@@ -815,7 +845,7 @@ const UserSettings = ({ onBack }) => {
         </div>
       </div>
 
-      {/* Account Deletion Modal */}
+      {/* Delete Modal */}
       {showDeleteModal && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -825,7 +855,6 @@ const UserSettings = ({ onBack }) => {
             className="bg-white rounded-lg shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -845,9 +874,7 @@ const UserSettings = ({ onBack }) => {
               </div>
             </div>
 
-            {/* Modal Content */}
             <div className="p-6 space-y-6">
-              {/* Warning */}
               <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
@@ -866,7 +893,6 @@ const UserSettings = ({ onBack }) => {
                 </div>
               </div>
 
-              {/* Deletion Form */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-900 mb-2">
@@ -904,7 +930,6 @@ const UserSettings = ({ onBack }) => {
               )}
             </div>
 
-            {/* Modal Footer */}
             <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
               <button
                 onClick={closeDeleteModal}
