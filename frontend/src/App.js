@@ -9,7 +9,8 @@ import LoginForm from './components/auth/LoginForm';
 import UserSettings from './components/settings/UserSettings';
 import { analyzeTickets, syncSingleTicket, createSingleTicket, createMissingTickets } from './services/api';
 import './styles/glass-theme.css';
-import { Settings, User } from 'lucide-react';
+import { Settings, } from 'lucide-react';
+
 
 // Main App Component (wrapped in AuthProvider)
 function AppContent() {

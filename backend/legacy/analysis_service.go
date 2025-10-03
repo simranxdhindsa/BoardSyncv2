@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"asana-youtrack-sync/database"
 	configpkg "asana-youtrack-sync/config"
+	"asana-youtrack-sync/database"
 )
 
 // AnalysisService handles comprehensive ticket analysis operations
@@ -53,18 +53,40 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 
 	fmt.Printf("ANALYSIS: Retrieved %d YouTrack issues for user %d\n", len(youTrackIssues), userID)
 
-	// Step 4: Build lookup maps for efficient processing
+	// Step 4: Build lookup maps - PRIORITIZE MAPPING TABLE
 	youTrackMap := make(map[string]YouTrackIssue)
 	asanaMap := make(map[string]AsanaTask)
 
+	// First, build map from ticket mappings (highest priority)
+	mappings, _ := s.db.GetAllTicketMappings(userID)
+	mappingAsanaToYT := make(map[string]string) // asana_task_id -> youtrack_issue_id
+	mappingYTToAsana := make(map[string]string) // youtrack_issue_id -> asana_task_id
+
+	for _, mapping := range mappings {
+		mappingAsanaToYT[mapping.AsanaTaskID] = mapping.YouTrackIssueID
+		mappingYTToAsana[mapping.YouTrackIssueID] = mapping.AsanaTaskID
+	}
+
+	fmt.Printf("ANALYSIS: Loaded %d ticket mappings from database\n", len(mappings))
+
+	// Build YouTrack map using mappings first, then fallback to description
 	for _, issue := range youTrackIssues {
+		// Check if this YouTrack issue has a mapping
+		if asanaTaskID, hasMappingYT := mappingYTToAsana[issue.ID]; hasMappingYT {
+			youTrackMap[asanaTaskID] = issue
+			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana task '%s' via mapping table\n", issue.ID, asanaTaskID)
+			continue
+		}
+
+		// Fallback to description extraction
 		asanaID := s.youtrackService.ExtractAsanaID(issue)
 		if asanaID != "" {
 			youTrackMap[asanaID] = issue
-			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana ID '%s'\n", issue.ID, asanaID)
+			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana ID '%s' via description\n", issue.ID, asanaID)
 		}
 	}
 
+	// Build Asana map
 	for _, task := range asanaTasks {
 		asanaMap[task.GID] = task
 	}
@@ -102,30 +124,24 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 
 		// Handle "Ready for Stage" - sync with DEV status in YouTrack
 		if strings.Contains(sectionName, "ready for stage") {
-			// Check if this task has a corresponding YouTrack issue
 			existingIssue, existsInYouTrack := youTrackMap[task.GID]
-			
+
 			if existsInYouTrack {
-				// Process as a regular ticket with DEV status
 				s.processReadyForStageTicket(task, existingIssue, asanaTags, analysis)
 			} else {
-				// Task doesn't exist in YouTrack - add to missing if we want to create it
 				analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
 			}
-			
-			// Also add to ReadyForStage list for display purposes
+
 			analysis.ReadyForStage = append(analysis.ReadyForStage, task)
 			continue
 		}
 
 		// Check if this task has a corresponding YouTrack issue
 		existingIssue, existsInYouTrack := youTrackMap[task.GID]
-		
-		// Only process as existing if it truly exists in YouTrack
+
 		if existsInYouTrack {
 			s.processExistingTicket(task, existingIssue, asanaTags, sectionName, analysis)
 		} else {
-			// Task doesn't exist in YouTrack - add to missing if syncable
 			if s.isSyncableSection(sectionName) {
 				fmt.Printf("ANALYSIS: Task '%s' (GID: %s) missing in YouTrack\n", task.Name, task.GID)
 				analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
@@ -146,11 +162,9 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 func (s *AnalysisService) processFindings(task AsanaTask, youTrackMap map[string]YouTrackIssue, analysis *TicketAnalysis) {
 	analysis.FindingsTickets = append(analysis.FindingsTickets, task)
 
-	// Check if there's a corresponding YouTrack issue
 	if existingIssue, exists := youTrackMap[task.GID]; exists {
 		youtrackStatus := s.youtrackService.GetStatus(existingIssue)
-		
-		// Create alert if YouTrack issue is still active
+
 		if IsActiveYouTrackStatus(youtrackStatus) {
 			alert := FindingsAlert{
 				AsanaTask:      task,
@@ -163,25 +177,21 @@ func (s *AnalysisService) processFindings(task AsanaTask, youTrackMap map[string
 	}
 }
 
-// processReadyForStageTicket processes tickets in "Ready for Stage" that should sync with DEV in YouTrack
+// processReadyForStageTicket processes tickets in "Ready for Stage"
 func (s *AnalysisService) processReadyForStageTicket(task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, analysis *TicketAnalysis) {
-	// Double-check that the issue actually exists by verifying it has an ID
 	if existingIssue.ID == "" {
 		fmt.Printf("ANALYSIS WARNING: Ready for Stage task '%s' (GID: %s) has empty YouTrack issue ID - treating as missing\n", task.Name, task.GID)
 		analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
 		return
 	}
 
-	// "Ready for Stage" should map to "DEV" status in YouTrack
 	expectedYouTrackStatus := "DEV"
 	actualYouTrackStatus := s.youtrackService.GetStatus(existingIssue)
 
-	fmt.Printf("ANALYSIS: Processing Ready for Stage ticket '%s' - Expected YT: %s, Actual YT: %s\n", 
+	fmt.Printf("ANALYSIS: Processing Ready for Stage ticket '%s' - Expected YT: %s, Actual YT: %s\n",
 		task.Name, expectedYouTrackStatus, actualYouTrackStatus)
 
-	// Check if the YouTrack status matches expected DEV status
 	if actualYouTrackStatus == expectedYouTrackStatus {
-		// Tickets are in sync
 		matchedTicket := MatchedTicket{
 			AsanaTask:         task,
 			YouTrackIssue:     existingIssue,
@@ -192,12 +202,11 @@ func (s *AnalysisService) processReadyForStageTicket(task AsanaTask, existingIss
 		}
 		analysis.Matched = append(analysis.Matched, matchedTicket)
 	} else {
-		// Tickets are out of sync - YouTrack should be DEV
 		mismatchedTicket := MismatchedTicket{
 			AsanaTask:         task,
 			YouTrackIssue:     existingIssue,
-			AsanaStatus:       expectedYouTrackStatus, // What it should be
-			YouTrackStatus:    actualYouTrackStatus,   // What it actually is
+			AsanaStatus:       expectedYouTrackStatus,
+			YouTrackStatus:    actualYouTrackStatus,
 			AsanaTags:         asanaTags,
 			YouTrackSubsystem: "",
 			TagMismatch:       false,
@@ -206,9 +215,8 @@ func (s *AnalysisService) processReadyForStageTicket(task AsanaTask, existingIss
 	}
 }
 
-// processExistingTicket processes tickets that exist in both Asana and YouTrack
+// processExistingTicket processes tickets that exist in both systems
 func (s *AnalysisService) processExistingTicket(task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, sectionName string, analysis *TicketAnalysis) {
-	// Double-check that the issue actually exists by verifying it has an ID
 	if existingIssue.ID == "" {
 		fmt.Printf("ANALYSIS WARNING: Task '%s' (GID: %s) has empty YouTrack issue ID - treating as missing\n", task.Name, task.GID)
 		if s.isSyncableSection(sectionName) {
@@ -222,7 +230,6 @@ func (s *AnalysisService) processExistingTicket(task AsanaTask, existingIssue Yo
 
 	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s\n", task.Name, asanaStatus, youtrackStatus)
 
-	// Create base matched ticket structure
 	matchedTicket := MatchedTicket{
 		AsanaTask:         task,
 		YouTrackIssue:     existingIssue,
@@ -232,18 +239,14 @@ func (s *AnalysisService) processExistingTicket(task AsanaTask, existingIssue Yo
 		TagMismatch:       false,
 	}
 
-	// Special handling for blocked tickets
 	if strings.Contains(sectionName, "blocked") {
 		analysis.BlockedTickets = append(analysis.BlockedTickets, matchedTicket)
 		return
 	}
 
-	// Check if statuses match
 	if asanaStatus == youtrackStatus {
-		// Tickets are in sync
 		analysis.Matched = append(analysis.Matched, matchedTicket)
 	} else {
-		// Tickets are out of sync
 		mismatchedTicket := MismatchedTicket{
 			AsanaTask:         task,
 			YouTrackIssue:     existingIssue,
@@ -265,10 +268,9 @@ func (s *AnalysisService) processOrphanedIssues(allAsanaTasks, filteredTasks []A
 			continue
 		}
 
-		// Check if this issue corresponds to a task that should have been in our analysis
 		taskExists := false
 		var originalTask AsanaTask
-		
+
 		for _, originalTask = range allAsanaTasks {
 			if originalTask.GID == asanaID {
 				taskExists = true
@@ -277,7 +279,6 @@ func (s *AnalysisService) processOrphanedIssues(allAsanaTasks, filteredTasks []A
 		}
 
 		if taskExists {
-			// Check if this task was in our filtered set
 			filteredTaskExists := false
 			for _, filteredTask := range filteredTasks {
 				if filteredTask.GID == asanaID {
@@ -286,7 +287,6 @@ func (s *AnalysisService) processOrphanedIssues(allAsanaTasks, filteredTasks []A
 				}
 			}
 
-			// If the task exists in original set but not in filtered set, it might be orphaned
 			if !filteredTaskExists {
 				if len(originalTask.Memberships) > 0 {
 					originalSectionName := strings.ToLower(originalTask.Memberships[0].Section.Name)
@@ -296,13 +296,12 @@ func (s *AnalysisService) processOrphanedIssues(allAsanaTasks, filteredTasks []A
 				}
 			}
 		} else {
-			// The YouTrack issue references an Asana task that doesn't exist at all
 			analysis.OrphanedYouTrack = append(analysis.OrphanedYouTrack, issue)
 		}
 	}
 }
 
-// isSyncableSection checks if a section name is syncable based on our column definitions
+// isSyncableSection checks if a section name is syncable
 func (s *AnalysisService) isSyncableSection(sectionName string) bool {
 	sectionLower := strings.ToLower(strings.TrimSpace(sectionName))
 
@@ -348,20 +347,17 @@ func (s *AnalysisService) isSyncableSection(sectionName string) bool {
 	return false
 }
 
-// GetTicketsByType returns tickets of a specific type with optional column filtering
+// GetTicketsByType returns tickets of a specific type
 func (s *AnalysisService) GetTicketsByType(userID int, ticketType string, column string) (interface{}, error) {
-	// Handle ignored tickets separately (they don't have column context)
 	if ticketType == "ignored" {
 		return s.ignoreService.GetIgnoredTickets(userID), nil
 	}
 
-	// Determine columns to analyze
 	var columnsToAnalyze []string
 
 	if column == "" || column == "all_syncable" {
 		columnsToAnalyze = SyncableColumns
 	} else {
-		// Map frontend column names to backend names
 		columnMap := map[string]string{
 			"backlog":         "backlog",
 			"in_progress":     "in progress",
@@ -380,13 +376,11 @@ func (s *AnalysisService) GetTicketsByType(userID int, ticketType string, column
 		}
 	}
 
-	// Perform analysis with specified columns
 	analysis, err := s.PerformAnalysis(userID, columnsToAnalyze)
 	if err != nil {
 		return nil, fmt.Errorf("analysis failed: %w", err)
 	}
 
-	// Return appropriate ticket type
 	switch ticketType {
 	case "matched":
 		return analysis.Matched, nil
@@ -407,17 +401,16 @@ func (s *AnalysisService) GetTicketsByType(userID int, ticketType string, column
 	}
 }
 
-// GetAnalysisSummary returns a comprehensive summary of the analysis results
+// GetAnalysisSummary returns a comprehensive summary
 func (s *AnalysisService) GetAnalysisSummary(userID int, selectedColumns []string) (map[string]interface{}, error) {
 	analysis, err := s.PerformAnalysis(userID, selectedColumns)
 	if err != nil {
 		return nil, err
 	}
 
-	// Count different types of mismatches
 	tagMismatchCount := 0
 	statusMismatchCount := 0
-	
+
 	for _, ticket := range analysis.Mismatched {
 		if ticket.TagMismatch {
 			tagMismatchCount++
@@ -427,7 +420,6 @@ func (s *AnalysisService) GetAnalysisSummary(userID int, selectedColumns []strin
 		}
 	}
 
-	// Calculate sync health percentage
 	totalTickets := len(analysis.Matched) + len(analysis.Mismatched) + len(analysis.MissingYouTrack)
 	syncHealthPercentage := 100.0
 	if totalTickets > 0 {
@@ -459,29 +451,26 @@ func (s *AnalysisService) GetDetailedAnalysis(userID int, selectedColumns []stri
 		return nil, err
 	}
 
-	// Status breakdown for mismatched tickets
 	statusBreakdown := make(map[string]int)
 	for _, ticket := range analysis.Mismatched {
 		key := fmt.Sprintf("%s -> %s", ticket.YouTrackStatus, ticket.AsanaStatus)
 		statusBreakdown[key]++
 	}
 
-	// Column breakdown
 	columnBreakdown := make(map[string]int)
 	for _, task := range analysis.MissingYouTrack {
 		sectionName := s.asanaService.GetSectionName(task)
 		columnBreakdown[sectionName]++
 	}
 
-	// Tag analysis
 	tagAnalysis := s.analyzeTagUsage(analysis)
 
 	return map[string]interface{}{
-		"analysis":          analysis,
-		"status_breakdown":  statusBreakdown,
-		"column_breakdown":  columnBreakdown,
-		"tag_analysis":      tagAnalysis,
-		"selected_columns":  selectedColumns,
+		"analysis":           analysis,
+		"status_breakdown":   statusBreakdown,
+		"column_breakdown":   columnBreakdown,
+		"tag_analysis":       tagAnalysis,
+		"selected_columns":   selectedColumns,
 		"analysis_timestamp": fmt.Sprintf("%d", time.Now().Unix()),
 	}, nil
 }
@@ -490,24 +479,19 @@ func (s *AnalysisService) GetDetailedAnalysis(userID int, selectedColumns []stri
 func (s *AnalysisService) analyzeTagUsage(analysis *TicketAnalysis) map[string]interface{} {
 	tagCounts := make(map[string]int)
 	totalTaggedTickets := 0
-	
-	// Count tags in all ticket types
+
 	allTasks := []AsanaTask{}
-	
-	// Add matched tickets
+
 	for _, ticket := range analysis.Matched {
 		allTasks = append(allTasks, ticket.AsanaTask)
 	}
-	
-	// Add mismatched tickets
+
 	for _, ticket := range analysis.Mismatched {
 		allTasks = append(allTasks, ticket.AsanaTask)
 	}
-	
-	// Add missing tickets
+
 	allTasks = append(allTasks, analysis.MissingYouTrack...)
-	
-	// Count tag usage
+
 	for _, task := range allTasks {
 		tags := s.asanaService.GetTags(task)
 		if len(tags) > 0 {
@@ -519,10 +503,10 @@ func (s *AnalysisService) analyzeTagUsage(analysis *TicketAnalysis) map[string]i
 	}
 
 	return map[string]interface{}{
-		"tag_counts":          tagCounts,
+		"tag_counts":           tagCounts,
 		"total_tagged_tickets": totalTaggedTickets,
-		"total_tickets":       len(allTasks),
-		"tag_coverage":        float64(totalTaggedTickets) / float64(len(allTasks)) * 100,
+		"total_tickets":        len(allTasks),
+		"tag_coverage":         float64(totalTaggedTickets) / float64(len(allTasks)) * 100,
 	}
 }
 
@@ -538,11 +522,11 @@ func (s *AnalysisService) GetColumnAnalysis(userID int, column string) (map[stri
 	}
 
 	return map[string]interface{}{
-		"column":            column,
-		"matched":           len(analysis.Matched),
-		"mismatched":        len(analysis.Mismatched),
-		"missing_youtrack":  len(analysis.MissingYouTrack),
-		"tickets":           analysis,
+		"column":           column,
+		"matched":          len(analysis.Matched),
+		"mismatched":       len(analysis.Mismatched),
+		"missing_youtrack": len(analysis.MissingYouTrack),
+		"tickets":          analysis,
 	}, nil
 }
 
@@ -552,7 +536,6 @@ func (s *AnalysisService) ValidateAnalysisRequest(userID int, columns []string) 
 		return fmt.Errorf("invalid user ID")
 	}
 
-	// Check if user has valid settings
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
 		return fmt.Errorf("failed to get user settings: %w", err)
@@ -566,7 +549,6 @@ func (s *AnalysisService) ValidateAnalysisRequest(userID int, columns []string) 
 		return fmt.Errorf("YouTrack configuration incomplete")
 	}
 
-	// Validate columns
 	if len(columns) > 0 {
 		validColumns := make(map[string]bool)
 		for _, col := range AllColumns {
@@ -585,15 +567,14 @@ func (s *AnalysisService) ValidateAnalysisRequest(userID int, columns []string) 
 
 // GetAnalysisHealth returns the health status of the analysis system
 func (s *AnalysisService) GetAnalysisHealth(userID int) (map[string]interface{}, error) {
-	// Test connectivity to both systems
 	asanaHealth := "healthy"
 	youtrackHealth := "healthy"
-	
+
 	_, err := s.asanaService.GetTasks(userID)
 	if err != nil {
 		asanaHealth = "unhealthy: " + err.Error()
 	}
-	
+
 	_, err = s.youtrackService.GetIssues(userID)
 	if err != nil {
 		youtrackHealth = "unhealthy: " + err.Error()
