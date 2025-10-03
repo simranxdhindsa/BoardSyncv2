@@ -11,7 +11,7 @@ type User struct {
     ID           int       `json:"id" db:"id"`
     Username     string    `json:"username" db:"username"`
     Email        string    `json:"email" db:"email"`
-    PasswordHash string    `json:"password_hash" db:"password_hash"` // CHANGED: Removed `json:"-"` to allow serialization
+    PasswordHash string    `json:"password_hash" db:"password_hash"`
     CreatedAt    time.Time `json:"created_at" db:"created_at"`
     UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -110,6 +110,18 @@ type IgnoredTicket struct {
     TicketID       string    `json:"ticket_id" db:"ticket_id"`
     IgnoreType     string    `json:"ignore_type" db:"ignore_type"` // "temp" or "forever"
     CreatedAt      time.Time `json:"created_at" db:"created_at"`
+}
+
+// TicketMapping represents a manual mapping between Asana task and YouTrack issue
+type TicketMapping struct {
+    ID                 int       `json:"id" db:"id"`
+    UserID             int       `json:"user_id" db:"user_id"`
+    AsanaProjectID     string    `json:"asana_project_id" db:"asana_project_id"`
+    AsanaTaskID        string    `json:"asana_task_id" db:"asana_task_id"`
+    YouTrackProjectID  string    `json:"youtrack_project_id" db:"youtrack_project_id"`
+    YouTrackIssueID    string    `json:"youtrack_issue_id" db:"youtrack_issue_id"` // e.g., "ARD-340"
+    CreatedAt          time.Time `json:"created_at" db:"created_at"`
+    UpdatedAt          time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // Project represents project information for dropdowns

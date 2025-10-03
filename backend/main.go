@@ -16,6 +16,7 @@ import (
 	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/database"
 	"asana-youtrack-sync/legacy"
+	"asana-youtrack-sync/mapping"
 	"asana-youtrack-sync/sync"
 	"asana-youtrack-sync/utils"
 )
@@ -114,7 +115,7 @@ func registerRoutes(
 	// ========================================================================
 	// PUBLIC ENDPOINTS (No Authentication Required)
 	// ========================================================================
-	
+
 	// Health check (public)
 	router.HandleFunc("/health", legacyHandler.HealthCheck).Methods("GET", "OPTIONS")
 
@@ -125,33 +126,37 @@ func registerRoutes(
 	// ========================================================================
 	// PROTECTED AUTHENTICATION ROUTES
 	// ========================================================================
-	
-protectedAuth := router.PathPrefix("/api/auth").Subrouter()
-protectedAuth.Use(authService.Middleware)
 
-protectedAuth.HandleFunc("/refresh", authHandler.RefreshToken).Methods("POST", "OPTIONS")
-protectedAuth.HandleFunc("/me", authHandler.GetProfile).Methods("GET", "OPTIONS")
-protectedAuth.HandleFunc("/change-password", authHandler.ChangePassword).Methods("POST", "OPTIONS")
-protectedAuth.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
-protectedAuth.HandleFunc("/account/summary", authHandler.GetAccountDataSummary).Methods("GET", "OPTIONS")
-protectedAuth.HandleFunc("/account/delete", authHandler.DeleteAccount).Methods("POST", "OPTIONS")
+	protectedAuth := router.PathPrefix("/api/auth").Subrouter()
+	protectedAuth.Use(authService.Middleware)
+
+	protectedAuth.HandleFunc("/refresh", authHandler.RefreshToken).Methods("POST", "OPTIONS")
+	protectedAuth.HandleFunc("/me", authHandler.GetProfile).Methods("GET", "OPTIONS")
+	protectedAuth.HandleFunc("/change-password", authHandler.ChangePassword).Methods("POST", "OPTIONS")
+	protectedAuth.HandleFunc("/logout", authHandler.Logout).Methods("POST", "OPTIONS")
+	protectedAuth.HandleFunc("/account/summary", authHandler.GetAccountDataSummary).Methods("GET", "OPTIONS")
+	protectedAuth.HandleFunc("/account/delete", authHandler.DeleteAccount).Methods("POST", "OPTIONS")
 
 	// ========================================================================
 	// SETTINGS ROUTES (Protected)
 	// ========================================================================
-	
+
 	configHandler.RegisterRoutes(router, authService)
 
+	// ADD THESE 3 LINES:
+	mappingService := mapping.NewService(db, configService)
+	mappingHandler := mapping.NewHandler(mappingService)
+	mappingHandler.RegisterRoutes(router, authService)
 	// ========================================================================
 	// WEBSOCKET ENDPOINT
 	// ========================================================================
-	
+
 	router.HandleFunc("/ws", wsManager.HandleWebSocket).Methods("GET")
 
 	// ========================================================================
 	// NEW SYNC API ROUTES (Protected)
 	// ========================================================================
-	
+
 	syncAPI := router.PathPrefix("/api/sync").Subrouter()
 	syncAPI.Use(authService.Middleware)
 
@@ -163,7 +168,7 @@ protectedAuth.HandleFunc("/account/delete", authHandler.DeleteAccount).Methods("
 	// ========================================================================
 	// LEGACY API ROUTES (Now Protected with Authentication)
 	// ========================================================================
-	
+
 	legacyAPI := router.PathPrefix("").Subrouter()
 	legacyAPI.Use(authService.Middleware) // All legacy routes now require auth
 
@@ -176,7 +181,7 @@ protectedAuth.HandleFunc("/account/delete", authHandler.DeleteAccount).Methods("
 	legacyAPI.HandleFunc("/ignore", legacyHandler.ManageIgnoredTickets).Methods("GET", "POST", "OPTIONS")
 	legacyAPI.HandleFunc("/tickets", legacyHandler.GetTicketsByType).Methods("GET", "OPTIONS")
 	legacyAPI.HandleFunc("/delete-tickets", legacyHandler.DeleteTickets).Methods("POST", "OPTIONS")
-	
+
 	// Additional endpoints
 	legacyAPI.HandleFunc("/sync-stats", legacyHandler.GetSyncStats).Methods("GET", "OPTIONS")
 	legacyAPI.HandleFunc("/syncable-tickets", legacyHandler.GetSyncableTickets).Methods("GET", "OPTIONS")
@@ -192,7 +197,7 @@ protectedAuth.HandleFunc("/account/delete", authHandler.DeleteAccount).Methods("
 	// ========================================================================
 	// STATIC FILE SERVING
 	// ========================================================================
-	
+
 	staticDir := getEnvDefault("STATIC_DIR", "./frontend/")
 	router.PathPrefix("/frontend/").Handler(http.StripPrefix("/frontend/", http.FileServer(http.Dir(staticDir))))
 
@@ -205,7 +210,7 @@ protectedAuth.HandleFunc("/account/delete", authHandler.DeleteAccount).Methods("
 	// ========================================================================
 	// API DOCUMENTATION
 	// ========================================================================
-	
+
 	router.HandleFunc("/api/docs", handleAPIDocs).Methods("GET")
 
 	logRouteRegistration()
@@ -529,6 +534,13 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 				"GET  /api/settings/youtrack/projects": "Get YouTrack projects",
 				"POST /api/settings/test-connections":  "Test API connections",
 			},
+			"ticket_mappings": map[string]string{ // ADD THIS SECTION
+				"POST   /api/mappings":                    "Create manual ticket mapping",
+				"GET    /api/mappings":                    "Get all ticket mappings",
+				"DELETE /api/mappings/{id}":               "Delete ticket mapping",
+				"GET    /api/mappings/asana/{taskId}":     "Get mapping by Asana task ID",
+				"GET    /api/mappings/youtrack/{issueId}": "Get mapping by YouTrack issue ID",
+			},
 			"new_sync": map[string]string{
 				"POST /api/sync/start":         "Start sync operation",
 				"GET  /api/sync/status/{id}":   "Get sync status",
@@ -536,25 +548,28 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 				"POST /api/sync/rollback/{id}": "Rollback sync operation",
 			},
 			"legacy_api": map[string]string{
-				"GET  /health":             "Health check (public)",
-				"GET  /status":             "Service status (protected)",
-				"GET  /analyze":            "Analyze ticket differences (protected)",
-				"POST /create":             "Create missing tickets (protected)",
-				"POST /create-single":      "Create individual ticket (protected)",
-				"GET/POST /sync":           "Sync mismatched tickets (protected)",
-				"GET/POST /ignore":         "Manage ignored tickets (protected)",
-				"GET  /tickets":            "Get tickets by type (protected)",
-				"POST /delete-tickets":     "Delete tickets (protected)",
-				"GET  /sync-stats":         "Get sync statistics (protected)",
-				"GET  /syncable-tickets":   "Get syncable tickets (protected)",
-				"POST /sync-by-column":     "Sync by column (protected)",
-				"POST /create-by-column":   "Create by column (protected)",
+				"GET  /health":           "Health check (public)",
+				"GET  /status":           "Service status (protected)",
+				"GET  /analyze":          "Analyze ticket differences (protected)",
+				"POST /create":           "Create missing tickets (protected)",
+				"POST /create-single":    "Create individual ticket (protected)",
+				"GET/POST /sync":         "Sync mismatched tickets (protected)",
+				"GET/POST /ignore":       "Manage ignored tickets (protected)",
+				"GET  /tickets":          "Get tickets by type (protected)",
+				"POST /delete-tickets":   "Delete tickets (protected)",
+				"GET  /sync-stats":       "Get sync statistics (protected)",
+				"GET  /syncable-tickets": "Get syncable tickets (protected)",
+				"POST /sync-by-column":   "Sync by column (protected)",
+				"POST /create-by-column": "Create by column (protected)",
 			},
 			"websocket": map[string]string{
 				"GET /ws": "WebSocket connection for real-time updates",
 			},
 		},
 		"features": []string{
+			"Manual ticket mapping with URL parsing",    // ADD
+			"Automatic mapping creation on ticket sync", // ADD
+			"Title sanitization (/ replaced with 'or')", // ADD
 			"JWT-based authentication",
 			"User-specific database settings",
 			"Database-backed ignored tickets per Asana project",
@@ -603,7 +618,7 @@ func logRouteRegistration() {
 	log.Println("🛣️  Routes registered successfully:")
 	log.Println("   📖 PUBLIC:")
 	log.Println("      GET  /health - Health check")
-	log.Println("      POST /api/auth/register - User registration") 
+	log.Println("      POST /api/auth/register - User registration")
 	log.Println("      POST /api/auth/login - User login")
 	log.Println("   🔐 PROTECTED (require Bearer token):")
 	log.Println("      POST /api/auth/* - Auth management")
@@ -614,4 +629,7 @@ func logRouteRegistration() {
 	log.Println("      GET  /ws - Real-time updates")
 	log.Println("   📚 DOCUMENTATION:")
 	log.Println("      GET  /api/docs - API documentation")
+	log.Println("      */   /api/settings/* - User settings")
+	log.Println("      */   /api/mappings/* - Ticket mappings") // ADD THIS
+	log.Println("      POST /api/sync/* - New sync API")
 }

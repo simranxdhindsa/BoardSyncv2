@@ -16,10 +16,12 @@ type DB struct {
 	settings         map[int]*UserSettings
 	operations       map[int]*SyncOperation
 	ignoredTickets   map[int]*IgnoredTicket
+	ticketMappings   map[int]*TicketMapping
 	nextUserID       int
 	nextSettingsID   int
 	nextOperationID  int
 	nextIgnoredID    int
+	nextMappingID    int
 }
 
 var database *DB
@@ -38,16 +40,17 @@ func InitDB(dbPath string) (*DB, error) {
 		settings:        make(map[int]*UserSettings),
 		operations:      make(map[int]*SyncOperation),
 		ignoredTickets:  make(map[int]*IgnoredTicket),
+		ticketMappings:  make(map[int]*TicketMapping),
 		nextUserID:      1,
 		nextSettingsID:  1,
 		nextOperationID: 1,
 		nextIgnoredID:   1,
+		nextMappingID:   1,
 	}
 
 	// Load existing data
 	if err := database.loadData(); err != nil {
 		log.Printf("Warning: Failed to load existing data: %v\n", err)
-		// Don't fail initialization if load fails - start fresh
 	}
 
 	log.Println("Pure Go database initialized successfully")
@@ -101,7 +104,7 @@ func (db *DB) CreateUser(username, email, passwordHash string) (*User, error) {
 	db.settings[settings.ID] = settings
 	db.nextSettingsID++
 
-	// CRITICAL: Save immediately after creating user
+	// Save immediately after creating user
 	if err := db.saveData(); err != nil {
 		log.Printf("ERROR: Failed to save user data: %v\n", err)
 		return nil, err
@@ -153,7 +156,6 @@ func (db *DB) UpdateUserPassword(userID int, passwordHash string) error {
 		user.PasswordHash = passwordHash
 		user.UpdatedAt = time.Now()
 		
-		// Save immediately after password update
 		if err := db.saveData(); err != nil {
 			log.Printf("ERROR: Failed to save password update: %v\n", err)
 			return err
@@ -266,7 +268,6 @@ func (db *DB) GetUserOperations(userID int, limit int) ([]*SyncOperation, error)
 	var operations []*SyncOperation
 	count := 0
 
-	// Get operations in reverse order (newest first)
 	for i := db.nextOperationID - 1; i > 0 && count < limit; i-- {
 		if operation, exists := db.operations[i]; exists && operation.UserID == userID {
 			operations = append(operations, operation)
@@ -282,10 +283,8 @@ func (db *DB) AddIgnoredTicket(userID int, asanaProjectID, ticketID, ignoreType 
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	// Check if already exists
 	for _, ignored := range db.ignoredTickets {
 		if ignored.UserID == userID && ignored.AsanaProjectID == asanaProjectID && ignored.TicketID == ticketID {
-			// Update ignore type if different
 			if ignored.IgnoreType != ignoreType {
 				ignored.IgnoreType = ignoreType
 				ignored.CreatedAt = time.Now()
@@ -330,7 +329,7 @@ func (db *DB) RemoveIgnoredTicket(userID int, asanaProjectID, ticketID, ignoreTy
 		}
 	}
 
-	return nil // No error if not found
+	return nil
 }
 
 func (db *DB) GetIgnoredTickets(userID int, asanaProjectID string) ([]*IgnoredTicket, error) {
@@ -386,12 +385,126 @@ func (db *DB) ClearIgnoredTickets(userID int, asanaProjectID, ignoreType string)
 	return nil
 }
 
+// Ticket Mapping operations
+func (db *DB) CreateTicketMapping(userID int, asanaProjectID, asanaTaskID, youtrackProjectID, youtrackIssueID string) (*TicketMapping, error) {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	for _, mapping := range db.ticketMappings {
+		if mapping.UserID == userID && 
+		   mapping.AsanaTaskID == asanaTaskID && 
+		   mapping.YouTrackIssueID == youtrackIssueID {
+			return mapping, nil
+		}
+	}
+
+	mapping := &TicketMapping{
+		ID:                db.nextMappingID,
+		UserID:            userID,
+		AsanaProjectID:    asanaProjectID,
+		AsanaTaskID:       asanaTaskID,
+		YouTrackProjectID: youtrackProjectID,
+		YouTrackIssueID:   youtrackIssueID,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	}
+
+	db.ticketMappings[mapping.ID] = mapping
+	db.nextMappingID++
+
+	if err := db.saveData(); err != nil {
+		return nil, err
+	}
+
+	log.Printf("DB: Created ticket mapping: Asana %s <-> YouTrack %s for user %d\n", 
+		asanaTaskID, youtrackIssueID, userID)
+
+	return mapping, nil
+}
+
+func (db *DB) GetTicketMappingByAsanaID(userID int, asanaTaskID string) (*TicketMapping, error) {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	for _, mapping := range db.ticketMappings {
+		if mapping.UserID == userID && mapping.AsanaTaskID == asanaTaskID {
+			return mapping, nil
+		}
+	}
+
+	return nil, fmt.Errorf("mapping not found for Asana task %s", asanaTaskID)
+}
+
+func (db *DB) GetTicketMappingByYouTrackID(userID int, youtrackIssueID string) (*TicketMapping, error) {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	for _, mapping := range db.ticketMappings {
+		if mapping.UserID == userID && mapping.YouTrackIssueID == youtrackIssueID {
+			return mapping, nil
+		}
+	}
+
+	return nil, fmt.Errorf("mapping not found for YouTrack issue %s", youtrackIssueID)
+}
+
+func (db *DB) GetAllTicketMappings(userID int) ([]*TicketMapping, error) {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	var mappings []*TicketMapping
+	for _, mapping := range db.ticketMappings {
+		if mapping.UserID == userID {
+			mappings = append(mappings, mapping)
+		}
+	}
+
+	return mappings, nil
+}
+
+func (db *DB) DeleteTicketMapping(userID, mappingID int) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	mapping, exists := db.ticketMappings[mappingID]
+	if !exists {
+		return fmt.Errorf("mapping not found")
+	}
+
+	if mapping.UserID != userID {
+		return fmt.Errorf("access denied: mapping belongs to different user")
+	}
+
+	delete(db.ticketMappings, mappingID)
+
+	if err := db.saveData(); err != nil {
+		return err
+	}
+
+	log.Printf("DB: Deleted ticket mapping ID %d for user %d\n", mappingID, userID)
+	return nil
+}
+
+func (db *DB) HasTicketMapping(userID int, asanaTaskID, youtrackIssueID string) bool {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	for _, mapping := range db.ticketMappings {
+		if mapping.UserID == userID && 
+		   mapping.AsanaTaskID == asanaTaskID && 
+		   mapping.YouTrackIssueID == youtrackIssueID {
+			return true
+		}
+	}
+
+	return false
+}
+
 // DeleteUser deletes a user and all their associated data
 func (db *DB) DeleteUser(userID int) error {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
-	// Check if user exists
 	user, exists := db.users[userID]
 	if !exists {
 		return fmt.Errorf("user not found")
@@ -402,7 +515,6 @@ func (db *DB) DeleteUser(userID int) error {
 
 	log.Printf("DB: Starting deletion for user: %s (ID: %d, Email: %s)\n", username, userID, email)
 
-	// Delete user's settings
 	settingsDeleted := 0
 	for id, settings := range db.settings {
 		if settings.UserID == userID {
@@ -412,7 +524,6 @@ func (db *DB) DeleteUser(userID int) error {
 	}
 	log.Printf("DB: Deleted %d settings records for user %d\n", settingsDeleted, userID)
 
-	// Delete user's operations
 	operationsDeleted := 0
 	for id, operation := range db.operations {
 		if operation.UserID == userID {
@@ -422,7 +533,6 @@ func (db *DB) DeleteUser(userID int) error {
 	}
 	log.Printf("DB: Deleted %d operation records for user %d\n", operationsDeleted, userID)
 
-	// Delete user's ignored tickets
 	ignoredDeleted := 0
 	for id, ignored := range db.ignoredTickets {
 		if ignored.UserID == userID {
@@ -432,16 +542,22 @@ func (db *DB) DeleteUser(userID int) error {
 	}
 	log.Printf("DB: Deleted %d ignored ticket records for user %d\n", ignoredDeleted, userID)
 
-	// Delete the user account
+	mappingsDeleted := 0
+	for id, mapping := range db.ticketMappings {
+		if mapping.UserID == userID {
+			delete(db.ticketMappings, id)
+			mappingsDeleted++
+		}
+	}
+	log.Printf("DB: Deleted %d ticket mapping records for user %d\n", mappingsDeleted, userID)
+
 	delete(db.users, userID)
 	log.Printf("DB: Deleted user account: %s (ID: %d)\n", username, userID)
 
-	// Calculate total records deleted
-	totalDeleted := settingsDeleted + operationsDeleted + ignoredDeleted + 1 // +1 for user account
-	log.Printf("DB: Total records deleted: %d (Settings: %d, Operations: %d, Ignored Tickets: %d, User: 1)\n", 
-		totalDeleted, settingsDeleted, operationsDeleted, ignoredDeleted)
+	totalDeleted := settingsDeleted + operationsDeleted + ignoredDeleted + mappingsDeleted + 1
+	log.Printf("DB: Total records deleted: %d (Settings: %d, Operations: %d, Ignored Tickets: %d, Mappings: %d, User: 1)\n", 
+		totalDeleted, settingsDeleted, operationsDeleted, ignoredDeleted, mappingsDeleted)
 
-	// Save changes to disk
 	if err := db.saveData(); err != nil {
 		return fmt.Errorf("failed to save after deletion: %w", err)
 	}
@@ -450,12 +566,11 @@ func (db *DB) DeleteUser(userID int) error {
 	return nil
 }
 
-// GetUserDataSummary returns a summary of all user data (for confirmation before deletion)
+// GetUserDataSummary returns a summary of all user data
 func (db *DB) GetUserDataSummary(userID int) (map[string]int, error) {
 	db.mutex.RLock()
 	defer db.mutex.RUnlock()
 
-	// Check if user exists
 	if _, exists := db.users[userID]; !exists {
 		return nil, fmt.Errorf("user not found")
 	}
@@ -464,61 +579,68 @@ func (db *DB) GetUserDataSummary(userID int) (map[string]int, error) {
 		"settings":        0,
 		"operations":      0,
 		"ignored_tickets": 0,
+		"ticket_mappings": 0,
 	}
 
-	// Count settings
 	for _, settings := range db.settings {
 		if settings.UserID == userID {
 			summary["settings"]++
 		}
 	}
 
-	// Count operations
 	for _, operation := range db.operations {
 		if operation.UserID == userID {
 			summary["operations"]++
 		}
 	}
 
-	// Count ignored tickets
 	for _, ignored := range db.ignoredTickets {
 		if ignored.UserID == userID {
 			summary["ignored_tickets"]++
 		}
 	}
 
-	log.Printf("DB: Data summary for user %d - Settings: %d, Operations: %d, Ignored Tickets: %d\n",
-		userID, summary["settings"], summary["operations"], summary["ignored_tickets"])
+	for _, mapping := range db.ticketMappings {
+		if mapping.UserID == userID {
+			summary["ticket_mappings"]++
+		}
+	}
+
+	log.Printf("DB: Data summary for user %d - Settings: %d, Operations: %d, Ignored Tickets: %d, Mappings: %d\n",
+		userID, summary["settings"], summary["operations"], summary["ignored_tickets"], summary["ticket_mappings"])
 
 	return summary, nil
 }
 
-// Data persistence with improved error handling and atomic writes
+// Data persistence
 func (db *DB) saveData() error {
 	data := struct {
 		Users           map[int]*User          `json:"users"`
 		Settings        map[int]*UserSettings  `json:"settings"`
 		Operations      map[int]*SyncOperation `json:"operations"`
 		IgnoredTickets  map[int]*IgnoredTicket `json:"ignored_tickets"`
+		TicketMappings  map[int]*TicketMapping `json:"ticket_mappings"`
 		NextUserID      int                    `json:"next_user_id"`
 		NextSettingsID  int                    `json:"next_settings_id"`
 		NextOperationID int                    `json:"next_operation_id"`
 		NextIgnoredID   int                    `json:"next_ignored_id"`
+		NextMappingID   int                    `json:"next_mapping_id"`
 	}{
 		Users:           db.users,
 		Settings:        db.settings,
 		Operations:      db.operations,
 		IgnoredTickets:  db.ignoredTickets,
+		TicketMappings:  db.ticketMappings,
 		NextUserID:      db.nextUserID,
 		NextSettingsID:  db.nextSettingsID,
 		NextOperationID: db.nextOperationID,
 		NextIgnoredID:   db.nextIgnoredID,
+		NextMappingID:   db.nextMappingID,
 	}
 
 	filePath := db.dataDir + "/data.json"
-	
-	// Create a temporary file first for atomic write
 	tempPath := filePath + ".tmp"
+	
 	file, err := os.Create(tempPath)
 	if err != nil {
 		log.Printf("ERROR: Failed to create temp file: %v\n", err)
@@ -540,7 +662,6 @@ func (db *DB) saveData() error {
 		return err
 	}
 
-	// Rename temp file to actual file (atomic operation)
 	if err := os.Rename(tempPath, filePath); err != nil {
 		os.Remove(tempPath)
 		log.Printf("ERROR: Failed to rename temp file: %v\n", err)
@@ -554,10 +675,9 @@ func (db *DB) saveData() error {
 func (db *DB) loadData() error {
 	filePath := db.dataDir + "/data.json"
 
-	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		log.Println("DB: No existing data file found, starting fresh")
-		return nil // No data to load, start fresh
+		return nil
 	}
 
 	file, err := os.Open(filePath)
@@ -571,10 +691,12 @@ func (db *DB) loadData() error {
 		Settings        map[int]*UserSettings  `json:"settings"`
 		Operations      map[int]*SyncOperation `json:"operations"`
 		IgnoredTickets  map[int]*IgnoredTicket `json:"ignored_tickets"`
+		TicketMappings  map[int]*TicketMapping `json:"ticket_mappings"`
 		NextUserID      int                    `json:"next_user_id"`
 		NextSettingsID  int                    `json:"next_settings_id"`
 		NextOperationID int                    `json:"next_operation_id"`
 		NextIgnoredID   int                    `json:"next_ignored_id"`
+		NextMappingID   int                    `json:"next_mapping_id"`
 	}
 
 	if err := json.NewDecoder(file).Decode(&data); err != nil {
@@ -585,10 +707,6 @@ func (db *DB) loadData() error {
 	if data.Users != nil {
 		db.users = data.Users
 		log.Printf("DB: Loaded %d users\n", len(data.Users))
-		// Debug: Print password hash lengths
-		for id, user := range data.Users {
-			log.Printf("DB: User %d (%s) - Password hash length: %d\n", id, user.Username, len(user.PasswordHash))
-		}
 	}
 	if data.Settings != nil {
 		db.settings = data.Settings
@@ -602,11 +720,16 @@ func (db *DB) loadData() error {
 		db.ignoredTickets = data.IgnoredTickets
 		log.Printf("DB: Loaded %d ignored tickets\n", len(data.IgnoredTickets))
 	}
+	if data.TicketMappings != nil {
+		db.ticketMappings = data.TicketMappings
+		log.Printf("DB: Loaded %d ticket mappings\n", len(data.TicketMappings))
+	}
 
 	db.nextUserID = data.NextUserID
 	db.nextSettingsID = data.NextSettingsID
 	db.nextOperationID = data.NextOperationID
 	db.nextIgnoredID = data.NextIgnoredID
+	db.nextMappingID = data.NextMappingID
 
 	log.Printf("DB: Data loaded successfully from %s\n", filePath)
 	return nil

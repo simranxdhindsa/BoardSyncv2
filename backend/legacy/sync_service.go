@@ -30,17 +30,13 @@ func NewSyncService(db *database.DB, configService *configpkg.Service) *SyncServ
 }
 
 // CreateMissingTickets creates missing tickets in YouTrack
-// Now accepts an optional column parameter to filter which tickets to create
 func (s *SyncService) CreateMissingTickets(userID int, column ...string) (map[string]interface{}, error) {
-	// Determine which columns to analyze
 	var columnsToAnalyze []string
 	
 	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
-		// Use specific column if provided
 		columnsToAnalyze = []string{column[0]}
 		fmt.Printf("CREATE: Creating tickets for specific column: %s (user %d)\n", column[0], userID)
 	} else {
-		// Use all syncable columns by default
 		columnsToAnalyze = SyncableColumns
 		fmt.Printf("CREATE: Creating tickets for all syncable columns (user %d)\n", userID)
 	}
@@ -57,6 +53,12 @@ func (s *SyncService) CreateMissingTickets(userID int, column ...string) (map[st
 			"created": 0,
 			"column":  columnsToAnalyze,
 		}, nil
+	}
+
+	// Get user settings for project IDs
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get settings: %w", err)
 	}
 
 	results := []map[string]interface{}{}
@@ -81,12 +83,31 @@ func (s *SyncService) CreateMissingTickets(userID int, column ...string) (map[st
 			result["reason"] = "Ticket is ignored"
 			skipped++
 		} else {
-			err := s.youtrackService.CreateIssue(userID, task)
+			// Create issue in YouTrack and get the issue ID
+			createdIssueID, err := s.youtrackService.CreateIssueWithReturn(userID, task)
 			if err != nil {
 				result["status"] = "failed"
 				result["error"] = err.Error()
 			} else {
 				result["status"] = "created"
+				result["youtrack_issue_id"] = createdIssueID
+				
+				// Create mapping in database
+				_, mappingErr := s.db.CreateTicketMapping(
+					userID,
+					settings.AsanaProjectID,
+					task.GID,
+					settings.YouTrackProjectID,
+					createdIssueID,
+				)
+				
+				if mappingErr != nil {
+					fmt.Printf("WARNING: Created ticket but failed to create mapping: %v\n", mappingErr)
+				} else {
+					result["mapping_created"] = true
+					fmt.Printf("Created mapping: Asana %s <-> YouTrack %s\n", task.GID, createdIssueID)
+				}
+
 				if len(asanaTags) > 0 {
 					tagMapper := NewTagMapper()
 					primaryTag := asanaTags[0]
@@ -150,7 +171,14 @@ func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]
 		}, nil
 	}
 
-	err = s.youtrackService.CreateIssue(userID, *targetTask)
+	// Get user settings for project IDs
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get settings: %w", err)
+	}
+
+	// Create issue and get the created issue ID
+	createdIssueID, err := s.youtrackService.CreateIssueWithReturn(userID, *targetTask)
 	if err != nil {
 		return map[string]interface{}{
 			"status":     "failed",
@@ -162,10 +190,28 @@ func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]
 	}
 
 	response := map[string]interface{}{
-		"status":     "created",
-		"task_id":    taskID,
-		"task_name":  targetTask.Name,
-		"asana_tags": asanaTags,
+		"status":            "created",
+		"task_id":           taskID,
+		"task_name":         targetTask.Name,
+		"asana_tags":        asanaTags,
+		"youtrack_issue_id": createdIssueID,
+	}
+
+	// Create mapping in database
+	_, mappingErr := s.db.CreateTicketMapping(
+		userID,
+		settings.AsanaProjectID,
+		taskID,
+		settings.YouTrackProjectID,
+		createdIssueID,
+	)
+
+	if mappingErr != nil {
+		fmt.Printf("WARNING: Created ticket but failed to create mapping: %v\n", mappingErr)
+		response["mapping_error"] = mappingErr.Error()
+	} else {
+		response["mapping_created"] = true
+		fmt.Printf("Created mapping: Asana %s <-> YouTrack %s\n", taskID, createdIssueID)
 	}
 
 	if len(asanaTags) > 0 {
@@ -179,17 +225,13 @@ func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]
 }
 
 // SyncMismatchedTickets synchronizes mismatched tickets
-// Now accepts an optional column parameter to filter which tickets to sync
 func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest, column ...string) (map[string]interface{}, error) {
-	// Determine which columns to analyze
 	var columnsToAnalyze []string
 	
 	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
-		// Use specific column if provided
 		columnsToAnalyze = []string{column[0]}
 		fmt.Printf("SYNC: Syncing tickets for specific column: %s (user %d)\n", column[0], userID)
 	} else {
-		// Use all syncable columns by default
 		columnsToAnalyze = SyncableColumns
 		fmt.Printf("SYNC: Syncing tickets for all syncable columns (user %d)\n", userID)
 	}
@@ -290,9 +332,7 @@ func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest, 
 }
 
 // GetMismatchedTickets returns mismatched tickets for preview
-// Now accepts an optional column parameter
 func (s *SyncService) GetMismatchedTickets(userID int, column ...string) (map[string]interface{}, error) {
-	// Determine which columns to analyze
 	var columnsToAnalyze []string
 	
 	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
@@ -357,7 +397,6 @@ func (s *SyncService) GetSyncableTickets(userID int) (map[string]interface{}, er
 
 	syncableTickets := []map[string]interface{}{}
 
-	// Add mismatched tickets
 	for _, ticket := range analysis.Mismatched {
 		if !s.ignoreService.IsIgnored(userID, ticket.AsanaTask.GID) {
 			syncableTickets = append(syncableTickets, map[string]interface{}{
@@ -399,7 +438,6 @@ func (s *SyncService) GetSyncStats(userID int) (map[string]interface{}, error) {
 		"ignored_tickets":       len(analysis.Ignored),
 	}
 
-	// Calculate sync health percentage
 	totalTickets := stats["total_asana_tasks"].(int)
 	if totalTickets > 0 {
 		matchedCount := stats["matched_tickets"].(int)
@@ -408,7 +446,6 @@ func (s *SyncService) GetSyncStats(userID int) (map[string]interface{}, error) {
 		stats["sync_health_percentage"] = 100.0
 	}
 
-	// Breakdown by status mismatches
 	statusMismatches := make(map[string]int)
 	for _, ticket := range analysis.Mismatched {
 		key := fmt.Sprintf("%s -> %s", ticket.YouTrackStatus, ticket.AsanaStatus)
@@ -425,7 +462,6 @@ func (s *SyncService) SyncTicketsByColumn(userID int, column string) (map[string
 	if column == "" || column == "all_syncable" {
 		columnsToAnalyze = SyncableColumns
 	} else {
-		// Map frontend column names to backend names
 		columnMap := map[string]string{
 			"backlog":         "backlog",
 			"in_progress":     "in progress",
@@ -494,7 +530,6 @@ func (s *SyncService) CreateTicketsByColumn(userID int, column string) (map[stri
 	if column == "" || column == "all_syncable" {
 		columnsToAnalyze = SyncableColumns
 	} else {
-		// Map frontend column names to backend names
 		columnMap := map[string]string{
 			"backlog":     "backlog",
 			"in_progress": "in progress",
@@ -513,6 +548,12 @@ func (s *SyncService) CreateTicketsByColumn(userID int, column string) (map[stri
 	analysis, err := s.analysisService.PerformAnalysis(userID, columnsToAnalyze)
 	if err != nil {
 		return nil, fmt.Errorf("analysis failed: %w", err)
+	}
+
+	// Get user settings for project IDs
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get settings: %w", err)
 	}
 
 	created := 0
@@ -535,13 +576,30 @@ func (s *SyncService) CreateTicketsByColumn(userID int, column string) (map[stri
 			result["reason"] = "Ticket is ignored"
 			skipped++
 		} else {
-			err := s.youtrackService.CreateIssue(userID, task)
+			createdIssueID, err := s.youtrackService.CreateIssueWithReturn(userID, task)
 			if err != nil {
 				result["status"] = "failed"
 				result["error"] = err.Error()
 				errors++
 			} else {
 				result["status"] = "created"
+				result["youtrack_issue_id"] = createdIssueID
+				
+				// Create mapping in database
+				_, mappingErr := s.db.CreateTicketMapping(
+					userID,
+					settings.AsanaProjectID,
+					task.GID,
+					settings.YouTrackProjectID,
+					createdIssueID,
+				)
+				
+				if mappingErr != nil {
+					fmt.Printf("WARNING: Created ticket but failed to create mapping: %v\n", mappingErr)
+				} else {
+					result["mapping_created"] = true
+				}
+				
 				created++
 			}
 		}

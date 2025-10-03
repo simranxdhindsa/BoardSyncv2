@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"asana-youtrack-sync/config"
+	"asana-youtrack-sync/utils"
 )
 
 // YouTrackService handles YouTrack API operations with user-specific settings
@@ -196,9 +197,12 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 		return fmt.Errorf("cannot create ticket for display-only column")
 	}
 
+	// Sanitize title - replace "/" with "or"
+	sanitizedTitle := utils.SanitizeTitle(task.Name)
+
 	payload := map[string]interface{}{
 		"$type":       "Issue",
-		"summary":     task.Name,
+		"summary":     sanitizedTitle,
 		"description": fmt.Sprintf("%s\n\n[Synced from Asana ID: %s]", task.Notes, task.GID),
 		"project": map[string]interface{}{
 			"$type":     "Project",
@@ -246,6 +250,147 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 	return s.createOrUpdateIssue(settings, "", payload)
 }
 
+// CreateIssueWithReturn creates a new YouTrack issue and returns the issue ID
+func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (string, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" || settings.YouTrackProjectID == "" {
+		return "", fmt.Errorf("youtrack credentials not configured")
+	}
+
+	// Check for duplicate
+	if s.IsDuplicateTicket(userID, task.Name) {
+		return "", fmt.Errorf("ticket with title '%s' already exists in YouTrack", task.Name)
+	}
+
+	asanaService := NewAsanaService(s.configService)
+	state := asanaService.MapStateToYouTrack(task)
+
+	if state == "FINDINGS_NO_SYNC" || state == "READY_FOR_STAGE_NO_SYNC" {
+		return "", fmt.Errorf("cannot create ticket for display-only column")
+	}
+
+	// Sanitize title - replace "/" with "or"
+	sanitizedTitle := utils.SanitizeTitle(task.Name)
+
+	payload := map[string]interface{}{
+		"$type":       "Issue",
+		"summary":     sanitizedTitle,
+		"description": fmt.Sprintf("%s\n\n[Synced from Asana ID: %s]", task.Notes, task.GID),
+		"project": map[string]interface{}{
+			"$type":     "Project",
+			"shortName": settings.YouTrackProjectID,
+		},
+	}
+
+	customFields := []map[string]interface{}{}
+
+	if state != "" {
+		customFields = append(customFields, map[string]interface{}{
+			"$type": "StateIssueCustomField",
+			"name":  "State",
+			"value": map[string]interface{}{
+				"$type": "StateBundleElement",
+				"name":  state,
+			},
+		})
+	}
+
+	// Add subsystem mapping
+	asanaTags := asanaService.GetTags(task)
+	if len(asanaTags) > 0 {
+		tagMapper := NewTagMapper()
+		primaryTag := asanaTags[0]
+		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
+		if subsystem != "" {
+			customFields = append(customFields, map[string]interface{}{
+				"$type": "MultiOwnedIssueCustomField",
+				"name":  "Subsystem",
+				"value": []map[string]interface{}{
+					{
+						"$type": "OwnedBundleElement",
+						"name":  subsystem,
+					},
+				},
+			})
+		}
+	}
+
+	if len(customFields) > 0 {
+		payload["customFields"] = customFields
+	}
+
+	// Create the issue and get the ID
+	issueID, err := s.createIssueAndGetID(settings, payload)
+	if err != nil {
+		return "", err
+	}
+
+	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
+	return issueID, nil
+}
+
+// Helper method to create issue and return its ID
+func (s *YouTrackService) createIssueAndGetID(settings *config.UserSettings, payload map[string]interface{}) (string, error) {
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/issues", settings.YouTrackBaseURL)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		bodyStr := string(body)
+		if strings.Contains(bodyStr, "incompatible-issue-custom-field-name-Subsystem") {
+			// Retry without subsystem
+			if customFields, ok := payload["customFields"].([]map[string]interface{}); ok {
+				var filteredFields []map[string]interface{}
+				for _, field := range customFields {
+					if name, ok := field["name"].(string); ok && name != "Subsystem" {
+						filteredFields = append(filteredFields, field)
+					}
+				}
+				payload["customFields"] = filteredFields
+			}
+			return s.createIssueAndGetID(settings, payload)
+		}
+		return "", fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, bodyStr)
+	}
+
+	// Parse response to get issue ID
+	var createdIssue YouTrackIssue
+	if err := json.Unmarshal(body, &createdIssue); err != nil {
+		return "", fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if createdIssue.ID == "" {
+		return "", fmt.Errorf("created issue but received empty ID")
+	}
+
+	return createdIssue.ID, nil
+}
+
 // UpdateIssue updates an existing YouTrack issue
 func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask) error {
 	settings, err := s.configService.GetSettings(userID)
@@ -260,9 +405,12 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 		return fmt.Errorf("cannot update ticket for display-only column")
 	}
 
+	// Sanitize title - replace "/" with "or"
+	sanitizedTitle := utils.SanitizeTitle(task.Name)
+
 	payload := map[string]interface{}{
 		"$type":       "Issue",
-		"summary":     task.Name,
+		"summary":     sanitizedTitle,
 		"description": fmt.Sprintf("%s\n\n[Synced from Asana ID: %s]", task.Notes, task.GID),
 	}
 
