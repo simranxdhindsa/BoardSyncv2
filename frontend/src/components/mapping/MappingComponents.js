@@ -1,9 +1,10 @@
 // FILE: frontend/src/components/mapping/MappingComponents.js
-// Mapping Components for Ticket URL Linking
+// Enhanced Mapping Components with Auto-mapping Support
 
 import React, { useState, useEffect } from 'react';
-import { Link2, Plus, Trash2, RefreshCw, CheckCircle, AlertTriangle, Eye } from 'lucide-react';
+import { Link2, Plus, Trash2, RefreshCw, CheckCircle, AlertTriangle, Eye, Zap } from 'lucide-react';
 import mappingService from '../../services/mappingService';
+import { getUserSettings } from '../../services/api';
 
 // Create Mapping Form Component
 export const CreateMappingForm = ({ onSuccess }) => {
@@ -28,7 +29,7 @@ export const CreateMappingForm = ({ onSuccess }) => {
         setError(response.message || 'Failed to create mapping');
       }
     } catch (err) {
-      setError('Network error: ' + err.message);
+      setError(err.message || 'Network error occurred');
     } finally {
       setLoading(false);
     }
@@ -41,7 +42,7 @@ export const CreateMappingForm = ({ onSuccess }) => {
         <h2 className="text-xl font-semibold text-gray-900">Link Tickets Manually</h2>
       </div>
       
-      <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Asana Task URL
@@ -53,12 +54,6 @@ export const CreateMappingForm = ({ onSuccess }) => {
             placeholder="https://app.asana.com/.../task/1211475287717816"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 settings-input"
             required
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
           />
           <p className="text-xs text-gray-500 mt-1">
             Copy the full URL from your Asana task
@@ -76,12 +71,6 @@ export const CreateMappingForm = ({ onSuccess }) => {
             placeholder="https://youtrack.cloud/issue/ARD-222/Title"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 settings-input"
             required
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
           />
           <p className="text-xs text-gray-500 mt-1">
             Copy the full URL from your YouTrack issue
@@ -95,7 +84,7 @@ export const CreateMappingForm = ({ onSuccess }) => {
         )}
 
         <button
-          onClick={handleSubmit}
+          type="submit"
           disabled={loading || !asanaUrl.trim() || !youtrackUrl.trim()}
           className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center font-medium transition-colors"
         >
@@ -111,7 +100,7 @@ export const CreateMappingForm = ({ onSuccess }) => {
             </>
           )}
         </button>
-      </div>
+      </form>
 
       <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
         <h3 className="text-sm font-medium text-blue-900 mb-2 flex items-center">
@@ -134,6 +123,19 @@ export const MappingsList = ({ refreshTrigger }) => {
   const [mappings, setMappings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [youtrackBaseUrl, setYoutrackBaseUrl] = useState('');
+
+  useEffect(() => {
+  const loadBaseUrl = async () => {
+    try {
+      const settings = await getUserSettings();
+      setYoutrackBaseUrl(settings.data?.youtrack_base_url || settings.youtrack_base_url || '');
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+    }
+  };
+  loadBaseUrl();
+}, []);
 
   useEffect(() => {
     fetchMappings();
@@ -271,7 +273,7 @@ export const MappingsList = ({ refreshTrigger }) => {
                       {mapping.youtrack_issue_id}
                     </span>
                     <a
-                      href={`https://youtrack.cloud/issue/${mapping.youtrack_issue_id}`}
+                      href={`${youtrackBaseUrl}/issue/${mapping.youtrack_issue_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="ml-2 text-blue-600 hover:text-blue-800"
@@ -302,4 +304,48 @@ export const MappingsList = ({ refreshTrigger }) => {
   );
 };
 
-export default { CreateMappingForm, MappingsList };
+// Auto-mapping Notification Component
+export const AutoMappingNotification = ({ autoMappedTickets = [], onDismiss }) => {
+  if (!autoMappedTickets || autoMappedTickets.length === 0) return null;
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 max-w-md">
+      <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 shadow-lg">
+        <div className="flex items-start">
+          <div className="flex-shrink-0">
+            <Zap className="w-6 h-6 text-green-600" />
+          </div>
+          <div className="ml-3 flex-1">
+            <h3 className="text-sm font-medium text-green-900">
+              Auto-mapped {autoMappedTickets.length} ticket{autoMappedTickets.length !== 1 ? 's' : ''}
+            </h3>
+            <div className="mt-2 text-xs text-green-700">
+              {autoMappedTickets.slice(0, 3).map((ticket, index) => (
+                <div key={index} className="mb-1">
+                  • {ticket.asana_task_id} ↔ {ticket.youtrack_issue_id}
+                </div>
+              ))}
+              {autoMappedTickets.length > 3 && (
+                <div className="text-green-600 font-medium mt-1">
+                  +{autoMappedTickets.length - 3} more
+                </div>
+              )}
+            </div>
+          </div>
+          {onDismiss && (
+            <button
+              onClick={onDismiss}
+              className="ml-4 text-green-600 hover:text-green-800"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default { CreateMappingForm, MappingsList, AutoMappingNotification };

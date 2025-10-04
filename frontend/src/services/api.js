@@ -1,15 +1,18 @@
-// FILE: frontend/src/services/api.js
-// Complete API service with Mapping Endpoints
+// src/services/api.js
+// MINIMAL CHANGES - Only fixing token retrieval issue
 
 const API_BASE =
   process.env.NODE_ENV === 'production'
     ? process.env.REACT_APP_API_URL || 'https://boardsyncv2.onrender.com'
     : 'http://localhost:8080';
 
-// Token management
-let authToken = localStorage.getItem('auth_token');
+// FIXED: Token management - check both possible storage keys
+let authToken = localStorage.getItem('auth_token') || localStorage.getItem('token');
 
 const getAuthHeaders = () => {
+  // FIXED: Re-check localStorage on every call in case token was updated
+  authToken = localStorage.getItem('auth_token') || localStorage.getItem('token');
+  
   const headers = { 'Content-Type': 'application/json' };
   if (authToken) {
     headers['Authorization'] = `Bearer ${authToken}`;
@@ -20,9 +23,12 @@ const getAuthHeaders = () => {
 const setAuthToken = (token) => {
   authToken = token;
   if (token) {
+    // FIXED: Store in both locations for compatibility
     localStorage.setItem('auth_token', token);
+    localStorage.setItem('token', token);
   } else {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('token');
   }
 };
 

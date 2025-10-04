@@ -3,13 +3,41 @@
 // ============================================
 // API service for ticket mapping endpoints
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? process.env.REACT_APP_API_URL || 'https://boardsyncv2.onrender.com'
+  : 'http://localhost:8080';
 
 /**
  * Get authentication token from localStorage
  */
 const getAuthToken = () => {
-  return localStorage.getItem('token') || localStorage.getItem('authToken');
+  return localStorage.getItem('auth_token');
+};
+
+/**
+ * Get authentication headers
+ */
+const getAuthHeaders = () => {
+  const token = getAuthToken();
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+};
+
+/**
+ * Handle authentication errors
+ */
+const handleAuthError = (response) => {
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token');
+    window.location.href = '/';
+  }
 };
 
 /**
@@ -23,20 +51,22 @@ const mappingService = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/mappings`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           asana_url: asanaUrl,
           youtrack_url: youtrackUrl
         })
       });
 
+      if (response.status === 401) {
+        handleAuthError(response);
+        throw new Error('Authentication required');
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to create mapping');
+        throw new Error(data.message || data.error?.message || 'Failed to create mapping');
       }
 
       return data;
@@ -53,15 +83,18 @@ const mappingService = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/mappings`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
+        headers: getAuthHeaders()
       });
+
+      if (response.status === 401) {
+        handleAuthError(response);
+        throw new Error('Authentication required');
+      }
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch mappings');
+        throw new Error(data.message || data.error?.message || 'Failed to fetch mappings');
       }
 
       return data;
@@ -78,15 +111,18 @@ const mappingService = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/mappings/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
+        headers: getAuthHeaders()
       });
+
+      if (response.status === 401) {
+        handleAuthError(response);
+        throw new Error('Authentication required');
+      }
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to delete mapping');
+        throw new Error(data.message || data.error?.message || 'Failed to delete mapping');
       }
 
       return data;
@@ -103,15 +139,18 @@ const mappingService = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/mappings/asana/${taskId}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
+        headers: getAuthHeaders()
       });
+
+      if (response.status === 401) {
+        handleAuthError(response);
+        throw new Error('Authentication required');
+      }
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Mapping not found');
+        throw new Error(data.message || data.error?.message || 'Mapping not found');
       }
 
       return data;
@@ -128,15 +167,18 @@ const mappingService = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/mappings/youtrack/${issueId}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
+        headers: getAuthHeaders()
       });
+
+      if (response.status === 401) {
+        handleAuthError(response);
+        throw new Error('Authentication required');
+      }
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Mapping not found');
+        throw new Error(data.message || data.error?.message || 'Mapping not found');
       }
 
       return data;
