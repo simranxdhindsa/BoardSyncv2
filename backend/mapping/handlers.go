@@ -61,6 +61,7 @@ func (h *Handler) CreateMapping(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	// Validate request
 	if req.AsanaURL == "" || req.YouTrackURL == "" {
 		utils.SendBadRequest(w, "Both asana_url and youtrack_url are required")
