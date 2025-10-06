@@ -30,7 +30,8 @@ var (
 )
 
 func main() {
-	log.Println("Starting Enhanced Asana YouTrack Sync Service v4.0 - Database-backed Ignored Tickets")
+	log.Println("Starting Enhanced Asana YouTrack Sync Service v4.1 - Full Feature Set")
+	log.Println("Features: Enhanced Analysis, Filtering, Sorting, Change Detection, Auto-Sync")
 
 	// Initialize database
 	dbPath := getEnvDefault("DB_PATH", "./sync_app.db")
@@ -57,7 +58,7 @@ func main() {
 
 	// Initialize legacy handler with database and user-specific settings
 	legacyHandler = legacy.NewHandler(db, configService)
-	log.Println("✅ Legacy handler initialized with database-backed ignored tickets")
+	log.Println("✅ Legacy handler initialized with enhanced features")
 
 	// Initialize auto managers (but don't start them - they start on demand)
 	legacy.InitializeAutoManagers(db, configService)
@@ -83,11 +84,12 @@ func main() {
 
 	// Start server
 	port := getEnvDefault("PORT", "8080")
-	log.Printf("🚀 Server starting on port %s", port)
-	log.Printf("🔗 WebSocket endpoint: ws://localhost:%s/ws", port)
-	log.Println("🔐 All legacy API endpoints now require authentication")
-	log.Println("📊 User settings and ignored tickets are stored in database per project")
-	log.Println("🗂️  Each Asana project has its own ignored tickets list")
+	log.Printf(" Server chalu ho gaya on port %s — bas ab crash na hoye 😂", port)
+	log.Printf(" WebSocket endpoint: ws://localhost:%s/ws — test karke dekhdeya 💻", port)
+	log.Println(" All old API routes hun password maangde ne — security level")
+	log.Println(" User settings te ignored tickets hun database vich save hunde ne, per project")
+	log.Println("  Har Asana project di apni ignored tickets list — just like your ggf")
+	log.Println(" New features paaye ne but challakedekhdeya ki bannda: Filtering, Sorting, te Change Detection")
 
 	server := &http.Server{
 		Addr:         ":" + port,
@@ -143,10 +145,14 @@ func registerRoutes(
 
 	configHandler.RegisterRoutes(router, authService)
 
-	// ADD THESE 3 LINES:
+	// ========================================================================
+	// TICKET MAPPINGS ROUTES (Protected)
+	// ========================================================================
+
 	mappingService := mapping.NewService(db, configService)
 	mappingHandler := mapping.NewHandler(mappingService)
 	mappingHandler.RegisterRoutes(router, authService)
+
 	// ========================================================================
 	// WEBSOCKET ENDPOINT
 	// ========================================================================
@@ -166,7 +172,7 @@ func registerRoutes(
 	syncAPI.HandleFunc("/rollback/{id}", handleSyncRollback(rollbackService, wsManager)).Methods("POST")
 
 	// ========================================================================
-	// LEGACY API ROUTES (Now Protected with Authentication)
+	// LEGACY API ROUTES - ENHANCED (Now Protected with Authentication)
 	// ========================================================================
 
 	legacyAPI := router.PathPrefix("").Subrouter()
@@ -175,9 +181,23 @@ func registerRoutes(
 	// Core analysis and sync endpoints
 	legacyAPI.HandleFunc("/status", legacyHandler.StatusCheck).Methods("GET", "OPTIONS")
 	legacyAPI.HandleFunc("/analyze", legacyHandler.AnalyzeTickets).Methods("GET", "OPTIONS")
+
+	// ENHANCED: Analysis with filtering and sorting
+	legacyAPI.HandleFunc("/analyze/enhanced", legacyHandler.AnalyzeTicketsEnhanced).Methods("GET", "POST", "OPTIONS")
+
+	// ENHANCED: Get tickets with title/description changes
+	legacyAPI.HandleFunc("/changed-mappings", legacyHandler.GetChangedMappings).Methods("GET", "OPTIONS")
+
+	// ENHANCED: Get available filter options
+	legacyAPI.HandleFunc("/filter-options", legacyHandler.GetFilterOptions).Methods("GET", "OPTIONS")
+
 	legacyAPI.HandleFunc("/create", legacyHandler.CreateMissingTickets).Methods("GET", "POST", "OPTIONS")
 	legacyAPI.HandleFunc("/create-single", legacyHandler.CreateSingleTicket).Methods("POST", "OPTIONS")
 	legacyAPI.HandleFunc("/sync", legacyHandler.SyncMismatchedTickets).Methods("GET", "POST", "OPTIONS")
+
+	// ENHANCED: Sync with change detection
+	legacyAPI.HandleFunc("/sync/enhanced", handleEnhancedSync).Methods("GET", "POST", "OPTIONS")
+
 	legacyAPI.HandleFunc("/ignore", legacyHandler.ManageIgnoredTickets).Methods("GET", "POST", "OPTIONS")
 	legacyAPI.HandleFunc("/tickets", legacyHandler.GetTicketsByType).Methods("GET", "OPTIONS")
 	legacyAPI.HandleFunc("/delete-tickets", legacyHandler.DeleteTickets).Methods("POST", "OPTIONS")
@@ -193,6 +213,9 @@ func registerRoutes(
 	// Auto-sync endpoints
 	legacyAPI.HandleFunc("/auto-sync", handleAutoSync).Methods("GET", "POST", "OPTIONS")
 	legacyAPI.HandleFunc("/auto-create", handleAutoCreate).Methods("GET", "POST", "OPTIONS")
+
+	// ENHANCED: Detailed auto-sync status
+	legacyAPI.HandleFunc("/auto-sync/detailed", handleAutoSyncDetailed).Methods("GET", "OPTIONS")
 
 	// ========================================================================
 	// STATIC FILE SERVING
@@ -217,7 +240,74 @@ func registerRoutes(
 }
 
 // ============================================================================
-// AUTO-SYNC AND AUTO-CREATE HANDLERS
+// ENHANCED SYNC HANDLER
+// ============================================================================
+
+func handleEnhancedSync(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	columnFilter := r.URL.Query().Get("column")
+	var mappedColumn string
+	if columnFilter != "" && columnFilter != "all_syncable" {
+		columnMap := map[string]string{
+			"backlog":         "backlog",
+			"in_progress":     "in progress",
+			"dev":             "dev",
+			"stage":           "stage",
+			"blocked":         "blocked",
+			"ready_for_stage": "ready for stage",
+		}
+		if mapped, exists := columnMap[columnFilter]; exists {
+			mappedColumn = mapped
+		} else {
+			mappedColumn = columnFilter
+		}
+	}
+
+	if r.Method == "GET" {
+		// Return available mismatched tickets with change details
+		result, err := legacyHandler.GetSyncService().GetMismatchedTicketsWithChanges(user.UserID, mappedColumn)
+		if err != nil {
+			utils.SendInternalError(w, fmt.Sprintf("Failed to get mismatched tickets: %v", err))
+			return
+		}
+		utils.SendSuccess(w, result, "Mismatched tickets retrieved with change details")
+		return
+	}
+
+	if r.Method != "POST" {
+		utils.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED",
+			"Method not allowed. Use GET to see available tickets, POST to sync.", "")
+		return
+	}
+
+	var requests []legacy.SyncRequest
+	if err := json.NewDecoder(r.Body).Decode(&requests); err != nil {
+		utils.SendBadRequest(w, "Invalid JSON format")
+		return
+	}
+
+	syncService := legacyHandler.GetSyncService()
+	if err := syncService.ValidateSyncRequests(requests); err != nil {
+		utils.SendBadRequest(w, err.Error())
+		return
+	}
+
+	result, err := syncService.SyncMismatchedTicketsEnhanced(user.UserID, requests, mappedColumn)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Sync failed: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, result, "Enhanced sync operation completed")
+}
+
+// ============================================================================
+// AUTO-SYNC HANDLERS
 // ============================================================================
 
 func handleAutoSync(w http.ResponseWriter, r *http.Request) {
@@ -229,13 +319,11 @@ func handleAutoSync(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		// Get current auto-sync status
 		manager := legacy.GetAutoSyncManager()
 		status := manager.GetAutoSyncStatus(user.UserID)
 		utils.SendSuccess(w, status, "Auto-sync status retrieved")
 
 	case "POST":
-		// Start or stop auto-sync
 		var req legacy.AutoSyncRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			utils.SendBadRequest(w, "Invalid request body")
@@ -248,7 +336,7 @@ func handleAutoSync(w http.ResponseWriter, r *http.Request) {
 		case "start":
 			interval := req.Interval
 			if interval <= 0 {
-				interval = 15 // Default 15 seconds
+				interval = 15
 			}
 
 			err := manager.StartAutoSync(user.UserID, interval)
@@ -280,6 +368,18 @@ func handleAutoSync(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleAutoSyncDetailed(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	manager := legacy.GetAutoSyncManager()
+	status := manager.GetAutoSyncStatusDetailed(user.UserID)
+	utils.SendSuccess(w, status, "Detailed auto-sync status retrieved")
+}
+
 func handleAutoCreate(w http.ResponseWriter, r *http.Request) {
 	user, ok := auth.GetUserFromContext(r)
 	if !ok {
@@ -289,13 +389,11 @@ func handleAutoCreate(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		// Get current auto-create status
 		manager := legacy.GetAutoCreateManager()
 		status := manager.GetAutoCreateStatus(user.UserID)
 		utils.SendSuccess(w, status, "Auto-create status retrieved")
 
 	case "POST":
-		// Start or stop auto-create
 		var req legacy.AutoCreateRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			utils.SendBadRequest(w, "Invalid request body")
@@ -308,7 +406,7 @@ func handleAutoCreate(w http.ResponseWriter, r *http.Request) {
 		case "start":
 			interval := req.Interval
 			if interval <= 0 {
-				interval = 15 // Default 15 seconds
+				interval = 15
 			}
 
 			err := manager.StartAutoCreate(user.UserID, interval)
@@ -341,7 +439,7 @@ func handleAutoCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// NEW SYNC API HANDLERS (Same as before, no changes needed)
+// NEW SYNC API HANDLERS
 // ============================================================================
 
 func handleSyncStart(wsManager *sync.WebSocketManager, rollbackService *sync.RollbackService) http.HandlerFunc {
@@ -363,7 +461,6 @@ func handleSyncStart(wsManager *sync.WebSocketManager, rollbackService *sync.Rol
 			return
 		}
 
-		// Create sync operation record
 		operation, err := rollbackService.CreateOperation(user.UserID, req.Type, map[string]interface{}{
 			"direction": req.Direction,
 			"options":   req.Options,
@@ -373,7 +470,6 @@ func handleSyncStart(wsManager *sync.WebSocketManager, rollbackService *sync.Rol
 			return
 		}
 
-		// Start sync process in background
 		go performSync(operation, wsManager, rollbackService)
 
 		utils.SendSuccess(w, map[string]interface{}{
@@ -453,14 +549,12 @@ func handleSyncRollback(rollbackService *sync.RollbackService, wsManager *sync.W
 			return
 		}
 
-		// Check if rollback is possible
 		canRollback, reason := rollbackService.CanRollback(operationID)
 		if !canRollback {
 			utils.SendBadRequest(w, reason)
 			return
 		}
 
-		// Start rollback process in background
 		go func() {
 			wsManager.SendToUser(user.UserID, sync.MsgTypeRollback, map[string]interface{}{
 				"operation_id": operationID,
@@ -484,24 +578,19 @@ func handleSyncRollback(rollbackService *sync.RollbackService, wsManager *sync.W
 	}
 }
 
-// Perform sync operation
 func performSync(operation *sync.SyncOperation, wsManager *sync.WebSocketManager, rollbackService *sync.RollbackService) {
-	// Update status to in progress
 	rollbackService.UpdateOperationStatus(operation.ID, sync.StatusInProgress, nil)
 
-	// Notify start
 	wsManager.SendToUser(operation.UserID, sync.MsgTypeSyncStart, map[string]interface{}{
 		"operation_id": operation.ID,
 		"type":         operation.OperationType,
 	})
 
-	// Simulate sync process with progress updates
 	for i := 0; i <= 100; i += 20 {
 		wsManager.NotifyProgress(operation.UserID, operation.ID, i, fmt.Sprintf("Syncing... %d%%", i))
-		time.Sleep(1 * time.Second) // Simulate work
+		time.Sleep(1 * time.Second)
 	}
 
-	// For now, just mark as completed
 	rollbackService.UpdateOperationStatus(operation.ID, sync.StatusCompleted, nil)
 	wsManager.NotifyComplete(operation.UserID, operation.ID, map[string]interface{}{
 		"synced_items": 0,
@@ -516,8 +605,8 @@ func performSync(operation *sync.SyncOperation, wsManager *sync.WebSocketManager
 func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 	docs := map[string]interface{}{
 		"title":       "Enhanced Asana YouTrack Sync API",
-		"version":     "4.0.0",
-		"description": "Refactored synchronization service with database-backed ignored tickets per project",
+		"version":     "4.1.0",
+		"description": "Full-featured synchronization with filtering, sorting, and change detection",
 		"endpoints": map[string]interface{}{
 			"authentication": map[string]string{
 				"POST /api/auth/register":        "Register new user",
@@ -526,6 +615,8 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 				"GET  /api/auth/me":              "Get user profile",
 				"POST /api/auth/change-password": "Change password",
 				"POST /api/auth/logout":          "Logout user",
+				"GET  /api/auth/account/summary": "Get account data summary",
+				"POST /api/auth/account/delete":  "Delete account",
 			},
 			"settings": map[string]string{
 				"GET  /api/settings":                   "Get user settings",
@@ -534,12 +625,21 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 				"GET  /api/settings/youtrack/projects": "Get YouTrack projects",
 				"POST /api/settings/test-connections":  "Test API connections",
 			},
-			"ticket_mappings": map[string]string{ // ADD THIS SECTION
+			"ticket_mappings": map[string]string{
 				"POST   /api/mappings":                    "Create manual ticket mapping",
 				"GET    /api/mappings":                    "Get all ticket mappings",
 				"DELETE /api/mappings/{id}":               "Delete ticket mapping",
 				"GET    /api/mappings/asana/{taskId}":     "Get mapping by Asana task ID",
 				"GET    /api/mappings/youtrack/{issueId}": "Get mapping by YouTrack issue ID",
+			},
+			"enhanced_analysis": map[string]string{
+				"GET/POST /analyze/enhanced": "Analyze with filtering and sorting",
+				"GET      /filter-options":   "Get available filter options",
+				"GET      /changed-mappings": "Get tickets with title/description changes",
+			},
+			"enhanced_sync": map[string]string{
+				"GET/POST /sync/enhanced":      "Sync with change detection",
+				"GET      /auto-sync/detailed": "Get detailed auto-sync status",
 			},
 			"new_sync": map[string]string{
 				"POST /api/sync/start":         "Start sync operation",
@@ -550,43 +650,41 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 			"legacy_api": map[string]string{
 				"GET  /health":           "Health check (public)",
 				"GET  /status":           "Service status (protected)",
-				"GET  /analyze":          "Analyze ticket differences (protected)",
-				"POST /create":           "Create missing tickets (protected)",
-				"POST /create-single":    "Create individual ticket (protected)",
-				"GET/POST /sync":         "Sync mismatched tickets (protected)",
-				"GET/POST /ignore":       "Manage ignored tickets (protected)",
-				"GET  /tickets":          "Get tickets by type (protected)",
-				"POST /delete-tickets":   "Delete tickets (protected)",
-				"GET  /sync-stats":       "Get sync statistics (protected)",
-				"GET  /syncable-tickets": "Get syncable tickets (protected)",
-				"POST /sync-by-column":   "Sync by column (protected)",
-				"POST /create-by-column": "Create by column (protected)",
+				"GET  /analyze":          "Basic ticket analysis",
+				"POST /create":           "Create missing tickets",
+				"POST /create-single":    "Create individual ticket",
+				"GET/POST /sync":         "Basic sync operation",
+				"GET/POST /ignore":       "Manage ignored tickets",
+				"GET  /tickets":          "Get tickets by type",
+				"POST /delete-tickets":   "Delete tickets",
+				"GET  /sync-stats":       "Get sync statistics",
+				"GET  /syncable-tickets": "Get syncable tickets",
+				"POST /sync-by-column":   "Sync by column",
+				"POST /create-by-column": "Create by column",
 			},
 			"websocket": map[string]string{
 				"GET /ws": "WebSocket connection for real-time updates",
 			},
 		},
 		"features": []string{
-			"Manual ticket mapping with URL parsing",    // ADD
-			"Automatic mapping creation on ticket sync", // ADD
-			"Title sanitization (/ replaced with 'or')", // ADD
-			"JWT-based authentication",
-			"User-specific database settings",
-			"Database-backed ignored tickets per Asana project",
-			"Modular service architecture",
-			"Legacy API compatibility",
-			"Real-time sync progress via WebSocket",
-			"Rollback capability",
-			"Connection pooling",
-			"Caching layer",
-			"Custom field mapping",
-			"Multi-tenant support",
+			"✅ Enhanced analysis with filtering and sorting",
+			"✅ Title and description change detection",
+			"✅ Sort by: created_at, assignee, priority",
+			"✅ Filter by: assignees, priorities, date range",
+			"✅ Auto-sync with change detection",
+			"✅ Manual ticket mapping with URL parsing",
+			"✅ JWT-based authentication",
+			"✅ Multi-tenant support",
+			"✅ Real-time sync progress via WebSocket",
+			"✅ Rollback capability",
 		},
-		"ignored_tickets": map[string]string{
-			"storage":     "Database per user and Asana project",
-			"types":       "Temporary and Forever",
-			"persistence": "Forever ignored tickets persist across sessions",
-			"scope":       "Each Asana project has its own ignored tickets list",
+		"new_in_v4_1": []string{
+			"Enhanced ticket data (created_at, assignee, priority)",
+			"Title/description change detection",
+			"Advanced filtering (multi-assignee, date range, priority)",
+			"Multi-criteria sorting",
+			"Detailed auto-sync status with pending changes",
+			"Enhanced sync API with change breakdown",
 		},
 	}
 
@@ -606,12 +704,14 @@ func getEnvDefault(key, defaultValue string) string {
 
 func logConfigurationStatus() {
 	log.Println("📋 Configuration Status:")
-	log.Println("   ✅ Legacy .env compatibility maintained")
-	log.Println("   ✅ Database-first architecture implemented")
-	log.Println("   ✅ User-specific settings enabled")
+	log.Println("   ✅ Enhanced analysis with filtering/sorting")
+	log.Println("   ✅ Title/description change detection")
+	log.Println("   ✅ Advanced filtering capabilities")
+	log.Println("   ✅ Multi-criteria sorting")
+	log.Println("   ✅ Auto-sync with change detection")
+	log.Println("   ✅ Database-first architecture")
+	log.Println("   ✅ User-specific settings")
 	log.Println("   ✅ Authentication required for all operations")
-	log.Println("   ✅ Modular service architecture")
-	log.Println("   ✅ Ignored tickets stored per user and project in database")
 }
 
 func logRouteRegistration() {
@@ -623,13 +723,15 @@ func logRouteRegistration() {
 	log.Println("   🔐 PROTECTED (require Bearer token):")
 	log.Println("      POST /api/auth/* - Auth management")
 	log.Println("      */   /api/settings/* - User settings")
-	log.Println("      POST /api/sync/* - New sync API")
-	log.Println("      */   /analyze, /create, /sync, /delete-tickets - Legacy API")
+	log.Println("      */   /api/mappings/* - Ticket mappings")
+	log.Println("   🎯 ENHANCED FEATURES:")
+	log.Println("      GET/POST /analyze/enhanced - Analysis with filters/sorting")
+	log.Println("      GET      /filter-options - Available filter values")
+	log.Println("      GET      /changed-mappings - Tickets with changes")
+	log.Println("      GET/POST /sync/enhanced - Sync with change detection")
+	log.Println("      GET      /auto-sync/detailed - Detailed auto-sync status")
 	log.Println("   🔗 WEBSOCKET:")
 	log.Println("      GET  /ws - Real-time updates")
 	log.Println("   📚 DOCUMENTATION:")
-	log.Println("      GET  /api/docs - API documentation")
-	log.Println("      */   /api/settings/* - User settings")
-	log.Println("      */   /api/mappings/* - Ticket mappings") // ADD THIS
-	log.Println("      POST /api/sync/* - New sync API")
+	log.Println("      GET  /api/docs - Full API documentation")
 }

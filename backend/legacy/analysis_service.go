@@ -593,3 +593,139 @@ func (s *AnalysisService) GetAnalysisHealth(userID int) (map[string]interface{},
 		"timestamp":       time.Now().Format(time.RFC3339),
 	}, nil
 }
+
+// PerformAnalysisWithFiltering performs analysis with filtering and sorting
+func (s *AnalysisService) PerformAnalysisWithFiltering(userID int, selectedColumns []string, filter TicketFilter, sortOpts TicketSortOptions) (*TicketAnalysis, error) {
+	fmt.Printf("ANALYSIS: Starting analysis for user %d with columns: %v, filter: %+v, sort: %+v\n", userID, selectedColumns, filter, sortOpts)
+
+	// Perform base analysis
+	analysis, err := s.PerformAnalysis(userID, selectedColumns)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply filters
+	analysis.Matched = FilterMatchedTickets(analysis.Matched, filter)
+	analysis.Mismatched = FilterMismatchedTickets(analysis.Mismatched, filter)
+	analysis.MissingYouTrack = FilterAsanaTasks(analysis.MissingYouTrack, filter, s.asanaService, userID)
+
+	// Apply sorting
+	analysis.Matched = SortMatchedTickets(analysis.Matched, sortOpts)
+	analysis.Mismatched = SortMismatchedTickets(analysis.Mismatched, sortOpts)
+	analysis.MissingYouTrack = SortAsanaTasks(analysis.MissingYouTrack, sortOpts, s.asanaService, userID)
+
+	return analysis, nil
+}
+
+// Enhanced processExistingTicket with change detection
+func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, sectionName string, analysis *TicketAnalysis, userID int) {
+	if existingIssue.ID == "" {
+		fmt.Printf("ANALYSIS WARNING: Task '%s' (GID: %s) has empty YouTrack issue ID - treating as missing\n", task.Name, task.GID)
+		if s.isSyncableSection(sectionName) {
+			analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
+		}
+		return
+	}
+
+	asanaStatus := s.asanaService.MapStateToYouTrack(task)
+	youtrackStatus := s.youtrackService.GetStatus(existingIssue)
+
+	// Get enhanced data
+	assigneeName := s.asanaService.GetAssigneeName(task)
+	priority := s.asanaService.GetPriority(task, userID)
+	createdAt := s.asanaService.GetCreatedAt(task)
+
+	// Check for title/description changes
+	comparisonService := NewComparisonService(s.db, s.configService)
+	changes := comparisonService.CompareTickets(task, existingIssue)
+
+	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s, Changes: %+v\n", task.Name, asanaStatus, youtrackStatus, changes)
+
+	matchedTicket := MatchedTicket{
+		AsanaTask:         task,
+		YouTrackIssue:     existingIssue,
+		Status:            asanaStatus,
+		AsanaTags:         asanaTags,
+		YouTrackSubsystem: "",
+		TagMismatch:       false,
+		AssigneeName:      assigneeName,
+		Priority:          priority,
+		CreatedAt:         createdAt,
+	}
+
+	if strings.Contains(sectionName, "blocked") {
+		analysis.BlockedTickets = append(analysis.BlockedTickets, matchedTicket)
+		return
+	}
+
+	// If there are title/description changes OR status mismatch, add to mismatched
+	if asanaStatus != youtrackStatus || changes.HasAnyChanges() {
+		mismatchedTicket := MismatchedTicket{
+			AsanaTask:           task,
+			YouTrackIssue:       existingIssue,
+			AsanaStatus:         asanaStatus,
+			YouTrackStatus:      youtrackStatus,
+			AsanaTags:           asanaTags,
+			YouTrackSubsystem:   "",
+			TagMismatch:         false,
+			AssigneeName:        assigneeName,
+			Priority:            priority,
+			CreatedAt:           createdAt,
+			TitleMismatch:       changes.HasTitleChange,
+			DescriptionMismatch: changes.HasDescriptionChange,
+		}
+		analysis.Mismatched = append(analysis.Mismatched, mismatchedTicket)
+	} else {
+		analysis.Matched = append(analysis.Matched, matchedTicket)
+	}
+}
+
+// GetFilterOptions returns available filter options for the analysis
+func (s *AnalysisService) GetFilterOptions(userID int, selectedColumns []string) (map[string]interface{}, error) {
+	analysis, err := s.PerformAnalysis(userID, selectedColumns)
+	if err != nil {
+		return nil, err
+	}
+
+	assignees := GetUniqueAssignees(analysis.Matched, analysis.Mismatched, analysis.MissingYouTrack, s.asanaService)
+	priorities := GetUniquePriorities(analysis.Matched, analysis.Mismatched, analysis.MissingYouTrack, s.asanaService, userID)
+
+	// Get date range
+	var minDate, maxDate time.Time
+	allTasks := []AsanaTask{}
+
+	for _, ticket := range analysis.Matched {
+		allTasks = append(allTasks, ticket.AsanaTask)
+	}
+	for _, ticket := range analysis.Mismatched {
+		allTasks = append(allTasks, ticket.AsanaTask)
+	}
+	allTasks = append(allTasks, analysis.MissingYouTrack...)
+
+	for _, task := range allTasks {
+		createdAt := s.asanaService.GetCreatedAt(task)
+		if !createdAt.IsZero() {
+			if minDate.IsZero() || createdAt.Before(minDate) {
+				minDate = createdAt
+			}
+			if maxDate.IsZero() || createdAt.After(maxDate) {
+				maxDate = createdAt
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"assignees":  assignees,
+		"priorities": priorities,
+		"date_range": map[string]string{
+			"min": minDate.Format("2006-01-02"),
+			"max": maxDate.Format("2006-01-02"),
+		},
+	}, nil
+}
+
+// GetChangedMappings returns all ticket mappings that have title/description changes
+func (s *AnalysisService) GetChangedMappings(userID int) ([]MappingChangeInfo, error) {
+	comparisonService := NewComparisonService(s.db, s.configService)
+	return comparisonService.CheckMappingChanges(userID)
+}

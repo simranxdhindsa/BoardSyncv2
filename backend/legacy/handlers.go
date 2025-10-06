@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"asana-youtrack-sync/auth"
-	"asana-youtrack-sync/database"
 	configpkg "asana-youtrack-sync/config"
+	"asana-youtrack-sync/database"
 	"asana-youtrack-sync/utils"
 )
 
@@ -252,7 +252,7 @@ func (h *Handler) CreateMissingTickets(w http.ResponseWriter, r *http.Request) {
 
 	// Get column filter from query parameters
 	columnFilter := r.URL.Query().Get("column")
-	
+
 	// Map frontend column names to backend names if needed
 	var mappedColumn string
 	if columnFilter != "" && columnFilter != "all_syncable" {
@@ -329,7 +329,7 @@ func (h *Handler) SyncMismatchedTickets(w http.ResponseWriter, r *http.Request) 
 
 	// Get column filter from query parameters
 	columnFilter := r.URL.Query().Get("column")
-	
+
 	// Map frontend column names to backend names if needed
 	var mappedColumn string
 	if columnFilter != "" && columnFilter != "all_syncable" {
@@ -641,4 +641,209 @@ func (h *Handler) GetSyncPreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SendSuccess(w, preview, "Sync preview generated successfully")
+}
+
+// backend/legacy/handlers_enhanced.go - ADD THESE TO EXISTING HANDLERS
+
+// AnalyzeTicketsEnhanced performs comprehensive ticket analysis with filtering and sorting
+func (h *Handler) AnalyzeTicketsEnhanced(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	// Get column filter from query parameters
+	columnFilter := r.URL.Query().Get("column")
+
+	// Parse filter and sort options from request body (if POST) or query params (if GET)
+	var filter TicketFilter
+	var sortOpts TicketSortOptions
+
+	if r.Method == "POST" {
+		var req struct {
+			Column string            `json:"column"`
+			Filter TicketFilter      `json:"filter"`
+			Sort   TicketSortOptions `json:"sort"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err == nil {
+			columnFilter = req.Column
+			filter = req.Filter
+			sortOpts = req.Sort
+		}
+	} else {
+		// Parse from query parameters
+		parseFilterFromQuery(r, &filter)
+		parseSortFromQuery(r, &sortOpts)
+	}
+
+	fmt.Printf("ANALYZE: User %d analyzing with column: '%s', filter: %+v, sort: %+v\n", user.UserID, columnFilter, filter, sortOpts)
+
+	// Determine columns to analyze
+	var columnsToAnalyze []string
+	var mappedColumnName string
+
+	if columnFilter == "" || columnFilter == "all_syncable" {
+		columnsToAnalyze = SyncableColumns
+		mappedColumnName = "all_syncable"
+	} else {
+		columnMap := map[string]string{
+			"backlog":         "backlog",
+			"in_progress":     "in progress",
+			"dev":             "dev",
+			"stage":           "stage",
+			"blocked":         "blocked",
+			"ready_for_stage": "ready for stage",
+			"findings":        "findings",
+		}
+
+		if mappedColumn, exists := columnMap[columnFilter]; exists {
+			columnsToAnalyze = []string{mappedColumn}
+			mappedColumnName = mappedColumn
+		} else {
+			columnsToAnalyze = SyncableColumns
+			mappedColumnName = "all_syncable"
+		}
+	}
+
+	// Perform analysis with filtering and sorting
+	analysis, err := h.analysisService.PerformAnalysisWithFiltering(user.UserID, columnsToAnalyze, filter, sortOpts)
+	if err != nil {
+		fmt.Printf("ANALYZE: Analysis failed for user %d: %v\n", user.UserID, err)
+		utils.SendInternalError(w, fmt.Sprintf("Analysis failed: %v", err))
+		return
+	}
+
+	// Get summary statistics
+	summary, err := h.analysisService.GetAnalysisSummary(user.UserID, columnsToAnalyze)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to get summary: %v", err))
+		return
+	}
+
+	// Get available filter options
+	filterOptions, err := h.analysisService.GetFilterOptions(user.UserID, columnsToAnalyze)
+	if err != nil {
+		fmt.Printf("ANALYZE: Failed to get filter options: %v\n", err)
+	}
+
+	fmt.Printf("ANALYZE: Complete for user %d - %d matched, %d mismatched, %d missing\n",
+		user.UserID, len(analysis.Matched), len(analysis.Mismatched), len(analysis.MissingYouTrack))
+
+	response := map[string]interface{}{
+		"analysis":         analysis,
+		"column_filter":    columnFilter,
+		"mapped_column":    mappedColumnName,
+		"analyzed_columns": columnsToAnalyze,
+		"summary":          summary,
+		"filter_options":   filterOptions,
+		"applied_filter":   filter,
+		"applied_sort":     sortOpts,
+	}
+
+	utils.SendSuccess(w, response, "Analysis completed successfully")
+}
+
+// GetChangedMappings returns tickets with title/description changes
+func (h *Handler) GetChangedMappings(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	changedMappings, err := h.analysisService.GetChangedMappings(user.UserID)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to get changed mappings: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, map[string]interface{}{
+		"changed_mappings": changedMappings,
+		"count":            len(changedMappings),
+	}, "Changed mappings retrieved successfully")
+}
+
+// GetFilterOptions returns available filter options
+func (h *Handler) GetFilterOptions(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	columnFilter := r.URL.Query().Get("column")
+	var columnsToAnalyze []string
+
+	if columnFilter == "" || columnFilter == "all_syncable" {
+		columnsToAnalyze = SyncableColumns
+	} else {
+		columnMap := map[string]string{
+			"backlog":         "backlog",
+			"in_progress":     "in progress",
+			"dev":             "dev",
+			"stage":           "stage",
+			"blocked":         "blocked",
+			"ready_for_stage": "ready for stage",
+			"findings":        "findings",
+		}
+
+		if mappedColumn, exists := columnMap[columnFilter]; exists {
+			columnsToAnalyze = []string{mappedColumn}
+		} else {
+			columnsToAnalyze = SyncableColumns
+		}
+	}
+
+	filterOptions, err := h.analysisService.GetFilterOptions(user.UserID, columnsToAnalyze)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to get filter options: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, filterOptions, "Filter options retrieved successfully")
+}
+
+// Helper functions to parse filter and sort from query parameters
+
+func parseFilterFromQuery(r *http.Request, filter *TicketFilter) {
+	// Parse assignees (comma-separated)
+	if assigneesStr := r.URL.Query().Get("assignees"); assigneesStr != "" {
+		filter.Assignees = strings.Split(assigneesStr, ",")
+	}
+
+	// Parse priorities (comma-separated)
+	if prioritiesStr := r.URL.Query().Get("priorities"); prioritiesStr != "" {
+		filter.Priority = strings.Split(prioritiesStr, ",")
+	}
+
+	// Parse start date
+	if startDateStr := r.URL.Query().Get("start_date"); startDateStr != "" {
+		if t, err := time.Parse("2006-01-02", startDateStr); err == nil {
+			filter.StartDate = t
+		}
+	}
+
+	// Parse end date
+	if endDateStr := r.URL.Query().Get("end_date"); endDateStr != "" {
+		if t, err := time.Parse("2006-01-02", endDateStr); err == nil {
+			filter.EndDate = t
+		}
+	}
+}
+
+func parseSortFromQuery(r *http.Request, sortOpts *TicketSortOptions) {
+	sortOpts.SortBy = r.URL.Query().Get("sort_by")
+	sortOpts.SortOrder = r.URL.Query().Get("sort_order")
+
+	if sortOpts.SortOrder == "" {
+		sortOpts.SortOrder = "asc"
+	}
+}
+
+// backend/legacy/handlers.go - ADD THIS METHOD TO THE Handler STRUCT
+
+// GetSyncService returns the sync service (helper method for main.go)
+func (h *Handler) GetSyncService() *SyncService {
+	return h.syncService
 }

@@ -1,3 +1,4 @@
+// backend/legacy/types.go - ENHANCED VERSION
 package legacy
 
 import "time"
@@ -10,6 +11,10 @@ type AsanaTask struct {
 	CompletedAt string `json:"completed_at"`
 	CreatedAt   string `json:"created_at"`
 	ModifiedAt  string `json:"modified_at"`
+	Assignee    struct {
+		GID  string `json:"gid"`
+		Name string `json:"name"`
+	} `json:"assignee"`
 	Memberships []struct {
 		Section struct {
 			GID  string `json:"gid"`
@@ -20,6 +25,17 @@ type AsanaTask struct {
 		GID  string `json:"gid"`
 		Name string `json:"name"`
 	} `json:"tags"`
+	CustomFields []struct {
+		GID          string `json:"gid"`
+		Name         string `json:"name"`
+		DisplayValue string `json:"display_value"`
+		TextValue    string `json:"text_value"`
+		NumberValue  int    `json:"number_value"`
+		EnumValue    struct {
+			GID  string `json:"gid"`
+			Name string `json:"name"`
+		} `json:"enum_value"`
+	} `json:"custom_fields"`
 }
 
 type AsanaResponse struct {
@@ -63,6 +79,10 @@ type MatchedTicket struct {
 	AsanaTags         []string      `json:"asana_tags"`
 	YouTrackSubsystem string        `json:"youtrack_subsystem"`
 	TagMismatch       bool          `json:"tag_mismatch"`
+	// Enhanced fields
+	AssigneeName string    `json:"assignee_name"`
+	Priority     string    `json:"priority"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 type MismatchedTicket struct {
@@ -73,6 +93,12 @@ type MismatchedTicket struct {
 	AsanaTags         []string      `json:"asana_tags"`
 	YouTrackSubsystem string        `json:"youtrack_subsystem"`
 	TagMismatch       bool          `json:"tag_mismatch"`
+	// Enhanced fields
+	AssigneeName      string    `json:"assignee_name"`
+	Priority          string    `json:"priority"`
+	CreatedAt         time.Time `json:"created_at"`
+	TitleMismatch     bool      `json:"title_mismatch"`
+	DescriptionMismatch bool    `json:"description_mismatch"`
 }
 
 type FindingsAlert struct {
@@ -96,6 +122,19 @@ type IgnoreRequest struct {
 	TicketID string `json:"ticket_id"`
 	Action   string `json:"action"`
 	Type     string `json:"type"`
+}
+
+// Sorting and Filtering structures
+type TicketFilter struct {
+	Assignees  []string  `json:"assignees"`  // Filter by assignee names
+	StartDate  time.Time `json:"start_date"` // Filter by created date range
+	EndDate    time.Time `json:"end_date"`
+	Priority   []string  `json:"priority"`   // Filter by priority values
+}
+
+type TicketSortOptions struct {
+	SortBy    string `json:"sort_by"`    // "created_at", "assignee", "priority"
+	SortOrder string `json:"sort_order"` // "asc" or "desc"
 }
 
 // Delete request structures
@@ -157,6 +196,8 @@ type AutoCreateStatus struct {
 type TicketsRequest struct {
 	Type   string `json:"type"`   // "matched", "mismatched", "missing", "ignored", etc.
 	Column string `json:"column"` // column filter
+	Filter TicketFilter      `json:"filter"` // filtering options
+	Sort   TicketSortOptions `json:"sort"`   // sorting options
 }
 
 // Tag mapping configuration
