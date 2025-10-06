@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"asana-youtrack-sync/database"
 	configpkg "asana-youtrack-sync/config"
+	"asana-youtrack-sync/database"
 )
 
 // AutoSyncManager manages automatic synchronization
@@ -165,33 +165,53 @@ func (asm *AutoSyncManager) autoSyncLoop(userID int, intervalSeconds int, stopCh
 
 // performAutoSync performs the actual sync operation
 func (asm *AutoSyncManager) performAutoSync(userID int) error {
-	// Get mismatched tickets and sync them
-	result, err := asm.syncService.GetMismatchedTickets(userID)
+	// Use the enhanced sync method that includes title/description changes
+	err := asm.syncService.AutoSyncWithChanges(userID)
 	if err != nil {
-		return fmt.Errorf("failed to get mismatched tickets: %w", err)
-	}
-
-	// Check if there are tickets to sync
-	if mismatchedData, ok := result["mismatched"].([]MismatchedTicket); ok && len(mismatchedData) > 0 {
-		// Create sync requests for all mismatched tickets
-		var syncRequests []SyncRequest
-		for _, ticket := range mismatchedData {
-			syncRequests = append(syncRequests, SyncRequest{
-				TicketID: ticket.AsanaTask.GID,
-				Action:   "sync",
-			})
-		}
-
-		// Perform the sync
-		_, err = asm.syncService.SyncMismatchedTickets(userID, syncRequests)
-		if err != nil {
-			return fmt.Errorf("sync operation failed: %w", err)
-		}
-
-		fmt.Printf("AUTO-SYNC: Synced %d tickets for user %d\n", len(syncRequests), userID)
+		return fmt.Errorf("auto-sync failed: %w", err)
 	}
 
 	return nil
+}
+
+// GetAutoSyncStatusDetailed returns detailed auto-sync status with change info
+func (asm *AutoSyncManager) GetAutoSyncStatusDetailed(userID int) map[string]interface{} {
+	asm.mutex.RLock()
+	defer asm.mutex.RUnlock()
+
+	baseStatus := asm.GetAutoSyncStatus(userID)
+
+	// Get current mismatched tickets to show what would be synced
+	result, err := asm.syncService.GetMismatchedTicketsWithChanges(userID)
+
+	pendingChanges := map[string]interface{}{
+		"total": 0,
+		"breakdown": map[string]int{
+			"status_only":      0,
+			"title_only":       0,
+			"description_only": 0,
+			"multiple_changes": 0,
+		},
+	}
+
+	if err == nil {
+		if breakdown, ok := result["breakdown"].(map[string]interface{}); ok {
+			pendingChanges["breakdown"] = breakdown
+		}
+		if count, ok := result["count"].(int); ok {
+			pendingChanges["total"] = count
+		}
+	}
+
+	return map[string]interface{}{
+		"running":         baseStatus.Running,
+		"interval":        baseStatus.Interval,
+		"last_sync":       baseStatus.LastSync,
+		"next_sync":       baseStatus.NextSync,
+		"sync_count":      baseStatus.SyncCount,
+		"last_sync_info":  baseStatus.LastSyncInfo,
+		"pending_changes": pendingChanges,
+	}
 }
 
 // GetAutoSyncStatus returns the current status of auto-sync for a user

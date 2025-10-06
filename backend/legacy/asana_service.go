@@ -1,3 +1,4 @@
+// backend/legacy/asana_service.go - ENHANCED VERSION
 package legacy
 
 import (
@@ -23,7 +24,7 @@ func NewAsanaService(configService *configpkg.Service) *AsanaService {
 	}
 }
 
-// GetTasks retrieves tasks from Asana using user settings
+// GetTasks retrieves tasks from Asana using user settings with enhanced fields
 func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
@@ -34,7 +35,8 @@ func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
 		return nil, fmt.Errorf("asana credentials not configured")
 	}
 
-	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,completed_at,created_at,modified_at,memberships.section.gid,memberships.section.name,tags.gid,tags.name",
+	// Enhanced fields including assignee, created_at, custom fields
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,completed_at,created_at,modified_at,assignee.name,assignee.gid,memberships.section.gid,memberships.section.name,tags.gid,tags.name,custom_fields.name,custom_fields.display_value,custom_fields.text_value,custom_fields.number_value,custom_fields.enum_value.name",
 		settings.AsanaProjectID)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -64,6 +66,60 @@ func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
 
 	fmt.Printf("Retrieved %d Asana tasks for user %d\n", len(asanaResp.Data), userID)
 	return asanaResp.Data, nil
+}
+
+// GetPriority extracts priority from custom fields based on user mapping
+func (s *AsanaService) GetPriority(task AsanaTask, userID int) string {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return ""
+	}
+
+	// Get priority field name from custom field mappings
+	priorityFieldName := settings.CustomFieldMappings.PriorityMapping["asana_field"]
+	if priorityFieldName == "" {
+		priorityFieldName = "Priority" // Default field name
+	}
+
+	for _, field := range task.CustomFields {
+		if strings.EqualFold(field.Name, priorityFieldName) {
+			// Try different value types
+			if field.EnumValue.Name != "" {
+				return field.EnumValue.Name
+			}
+			if field.DisplayValue != "" {
+				return field.DisplayValue
+			}
+			if field.TextValue != "" {
+				return field.TextValue
+			}
+		}
+	}
+
+	return ""
+}
+
+// GetAssigneeName returns the assignee name
+func (s *AsanaService) GetAssigneeName(task AsanaTask) string {
+	if task.Assignee.Name != "" {
+		return task.Assignee.Name
+	}
+	return "Unassigned"
+}
+
+// GetAssigneeGID returns the assignee GID
+func (s *AsanaService) GetAssigneeGID(task AsanaTask) string {
+	return task.Assignee.GID
+}
+
+// GetCreatedAt returns the created date
+func (s *AsanaService) GetCreatedAt(task AsanaTask) time.Time {
+	if task.CreatedAt != "" {
+		if t, err := time.Parse(time.RFC3339, task.CreatedAt); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }
 
 // DeleteTask deletes an Asana task
@@ -164,7 +220,6 @@ func (s *AsanaService) FilterTasksByColumns(tasks []AsanaTask, selectedColumns [
 		if len(task.Memberships) > 0 {
 			sectionName := strings.ToLower(strings.TrimSpace(task.Memberships[0].Section.Name))
 
-			// Debug first few tasks
 			if i < 5 {
 				fmt.Printf("FILTER DEBUG: Task %d '%s' is in section '%s'\n", i, task.Name, sectionName)
 			}
