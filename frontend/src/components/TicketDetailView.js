@@ -2,7 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, RefreshCw, Tag, EyeOff, Eye, Plus, CheckCircle, Clock, AlertTriangle, Trash2, X } from 'lucide-react';
 import { getTicketsByType, ignoreTicket, unignoreTicket, deleteTickets } from '../services/api';
 
-const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCreateMissing, setNavBarSlots }) => {
+const TicketDetailView = ({ 
+  type, 
+  column, 
+  onBack, 
+  onSync, 
+  onCreateSingle, 
+  onCreateMissing, 
+  setNavBarSlots,
+  onTicketMoved,
+  onSilentRefresh
+}) => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -80,7 +90,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
           </>
         ) : (
           <>
-            {/* Create All Button for missing tickets */}
             {type === 'missing' && tickets.length > 0 && onCreateMissing && (
               <button
                 onClick={handleCreateAll}
@@ -133,7 +142,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     };
   }, [type, column, deleteMode, selectedTickets, tickets.length, loading, createAllLoading]);
 
-  // Clear selection when exiting delete mode
   useEffect(() => {
     if (!deleteMode) {
       setSelectedTickets(new Set());
@@ -145,50 +153,29 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     setLoading(true);
     setError(null);
     
-    console.log('🔍 Loading tickets for type:', type, 'column:', column);
-    
     try {
-      // ENHANCED: Ensure we pass the column parameter correctly with proper encoding
       const columnParam = column && column !== 'all_syncable' ? column : '';
-      console.log('🔍 Requesting tickets with params:', { type, column: columnParam });
-      
       const response = await getTicketsByType(type, columnParam);
-      console.log('🔍 Raw API response:', response);
       
-      // ENHANCED: Handle multiple response structures
       let ticketData = [];
       
       if (response.data) {
-        // Structure: { data: { tickets: [...] } } or { data: [...] }
         ticketData = response.data.tickets || response.data;
       } else if (response.tickets) {
-        // Structure: { tickets: [...] }
         ticketData = response.tickets;
       } else if (Array.isArray(response)) {
-        // Structure: [...]
         ticketData = response;
-      } else {
-        // Unknown structure, log for debugging
-        console.warn('🔍 Unknown response structure:', response);
-        ticketData = [];
       }
       
-      console.log('🔍 Extracted ticket data:', ticketData);
-      console.log('🔍 Ticket count:', Array.isArray(ticketData) ? ticketData.length : 'Not an array');
-      
-      // Ensure we have an array
       if (!Array.isArray(ticketData)) {
-        console.warn('🔍 Ticket data is not an array, converting:', ticketData);
         ticketData = [];
       }
       
       setTickets(ticketData);
       setDeleteMode(false);
       
-      console.log('✅ Successfully loaded', ticketData.length, 'tickets for type:', type);
-      
     } catch (err) {
-      console.error('❌ Failed to load tickets:', err);
+      console.error('Failed to load tickets:', err);
       setError(err.message);
       setTickets([]);
     } finally {
@@ -196,14 +183,38 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     }
   };
 
-  // Handle create all missing tickets
+  // Remove ticket from local state - ONLY CALLED AFTER SUCCESSFUL API CALL
+  const removeTicketFromView = (ticketId) => {
+    setTickets(prev => prev.filter(ticket => {
+      const currentTicketId = ticket.gid || ticket.asana_task?.gid || ticket.id || ticket;
+      return currentTicketId !== ticketId;
+    }));
+  };
+
+  // CREATE ALL - Wait for API success
   const handleCreateAll = async () => {
     if (!onCreateMissing || tickets.length === 0) return;
     
     setCreateAllLoading(true);
     try {
+      const ticketsCopy = [...tickets];
+      
+      // Wait for API call to complete
       await onCreateMissing();
-      setTimeout(loadTickets, 1000);
+      
+      // Only after success: clear tickets and notify parent
+      setTickets([]);
+      
+      ticketsCopy.forEach(ticket => {
+        if (onTicketMoved) {
+          onTicketMoved(ticket.gid, 'missing');
+        }
+      });
+      
+      // Silent refresh in background
+      if (onSilentRefresh) {
+        setTimeout(() => onSilentRefresh(), 3000);
+      }
     } catch (err) {
       console.error('Failed to create all tickets:', err);
       alert('Failed to create all tickets: ' + err.message);
@@ -212,16 +223,19 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     }
   };
 
+  // IGNORE TICKET - Wait for API success
   const handleIgnoreTicket = async (ticketId) => {
     setActionLoading(prev => ({ ...prev, [`ignore_${ticketId}`]: true }));
     try {
+      // Wait for API call
       await ignoreTicket(ticketId);
+      
+      // Only after success: mark as ignored
       setIgnoredTickets(prev => new Set([...prev, ticketId]));
       
+      // Remove from view after 1 second
       setTimeout(() => {
-        setTickets(prev => prev.filter(ticket => 
-          (ticket.gid || ticket.asana_task?.gid || ticket.id) !== ticketId
-        ));
+        removeTicketFromView(ticketId);
       }, 1000);
     } catch (err) {
       console.error('Failed to ignore ticket:', err);
@@ -231,18 +245,23 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     }
   };
 
+  // UNIGNORE TICKET - Wait for API success
   const handleUnignoreTicket = async (ticketId) => {
     setActionLoading(prev => ({ ...prev, [`unignore_${ticketId}`]: true }));
     try {
+      // Wait for API call
       await unignoreTicket(ticketId);
+      
+      // Only after success: update state
       setIgnoredTickets(prev => {
         const newSet = new Set(prev);
         newSet.delete(ticketId);
         return newSet;
       });
       
+      // Remove from ignored list
       if (type === 'ignored') {
-        setTickets(prev => prev.filter(id => id !== ticketId));
+        removeTicketFromView(ticketId);
       }
     } catch (err) {
       console.error('Failed to unignore ticket:', err);
@@ -252,11 +271,24 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     }
   };
 
+  // SYNC TICKET - Wait for API success
   const handleSyncTicket = async (ticketId) => {
     setActionLoading(prev => ({ ...prev, [`sync_${ticketId}`]: true }));
     try {
+      // Wait for actual sync to complete
       await onSync(ticketId);
-      setTimeout(loadTickets, 1000);
+      
+      // Only after success: remove ticket and notify parent
+      removeTicketFromView(ticketId);
+      
+      if (onTicketMoved) {
+        onTicketMoved(ticketId, 'mismatched');
+      }
+      
+      // Silent refresh in background
+      if (onSilentRefresh) {
+        setTimeout(() => onSilentRefresh(), 3000);
+      }
     } catch (err) {
       console.error('Failed to sync ticket:', err);
       alert('Failed to sync ticket: ' + err.message);
@@ -265,11 +297,24 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     }
   };
 
+  // CREATE TICKET - Wait for API success
   const handleCreateTicket = async (taskId) => {
     setActionLoading(prev => ({ ...prev, [`create_${taskId}`]: true }));
     try {
+      // Wait for actual create to complete
       await onCreateSingle(taskId);
-      setTimeout(loadTickets, 1000);
+      
+      // Only after success: remove ticket and notify parent
+      removeTicketFromView(taskId);
+      
+      if (onTicketMoved) {
+        onTicketMoved(taskId, 'missing');
+      }
+      
+      // Silent refresh in background
+      if (onSilentRefresh) {
+        setTimeout(() => onSilentRefresh(), 3000);
+      }
     } catch (err) {
       console.error('Failed to create ticket:', err);
       alert('Failed to create ticket: ' + err.message);
@@ -278,11 +323,16 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     }
   };
 
-  // Enhanced ticket selection with shift+click support
   const handleTicketClick = (ticketId, index, event) => {
     if (!deleteMode) return;
     
     event.preventDefault();
+    
+    // Prevent text selection on shift+click
+    if (event.shiftKey) {
+      event.preventDefault();
+      window.getSelection().removeAllRanges();
+    }
     
     if (event.shiftKey && lastSelectedIndex !== -1) {
       const startIndex = Math.min(lastSelectedIndex, index);
@@ -309,7 +359,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     }
   };
 
-  // Delete mode controls
   const handleEnterDeleteMode = () => {
     setDeleteMode(true);
   };
@@ -329,33 +378,50 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     }
   };
 
-  // Delete confirmation handlers
   const handleDeleteClick = (source) => {
     setDeleteSource(source);
     setShowDeleteConfirm(true);
   };
 
+  // DELETE TICKETS - Wait for API success
   const handleDeleteConfirm = async () => {
     setDeleteLoading(true);
     try {
       const ticketIds = Array.from(selectedTickets);
+      
+      // Wait for delete to complete
       const response = await deleteTickets(ticketIds, deleteSource);
+      
+      // Only after success: remove tickets from view
+      setTickets(prev => prev.filter(ticket => {
+        const ticketId = ticket.gid || ticket.asana_task?.gid || ticket.id || ticket;
+        return !selectedTickets.has(ticketId);
+      }));
+      
+      // Close modal and exit delete mode
+      setShowDeleteConfirm(false);
+      setDeleteMode(false);
+      setSelectedTickets(new Set());
       
       const successCount = response.success_count || 0;
       const failureCount = response.failure_count || 0;
       const summary = response.summary || `Processed ${ticketIds.length} tickets`;
       
-      alert(`Delete Operation Complete:\n${summary}\n\nSuccessful: ${successCount}\nFailed: ${failureCount}`);
+      // Show result
+      setTimeout(() => {
+        alert(`Delete Operation Complete:\n${summary}\n\nSuccessful: ${successCount}\nFailed: ${failureCount}`);
+      }, 100);
       
-      setDeleteMode(false);
-      await loadTickets();
+      // Silent refresh in background
+      if (onSilentRefresh) {
+        setTimeout(() => onSilentRefresh(), 3000);
+      }
       
     } catch (err) {
       console.error('Delete operation failed:', err);
       alert('Delete operation failed: ' + err.message);
     } finally {
       setDeleteLoading(false);
-      setShowDeleteConfirm(false);
       setDeleteSource('');
     }
   };
@@ -430,7 +496,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
   };
 
   const renderTicketCard = (ticket, index) => {
-    // ENHANCED: Better ticket ID extraction with multiple fallbacks
     const ticketId = ticket.gid || 
                     ticket.asana_task?.gid || 
                     ticket.youtrack_issue?.id ||
@@ -447,9 +512,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
     const isSelected = selectedTickets.has(ticketId);
     const canBeDeleted = type !== 'ignored';
     
-    console.log('🎫 Rendering ticket:', { ticketId, ticketName, type, ticket });
-    
-    // Handle ignored tickets (which are just IDs)
     if (type === 'ignored' && typeof ticket === 'string') {
       return (
         <div key={ticket} className="glass-panel border border-gray-200 rounded-lg p-4">
@@ -480,7 +542,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
       );
     }
 
-    // ENHANCED: Handle different ticket structures
     const ticketTags = ticket.tags || 
                       ticket.asana_tags || 
                       ticket.asana_task?.tags ||
@@ -495,12 +556,18 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
         key={ticketId} 
         className={`glass-panel border rounded-lg p-4 transition-all ${
           deleteMode 
-            ? `cursor-pointer hover:shadow-md ${
+            ? `cursor-pointer hover:shadow-md select-none ${
                 isSelected ? 'border-red-400 bg-red-50 shadow-md' : 'border-gray-200 hover:border-red-200'
               }`
             : 'border-gray-200 hover:shadow-md'
         }`}
         onClick={(e) => canBeDeleted && handleTicketClick(ticketId, index, e)}
+        onMouseDown={(e) => {
+          // Prevent text selection on mouse down in delete mode
+          if (deleteMode && canBeDeleted) {
+            e.preventDefault();
+          }
+        }}
       >
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
@@ -514,7 +581,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
                 </p>
               </div>
               
-              {/* Selection indicator */}
               {deleteMode && canBeDeleted && isSelected && (
                 <div className="flex items-center text-red-600">
                   <CheckCircle className="w-4 h-4" />
@@ -522,12 +588,10 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
               )}
             </div>
             
-            {/* Show section info if available */}
             <p className={`text-sm ${isSelected ? 'text-red-600' : 'text-gray-500'}`}>
               Section: {ticketSection}
             </p>
             
-            {/* Show status comparison for mismatched tickets */}
             {type === 'mismatched' && (
               <div className="mt-2 space-y-1">
                 <div className="flex items-center space-x-2">
@@ -544,7 +608,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
             )}
           </div>
           
-          {/* Action buttons - only show when not in delete mode */}
           {!deleteMode && (
             <div className="flex flex-col space-y-2 ml-4">
               {type === 'mismatched' && (
@@ -621,7 +684,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
           )}
         </div>
         
-        {/* Show tags if available */}
         {ticketTags && ticketTags.length > 0 && (
           <div className="mt-3">
             <div className={`text-xs mb-1 ${isSelected ? 'text-red-600' : 'text-gray-500'}`}>Tags:</div>
@@ -636,7 +698,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
           </div>
         )}
         
-        {/* Delete mode instruction */}
         {deleteMode && canBeDeleted && index === 0 && (
           <div className="mt-3 text-xs text-gray-500 border-t pt-2">
             💡 Click to select tickets • Shift+Click for range selection
@@ -663,7 +724,10 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div 
+        className={`max-w-6xl mx-auto px-6 py-8 ${deleteMode ? 'select-none' : ''}`}
+        style={deleteMode ? { userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' } : {}}
+      >
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <div className="flex items-center">
@@ -673,7 +737,7 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
           </div>
         )}
 
-        {/* Delete Panel - Only show when in delete mode with selections */}
+        {/* Delete Panel */}
         {deleteMode && selectedTickets.size > 0 && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
@@ -800,23 +864,12 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
               {type === 'missing' && (!column || column === 'all_syncable') && 'All Asana tickets already exist in YouTrack.'}
               {!['ignored', 'matched', 'mismatched', 'missing'].includes(type) && 'No tickets found for this category.'}
             </p>
-            
-            {/* Enhanced debug info */}
-            {process.env.NODE_ENV !== 'production' && (
-              <div className="mt-4 text-xs text-gray-400 bg-gray-100 rounded p-3">
-                <div>Debug Info:</div>
-                <div>Type: "{type}", Column: "{column || 'none'}"</div>
-                <div>Loaded tickets: {tickets.length}</div>
-                <div>Error: {error || 'none'}</div>
-              </div>
-            )}
           </div>
         ) : (
           <>
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 {typeInfo.title} ({tickets.length})
-                {/* Show column context */}
                 {column && column !== 'all_syncable' && (
                   <span className="text-blue-600 text-lg font-normal ml-2">
                     • {column.replace('_', ' ').toUpperCase()} Column
@@ -846,16 +899,6 @@ const TicketDetailView = ({ type, column, onBack, onSync, onCreateSingle, onCrea
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {tickets.map((ticket, index) => renderTicketCard(ticket, index))}
             </div>
-
-            {/* Enhanced debug info in development */}
-            {process.env.NODE_ENV !== 'production' && tickets.length > 0 && (
-              <div className="mt-8 p-4 bg-gray-100 rounded-lg text-xs">
-                <h4 className="font-semibold mb-2">Debug - First Ticket Structure:</h4>
-                <pre className="whitespace-pre-wrap overflow-auto max-h-32">
-                  {JSON.stringify(tickets[0], null, 2)}
-                </pre>
-              </div>
-            )}
           </>
         )}
       </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff } from 'lucide-react';
 import TicketDetailView from './TicketDetailView';
 import { analyzeTickets } from '../services/api';
@@ -22,41 +22,37 @@ const AnalysisResults = ({
   // Detail view state
   const [detailView, setDetailView] = useState(null);
   
-  // NEW: Re-analyze functionality
+  // Re-analyze functionality
   const [reAnalyzeLoading, setReAnalyzeLoading] = useState(false);
-  const [currentAnalysisData, setCurrentAnalysisData] = useState(analysisData);
+  
+  // LOCAL STATE for optimistic updates
+  const [localAnalysisData, setLocalAnalysisData] = useState(analysisData);
+  
+  // Update local data when prop changes
+  useEffect(() => {
+    setLocalAnalysisData(analysisData);
+  }, [analysisData]);
 
-  // FIXED: Better data extraction with multiple fallback paths
-  console.log('🔍 Analysis Data Debug:', currentAnalysisData);
-
-  // Try multiple paths to get the analysis data
+  // Data extraction
   let analysis = null;
   let summary = null;
 
-  if (currentAnalysisData) {
-    // Path 1: Direct analysis property
-    analysis = currentAnalysisData.analysis;
+  if (localAnalysisData) {
+    analysis = localAnalysisData.analysis;
     
-    // Path 2: Data property with analysis
-    if (!analysis && currentAnalysisData.data) {
-      analysis = currentAnalysisData.data.analysis || currentAnalysisData.data;
+    if (!analysis && localAnalysisData.data) {
+      analysis = localAnalysisData.data.analysis || localAnalysisData.data;
     }
     
-    // Path 3: Root level data (if response is already unwrapped)
     if (!analysis) {
-      analysis = currentAnalysisData;
+      analysis = localAnalysisData;
     }
 
-    // Summary extraction
-    summary = currentAnalysisData.summary || 
-              currentAnalysisData.data?.summary ||
-              currentAnalysisData;
+    summary = localAnalysisData.summary || 
+              localAnalysisData.data?.summary ||
+              localAnalysisData;
   }
 
-  console.log('🔍 Extracted Analysis:', analysis);
-  console.log('🔍 Extracted Summary:', summary);
-
-  // Ensure analysis has expected structure
   const safeAnalysis = analysis || {};
   const safeSummary = summary || {};
 
@@ -74,11 +70,256 @@ const AnalysisResults = ({
     orphaned_youtrack: safeSummary.orphaned_youtrack || (safeAnalysis.orphaned_youtrack ? safeAnalysis.orphaned_youtrack.length : 0)
   };
 
-  console.log('🔍 Final Summary Data:', summaryData);
+  // OPTIMISTIC UPDATE HELPER - Only called after successful API response
+  const moveTicketToMatched = (ticketId, fromCategory) => {
+    setLocalAnalysisData(prev => {
+      const newData = { ...prev };
+      const newAnalysis = { ...safeAnalysis };
+      
+      // Find and remove ticket from source category
+      let movedTicket = null;
+      if (fromCategory === 'mismatched' && newAnalysis.mismatched) {
+        const ticketIndex = newAnalysis.mismatched.findIndex(t => 
+          (t.asana_task?.gid || t.gid) === ticketId
+        );
+        if (ticketIndex !== -1) {
+          movedTicket = newAnalysis.mismatched[ticketIndex];
+          newAnalysis.mismatched = newAnalysis.mismatched.filter((_, i) => i !== ticketIndex);
+        }
+      } else if (fromCategory === 'missing' && newAnalysis.missing_youtrack) {
+        const ticketIndex = newAnalysis.missing_youtrack.findIndex(t => t.gid === ticketId);
+        if (ticketIndex !== -1) {
+          movedTicket = newAnalysis.missing_youtrack[ticketIndex];
+          newAnalysis.missing_youtrack = newAnalysis.missing_youtrack.filter((_, i) => i !== ticketIndex);
+        }
+      }
+      
+      // Add to matched if ticket was found
+      if (movedTicket) {
+        newAnalysis.matched = newAnalysis.matched || [];
+        const matchedTicket = {
+          asana_task: movedTicket.asana_task || { 
+            gid: movedTicket.gid, 
+            name: movedTicket.name 
+          },
+          youtrack_issue: movedTicket.youtrack_issue || { 
+            id: ticketId 
+          },
+          asana_status: movedTicket.asana_status,
+          youtrack_status: movedTicket.asana_status,
+          asana_tags: movedTicket.asana_tags || movedTicket.tags?.map(t => t.name) || []
+        };
+        newAnalysis.matched.push(matchedTicket);
+      }
+      
+      // Update summary counts
+      const newSummary = {
+        ...safeSummary,
+        matched: (newAnalysis.matched?.length || 0),
+        mismatched: (newAnalysis.mismatched?.length || 0),
+        missing_youtrack: (newAnalysis.missing_youtrack?.length || 0)
+      };
+      
+      return {
+        ...newData,
+        analysis: newAnalysis,
+        summary: newSummary
+      };
+    });
+  };
 
-  // FIXED: Early return check with better logging
-  if (!currentAnalysisData) {
-    console.warn('❌ No currentAnalysisData provided');
+  // SILENT BACKGROUND REFRESH
+  const silentRefreshAnalysis = async () => {
+    try {
+      const data = await analyzeTickets(selectedColumn);
+      setLocalAnalysisData({
+        ...data,
+        analyzedColumn: selectedColumn
+      });
+    } catch (error) {
+      console.error('Silent refresh failed:', error);
+    }
+  };
+
+  const handleReAnalyze = async () => {
+    setReAnalyzeLoading(true);
+    try {
+      const data = await analyzeTickets(selectedColumn);
+      setLocalAnalysisData({
+        ...data,
+        analyzedColumn: selectedColumn
+      });
+    } catch (error) {
+      console.error('Re-analysis failed:', error);
+      alert('Re-analysis failed: ' + error.message);
+    } finally {
+      setReAnalyzeLoading(false);
+    }
+  };
+
+  const handleSummaryCardClick = (type) => {
+    setDetailView({ type, column: selectedColumn });
+  };
+
+  const handleBackFromDetail = () => {
+    setDetailView(null);
+  };
+
+  if (detailView) {
+    return (
+      <TicketDetailView
+        type={detailView.type}
+        column={detailView.column}
+        onBack={handleBackFromDetail}
+        onSync={onSync}
+        onCreateSingle={onCreateSingle}
+        onCreateMissing={onCreateMissing}
+        setNavBarSlots={setNavBarSlots}
+        onTicketMoved={moveTicketToMatched}
+        onSilentRefresh={silentRefreshAnalysis}
+      />
+    );
+  }
+
+  // SYNC HANDLER - Wait for API success before moving
+  const handleSyncTicket = async (ticketId) => {
+    setSyncing(prev => ({ ...prev, [ticketId]: true }));
+    
+    try {
+      // Wait for actual sync to complete
+      await onSync(ticketId);
+      
+      // Only move ticket after successful sync
+      moveTicketToMatched(ticketId, 'mismatched');
+      
+      // Show success feedback
+      setSyncedTickets(prev => new Set([...prev, ticketId]));
+      setTimeout(() => {
+        setSyncedTickets(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(ticketId);
+          return newSet;
+        });
+      }, 2000);
+      
+      // Silent refresh in background
+      setTimeout(() => silentRefreshAnalysis(), 3000);
+    } catch (error) {
+      console.error('Sync failed:', error);
+      alert('Sync failed: ' + error.message);
+    } finally {
+      setSyncing(prev => ({ ...prev, [ticketId]: false }));
+    }
+  };
+
+  // SYNC ALL HANDLER - Wait for all API calls
+  const handleSyncAll = async () => {
+    const mismatchedTickets = safeAnalysis.mismatched || [];
+    if (mismatchedTickets.length === 0) return;
+    
+    setSyncAllLoading(true);
+    
+    try {
+      // Wait for all syncs to complete
+      const syncPromises = mismatchedTickets.map(ticket => 
+        onSync(ticket.asana_task?.gid || ticket.gid)
+      );
+      
+      await Promise.all(syncPromises);
+      
+      // Only move tickets after all syncs succeed
+      mismatchedTickets.forEach(ticket => {
+        const ticketId = ticket.asana_task?.gid || ticket.gid;
+        moveTicketToMatched(ticketId, 'mismatched');
+      });
+      
+      // Silent refresh in background
+      setTimeout(() => silentRefreshAnalysis(), 3000);
+    } catch (error) {
+      console.error('Some tickets failed to sync:', error);
+      alert('Some tickets failed to sync. Please try again.');
+      // Refresh to show accurate state
+      await handleReAnalyze();
+    } finally {
+      setSyncAllLoading(false);
+    }
+  };
+
+  // CREATE HANDLER - Wait for API success
+  const handleCreateTicket = async (task, index) => {
+    const taskId = task.gid;
+    setCreating(prev => ({ ...prev, [taskId]: true }));
+    
+    try {
+      // Wait for actual create to complete
+      await onCreateSingle(taskId);
+      
+      // Only move ticket after successful create
+      moveTicketToMatched(taskId, 'missing');
+      
+      // Show success feedback
+      setCreatedTickets(prev => new Set([...prev, taskId]));
+      setTimeout(() => {
+        setCreatedTickets(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(taskId);
+          return newSet;
+        });
+      }, 2000);
+      
+      // Silent refresh in background
+      setTimeout(() => silentRefreshAnalysis(), 3000);
+    } catch (error) {
+      console.error('Create failed:', error);
+      alert('Create failed: ' + error.message);
+    } finally {
+      setCreating(prev => ({ ...prev, [taskId]: false }));
+    }
+  };
+
+  // CREATE ALL HANDLER - Wait for API success
+  const handleCreateAll = async () => {
+    setCreateAllLoading(true);
+    
+    try {
+      const missingTickets = safeAnalysis.missing_youtrack || [];
+      
+      // Wait for create to complete
+      await onCreateMissing();
+      
+      // Only move tickets after successful create
+      missingTickets.forEach(task => {
+        moveTicketToMatched(task.gid, 'missing');
+      });
+      
+      // Silent refresh in background
+      setTimeout(() => silentRefreshAnalysis(), 3000);
+    } catch (error) {
+      console.error('Failed to create tickets:', error);
+      alert('Failed to create tickets: ' + error.message);
+      // Refresh to show accurate state
+      await handleReAnalyze();
+    } finally {
+      setCreateAllLoading(false);
+    }
+  };
+
+  const TagsDisplay = ({ tags }) => {
+    if (!tags || tags.length === 0) return <span className="text-gray-400">No tags</span>;
+    
+    return (
+      <div className="flex flex-wrap gap-1">
+        {tags.map((tag, index) => (
+          <span key={index} className="tag-glass inline-flex items-center">
+            <Tag className="w-3 h-3 mr-1" />
+            {tag}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  if (!localAnalysisData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="text-center">
@@ -97,11 +338,9 @@ const AnalysisResults = ({
     );
   }
 
-  // Check if we have any meaningful data
   const hasAnyData = summaryData.matched > 0 || summaryData.mismatched > 0 || summaryData.missing_youtrack > 0 || summaryData.findings_tickets > 0;
   
   if (!hasAnyData) {
-    console.warn('❌ No meaningful analysis data found in:', currentAnalysisData);
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="text-center">
@@ -122,142 +361,6 @@ const AnalysisResults = ({
     );
   }
 
-  // NEW: Re-analyze the same column
-  const handleReAnalyze = async () => {
-    setReAnalyzeLoading(true);
-    try {
-      console.log('🔄 Re-analyzing column:', selectedColumn);
-      const data = await analyzeTickets(selectedColumn);
-      console.log('🔄 Re-analysis response:', data);
-      setCurrentAnalysisData(data);
-    } catch (error) {
-      console.error('❌ Re-analysis failed:', error);
-      alert('Re-analysis failed: ' + error.message);
-    } finally {
-      setReAnalyzeLoading(false);
-    }
-  };
-
-  // Handle clicking on summary cards to drill down
-  const handleSummaryCardClick = (type) => {
-    console.log('🎯 Opening detail view for type:', type, 'column:', selectedColumn);
-    setDetailView({ type, column: selectedColumn });
-  };
-
-  // Handle back from detail view
-  const handleBackFromDetail = () => {
-    setDetailView(null);
-  };
-
-  // Show detail view if selected
-  if (detailView) {
-    return (
-      <TicketDetailView
-        type={detailView.type}
-        column={detailView.column}
-        onBack={handleBackFromDetail}
-        onSync={onSync}
-        onCreateSingle={onCreateSingle}
-        onCreateMissing={onCreateMissing}
-        setNavBarSlots={setNavBarSlots}
-      />
-    );
-  }
-
-  // Handle individual ticket sync
-  const handleSyncTicket = async (ticketId) => {
-    setSyncing(prev => ({ ...prev, [ticketId]: true }));
-    
-    try {
-      await onSync(ticketId);
-      setSyncedTickets(prev => new Set([...prev, ticketId]));
-      
-      setTimeout(() => {
-        setSyncedTickets(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(ticketId);
-          return newSet;
-        });
-      }, 2000);
-    } catch (error) {
-      console.error('❌ Sync failed:', error);
-    } finally {
-      setSyncing(prev => ({ ...prev, [ticketId]: false }));
-    }
-  };
-
-  // Handle sync all
-  const handleSyncAll = async () => {
-    const mismatchedTickets = safeAnalysis.mismatched || [];
-    if (mismatchedTickets.length === 0) return;
-    
-    setSyncAllLoading(true);
-    
-    try {
-      for (const ticket of mismatchedTickets) {
-        await onSync(ticket.asana_task?.gid || ticket.gid);
-      }
-    } catch (error) {
-      console.error('❌ Some tickets failed to sync');
-    } finally {
-      setSyncAllLoading(false);
-    }
-  };
-
-  // Handle individual ticket creation
-  const handleCreateTicket = async (task, index) => {
-    const taskId = task.gid;
-    setCreating(prev => ({ ...prev, [taskId]: true }));
-    
-    try {
-      await onCreateSingle(taskId);
-      setCreatedTickets(prev => new Set([...prev, taskId]));
-      
-      setTimeout(() => {
-        setCreatedTickets(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(taskId);
-          return newSet;
-        });
-      }, 2000);
-    } catch (error) {
-      console.error('❌ Create failed:', error);
-    } finally {
-      setCreating(prev => ({ ...prev, [taskId]: false }));
-    }
-  };
-
-  // Handle create all
-  const handleCreateAll = async () => {
-    setCreateAllLoading(true);
-    
-    try {
-      await onCreateMissing();
-    } catch (error) {
-      console.error('❌ Failed to create tickets:', error);
-    } finally {
-      setCreateAllLoading(false);
-    }
-  };
-
-  // Display tags component
-  const TagsDisplay = ({ tags }) => {
-    if (!tags || tags.length === 0) return <span className="text-gray-400">No tags</span>;
-    
-    return (
-      <div className="flex flex-wrap gap-1">
-        {tags.map((tag, index) => (
-          <span key={index} className="tag-glass inline-flex items-center">
-            <Tag className="w-3 h-3 mr-1" />
-            {tag}
-          </span>
-        ))}
-      </div>
-    );
-  };
-
-  console.log('✅ Rendering analysis results with summary:', summaryData);
-
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-6 py-8">
@@ -270,7 +373,6 @@ const AnalysisResults = ({
             <p className="text-gray-600">Review mismatches, sync tickets, and manage tags. Click on any summary card to see detailed views.</p>
           </div>
           
-          {/* NEW: Re-analyze Button */}
           <button
             onClick={handleReAnalyze}
             disabled={reAnalyzeLoading}
@@ -290,7 +392,7 @@ const AnalysisResults = ({
           </button>
         </div>
 
-        {/* High Priority Alerts - SAFE ACCESS */}
+        {/* High Priority Alerts */}
         {summaryData.findings_alerts > 0 && (
           <div className="glass-panel bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
             <div className="flex items-center mb-4">
@@ -307,7 +409,7 @@ const AnalysisResults = ({
           </div>
         )}
 
-        {/* Summary Cards with Glass Theme - CLICKABLE - SAFE ACCESS */}
+        {/* Summary Cards - CLICKABLE */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           <div 
             className="glass-panel bg-green-50 border border-green-200 rounded-lg p-4 cursor-pointer hover:shadow-lg transition-all"
@@ -390,7 +492,7 @@ const AnalysisResults = ({
           </div>
         </div>
 
-        {/* Mismatched Tickets - SAFE ACCESS */}
+        {/* Mismatched Tickets Preview */}
         {summaryData.mismatched > 0 && (
           <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -515,7 +617,7 @@ const AnalysisResults = ({
           </div>
         )}
 
-        {/* Missing Tickets - SAFE ACCESS */}
+        {/* Missing Tickets Preview */}
         {summaryData.missing_youtrack > 0 && (
           <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -612,7 +714,7 @@ const AnalysisResults = ({
           </div>
         )}
 
-        {/* Display Only Sections - SAFE ACCESS */}
+        {/* Display Only Sections */}
         {(summaryData.ready_for_stage > 0 || summaryData.findings_tickets > 0) && (
           <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Display Only Sections</h2>
@@ -675,18 +777,6 @@ const AnalysisResults = ({
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* Debug Information Panel - Only show in development */}
-        {process.env.NODE_ENV !== 'production' && (
-          <div className="mt-8 p-4 bg-gray-100 rounded-lg text-xs">
-            <h4 className="font-semibold mb-2">Debug Information:</h4>
-            <div className="space-y-1">
-              <div>Analysis Data Keys: {Object.keys(currentAnalysisData || {}).join(', ')}</div>
-              <div>Analysis Keys: {Object.keys(safeAnalysis).join(', ')}</div>
-              <div>Summary Data: {JSON.stringify(summaryData, null, 2)}</div>
             </div>
           </div>
         )}
