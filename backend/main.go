@@ -195,8 +195,8 @@ func registerRoutes(
 	// ========================================================================
 	// 🔍 NEW: COLUMN VERIFICATION & DEBUG ENDPOINTS
 	// ========================================================================
-	legacyAPI.HandleFunc("/verify-columns", legacyHandler.VerifyColumnsAndMapping).Methods("GET", "OPTIONS")
-	legacyAPI.HandleFunc("/column-report", legacyHandler.GetColumnMappingReport).Methods("GET", "OPTIONS")
+	// legacyAPI.HandleFunc("/verify-columns", legacyHandler.VerifyColumnsAndMapping).Methods("GET", "OPTIONS")
+	// legacyAPI.HandleFunc("/column-report", legacyHandler.GetColumnMappingReport).Methods("GET", "OPTIONS")
 	legacyAPI.HandleFunc("/youtrack-states", legacyHandler.GetYouTrackStatesRaw).Methods("GET", "OPTIONS")
 	// ========================================================================
 
