@@ -84,12 +84,13 @@ func main() {
 
 	// Start server
 	port := getEnvDefault("PORT", "8080")
-	log.Printf(" Server chalu ho gaya on port %s — bas ab crash na hoye 😂", port)
-	log.Printf(" WebSocket endpoint: ws://localhost:%s/ws — test karke dekhdeya 💻", port)
-	log.Println(" All old API routes hun password maangde ne — security level")
-	log.Println(" User settings te ignored tickets hun database vich save hunde ne, per project")
-	log.Println("  Har Asana project di apni ignored tickets list — just like your ggf")
-	log.Println(" New features paaye ne but challakedekhdeya ki bannda: Filtering, Sorting, te Change Detection")
+	log.Printf("🚀 Server chalu ho gaya on port %s – bas ab crash na hoye 😂", port)
+	log.Printf("🌐 WebSocket endpoint: ws://localhost:%s/ws – test karke dekhdeya 💻", port)
+	log.Println("🔐 All old API routes hun password maangde ne – security level")
+	log.Println("💾 User settings te ignored tickets hun database vich save hunde ne, per project")
+	log.Println("📂 Har Asana project di apni ignored tickets list – just like your ggf")
+	log.Println("✨ New features paaye ne but challakedekhdeya ki bannda: Filtering, Sorting, te Change Detection")
+	log.Println("🔍 Column verification endpoints added for debugging!")
 
 	server := &http.Server{
 		Addr:         ":" + port,
@@ -190,6 +191,14 @@ func registerRoutes(
 
 	// ENHANCED: Get available filter options
 	legacyAPI.HandleFunc("/filter-options", legacyHandler.GetFilterOptions).Methods("GET", "OPTIONS")
+
+	// ========================================================================
+	// 🔍 NEW: COLUMN VERIFICATION & DEBUG ENDPOINTS
+	// ========================================================================
+	legacyAPI.HandleFunc("/verify-columns", legacyHandler.VerifyColumnsAndMapping).Methods("GET", "OPTIONS")
+	legacyAPI.HandleFunc("/column-report", legacyHandler.GetColumnMappingReport).Methods("GET", "OPTIONS")
+	legacyAPI.HandleFunc("/youtrack-states", legacyHandler.GetYouTrackStatesRaw).Methods("GET", "OPTIONS")
+	// ========================================================================
 
 	legacyAPI.HandleFunc("/create", legacyHandler.CreateMissingTickets).Methods("GET", "POST", "OPTIONS")
 	legacyAPI.HandleFunc("/create-single", legacyHandler.CreateSingleTicket).Methods("POST", "OPTIONS")
@@ -632,6 +641,12 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 				"GET    /api/mappings/asana/{taskId}":     "Get mapping by Asana task ID",
 				"GET    /api/mappings/youtrack/{issueId}": "Get mapping by YouTrack issue ID",
 			},
+			"column_verification": map[string]string{
+				"GET  /verify-columns":    "Verify column detection and mapping (detailed JSON)",
+				"GET  /column-report":     "Get human-readable column mapping report",
+				"GET  /youtrack-states":   "Get raw YouTrack state information (debug)",
+				"POST /validate-mappings": "Validate and cleanup invalid ticket mappings",
+			},
 			"enhanced_analysis": map[string]string{
 				"GET/POST /analyze/enhanced": "Analyze with filtering and sorting",
 				"GET      /filter-options":   "Get available filter options",
@@ -677,6 +692,7 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 			"✅ Multi-tenant support",
 			"✅ Real-time sync progress via WebSocket",
 			"✅ Rollback capability",
+			"✅ Column verification and debug endpoints",
 		},
 		"new_in_v4_1": []string{
 			"Enhanced ticket data (created_at, assignee, priority)",
@@ -685,6 +701,8 @@ func handleAPIDocs(w http.ResponseWriter, r *http.Request) {
 			"Multi-criteria sorting",
 			"Detailed auto-sync status with pending changes",
 			"Enhanced sync API with change breakdown",
+			"🔍 Column verification endpoints for debugging",
+			"🔧 Automatic invalid mapping detection and cleanup",
 		},
 	}
 
@@ -712,6 +730,7 @@ func logConfigurationStatus() {
 	log.Println("   ✅ Database-first architecture")
 	log.Println("   ✅ User-specific settings")
 	log.Println("   ✅ Authentication required for all operations")
+	log.Println("   🔍 Column verification endpoints enabled")
 }
 
 func logRouteRegistration() {
@@ -720,10 +739,15 @@ func logRouteRegistration() {
 	log.Println("      GET  /health - Health check")
 	log.Println("      POST /api/auth/register - User registration")
 	log.Println("      POST /api/auth/login - User login")
-	log.Println("   🔐 PROTECTED (require Bearer token):")
+	log.Println("   🔒 PROTECTED (require Bearer token):")
 	log.Println("      POST /api/auth/* - Auth management")
 	log.Println("      */   /api/settings/* - User settings")
 	log.Println("      */   /api/mappings/* - Ticket mappings")
+	log.Println("   🔍 COLUMN VERIFICATION (NEW):")
+	log.Println("      GET  /verify-columns - Detailed column verification")
+	log.Println("      GET  /column-report - Human-readable mapping report")
+	log.Println("      GET  /youtrack-states - Raw YouTrack state debugging")
+	log.Println("      POST /validate-mappings - Cleanup invalid mappings")
 	log.Println("   🎯 ENHANCED FEATURES:")
 	log.Println("      GET/POST /analyze/enhanced - Analysis with filters/sorting")
 	log.Println("      GET      /filter-options - Available filter values")

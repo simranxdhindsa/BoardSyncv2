@@ -847,3 +847,91 @@ func parseSortFromQuery(r *http.Request, sortOpts *TicketSortOptions) {
 func (h *Handler) GetSyncService() *SyncService {
 	return h.syncService
 }
+
+//DEBUG
+// Add these handlers to backend/legacy/handlers.go
+
+// VerifyColumnsAndMapping verifies column detection and mapping
+func (h *Handler) VerifyColumnsAndMapping(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	fmt.Printf("VERIFY: User %d requested column verification\n", user.UserID)
+
+	result, err := h.analysisService.VerifyColumnsAndMapping(user.UserID)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to verify columns: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, result, "Column verification completed successfully")
+}
+
+// GetColumnMappingReport returns a human-readable mapping report
+func (h *Handler) GetColumnMappingReport(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	report, err := h.analysisService.GetColumnMappingReport(user.UserID)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to generate report: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, report, "Column mapping report generated successfully")
+}
+
+// GetYouTrackStatesRaw returns raw YouTrack state information for debugging
+func (h *Handler) GetYouTrackStatesRaw(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	youtrackService := NewYouTrackService(h.configService)
+	issues, err := youtrackService.GetIssues(user.UserID)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to get YouTrack issues: %v", err))
+		return
+	}
+
+	// Extract all State field information
+	stateInfo := []map[string]interface{}{}
+
+	for _, issue := range issues {
+		for _, field := range issue.CustomFields {
+			if field.Name == "State" {
+				info := map[string]interface{}{
+					"issue_id":          issue.ID,
+					"issue_summary":     issue.Summary,
+					"raw_field_value":   field.Value,
+					"extracted_status":  youtrackService.GetStatus(issue),
+					"normalized_status": youtrackService.GetStatusNormalized(issue),
+				}
+				stateInfo = append(stateInfo, info)
+			}
+		}
+	}
+
+	result := map[string]interface{}{
+		"total_issues": len(issues),
+		"state_info":   stateInfo,
+		"note":         "This shows the raw State field structure from YouTrack API",
+	}
+
+	utils.SendSuccess(w, result, "Raw YouTrack state information retrieved")
+}
+
+
+// Then in your route registration (usually in main.go or handlers.go RegisterRoutes):
+
+// Column verification endpoints
+
+

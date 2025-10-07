@@ -163,7 +163,7 @@ func (s *AnalysisService) processFindings(task AsanaTask, youTrackMap map[string
 	analysis.FindingsTickets = append(analysis.FindingsTickets, task)
 
 	if existingIssue, exists := youTrackMap[task.GID]; exists {
-		youtrackStatus := s.youtrackService.GetStatus(existingIssue)
+		youtrackStatus := s.youtrackService.GetStatusNormalized(existingIssue)
 
 		if IsActiveYouTrackStatus(youtrackStatus) {
 			alert := FindingsAlert{
@@ -186,12 +186,14 @@ func (s *AnalysisService) processReadyForStageTicket(task AsanaTask, existingIss
 	}
 
 	expectedYouTrackStatus := "DEV"
-	actualYouTrackStatus := s.youtrackService.GetStatus(existingIssue)
+	// Use normalized status for consistent comparison
+	actualYouTrackStatus := s.youtrackService.GetStatusNormalized(existingIssue)
 
-	fmt.Printf("ANALYSIS: Processing Ready for Stage ticket '%s' - Expected YT: %s, Actual YT: %s\n",
+	fmt.Printf("ANALYSIS: Processing Ready for Stage ticket '%s' - Expected YT: %s, Actual YT: %s (normalized)\n",
 		task.Name, expectedYouTrackStatus, actualYouTrackStatus)
 
-	if actualYouTrackStatus == expectedYouTrackStatus {
+	// Compare normalized statuses
+	if normalizeStatusForComparison(actualYouTrackStatus) == normalizeStatusForComparison(expectedYouTrackStatus) {
 		matchedTicket := MatchedTicket{
 			AsanaTask:         task,
 			YouTrackIssue:     existingIssue,
@@ -226,9 +228,10 @@ func (s *AnalysisService) processExistingTicket(task AsanaTask, existingIssue Yo
 	}
 
 	asanaStatus := s.asanaService.MapStateToYouTrack(task)
-	youtrackStatus := s.youtrackService.GetStatus(existingIssue)
+	// Use normalized status for consistent comparison
+	youtrackStatus := s.youtrackService.GetStatusNormalized(existingIssue)
 
-	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s\n", task.Name, asanaStatus, youtrackStatus)
+	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s (normalized)\n", task.Name, asanaStatus, youtrackStatus)
 
 	matchedTicket := MatchedTicket{
 		AsanaTask:         task,
@@ -244,7 +247,8 @@ func (s *AnalysisService) processExistingTicket(task AsanaTask, existingIssue Yo
 		return
 	}
 
-	if asanaStatus == youtrackStatus {
+	// Compare normalized statuses
+	if normalizeStatusForComparison(asanaStatus) == normalizeStatusForComparison(youtrackStatus) {
 		analysis.Matched = append(analysis.Matched, matchedTicket)
 	} else {
 		mismatchedTicket := MismatchedTicket{
@@ -345,6 +349,37 @@ func (s *AnalysisService) isSyncableSection(sectionName string) bool {
 		}
 	}
 	return false
+}
+
+// normalizeStatusForComparison normalizes status strings for comparison
+// This ensures "Backlog" matches "Backlog", "DEV" matches "DEV", etc.
+func normalizeStatusForComparison(status string) string {
+	statusLower := strings.ToLower(strings.TrimSpace(status))
+
+	// Map to normalized values
+	statusMap := map[string]string{
+		"backlog":     "backlog",
+		"open":        "backlog",
+		"to do":       "backlog",
+		"todo":        "backlog",
+		"in progress": "in_progress",
+		"inprogress":  "in_progress",
+		"in-progress": "in_progress",
+		"dev":         "dev",
+		"development": "dev",
+		"in dev":      "dev",
+		"stage":       "stage",
+		"staging":     "stage",
+		"in stage":    "stage",
+		"blocked":     "blocked",
+		"on hold":     "blocked",
+	}
+
+	if normalized, exists := statusMap[statusLower]; exists {
+		return normalized
+	}
+
+	return statusLower
 }
 
 // GetTicketsByType returns tickets of a specific type
@@ -628,7 +663,8 @@ func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existing
 	}
 
 	asanaStatus := s.asanaService.MapStateToYouTrack(task)
-	youtrackStatus := s.youtrackService.GetStatus(existingIssue)
+	// Use normalized status for consistent comparison
+	youtrackStatus := s.youtrackService.GetStatusNormalized(existingIssue)
 
 	// Get enhanced data
 	assigneeName := s.asanaService.GetAssigneeName(task)
@@ -639,7 +675,7 @@ func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existing
 	comparisonService := NewComparisonService(s.db, s.configService)
 	changes := comparisonService.CompareTickets(task, existingIssue)
 
-	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s, Changes: %+v\n", task.Name, asanaStatus, youtrackStatus, changes)
+	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s (normalized), Changes: %+v\n", task.Name, asanaStatus, youtrackStatus, changes)
 
 	matchedTicket := MatchedTicket{
 		AsanaTask:         task,
@@ -659,7 +695,10 @@ func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existing
 	}
 
 	// If there are title/description changes OR status mismatch, add to mismatched
-	if asanaStatus != youtrackStatus || changes.HasAnyChanges() {
+	normalizedAsana := normalizeStatusForComparison(asanaStatus)
+	normalizedYT := normalizeStatusForComparison(youtrackStatus)
+
+	if normalizedAsana != normalizedYT || changes.HasAnyChanges() {
 		mismatchedTicket := MismatchedTicket{
 			AsanaTask:           task,
 			YouTrackIssue:       existingIssue,
@@ -728,4 +767,293 @@ func (s *AnalysisService) GetFilterOptions(userID int, selectedColumns []string)
 func (s *AnalysisService) GetChangedMappings(userID int) ([]MappingChangeInfo, error) {
 	comparisonService := NewComparisonService(s.db, s.configService)
 	return comparisonService.CheckMappingChanges(userID)
+}
+
+
+//DEBUG
+// Add this to backend/legacy/analysis_service.go
+
+// VerifyColumnsAndMapping returns detailed information about columns and mapping
+func (s *AnalysisService) VerifyColumnsAndMapping(userID int) (map[string]interface{}, error) {
+	fmt.Printf("VERIFY: Starting column verification for user %d\n", userID)
+
+	// Get all Asana tasks
+	asanaTasks, err := s.asanaService.GetTasks(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Asana tasks: %w", err)
+	}
+
+	// Get all YouTrack issues
+	youtrackIssues, err := s.youtrackService.GetIssues(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get YouTrack issues: %w", err)
+	}
+
+	// Analyze Asana columns
+	asanaColumns := make(map[string][]map[string]interface{})
+	asanaColumnCounts := make(map[string]int)
+
+	for _, task := range asanaTasks {
+		sectionName := s.asanaService.GetSectionName(task)
+		asanaColumnCounts[sectionName]++
+
+		taskInfo := map[string]interface{}{
+			"gid":          task.GID,
+			"name":         task.Name,
+			"section":      sectionName,
+			"mapped_to_yt": s.asanaService.MapStateToYouTrack(task),
+		}
+
+		asanaColumns[sectionName] = append(asanaColumns[sectionName], taskInfo)
+	}
+
+	// Analyze YouTrack states/columns
+	youtrackStates := make(map[string][]map[string]interface{})
+	youtrackStateCounts := make(map[string]int)
+	youtrackStateDetails := make(map[string]map[string]interface{})
+
+	for _, issue := range youtrackIssues {
+		// Get both raw and normalized status
+		rawStatus := s.youtrackService.GetStatus(issue)
+		normalizedStatus := s.youtrackService.GetStatusNormalized(issue)
+
+		youtrackStateCounts[normalizedStatus]++
+
+		// Store detailed state information
+		if _, exists := youtrackStateDetails[normalizedStatus]; !exists {
+			youtrackStateDetails[normalizedStatus] = map[string]interface{}{
+				"raw_status":        rawStatus,
+				"normalized_status": normalizedStatus,
+				"sample_issue_id":   issue.ID,
+			}
+		}
+
+		issueInfo := map[string]interface{}{
+			"id":                issue.ID,
+			"summary":           issue.Summary,
+			"raw_status":        rawStatus,
+			"normalized_status": normalizedStatus,
+			"asana_id":          s.youtrackService.ExtractAsanaID(issue),
+		}
+
+		youtrackStates[normalizedStatus] = append(youtrackStates[normalizedStatus], issueInfo)
+	}
+
+	// Create mapping matrix showing how Asana columns map to YouTrack states
+	mappingMatrix := []map[string]interface{}{}
+
+	for asanaSection, count := range asanaColumnCounts {
+		mappedYTStatus := s.asanaService.MapStateToYouTrack(AsanaTask{
+			Memberships: []struct {
+				Section struct {
+					GID  string `json:"gid"`
+					Name string `json:"name"`
+				} `json:"section"`
+			}{
+				{
+					Section: struct {
+						GID  string `json:"gid"`
+						Name string `json:"name"`
+					}{
+						Name: asanaSection,
+					},
+				},
+			},
+		})
+
+		normalizedMapped := normalizeStatusForComparison(mappedYTStatus)
+		ytCount := youtrackStateCounts[mappedYTStatus]
+
+		mappingMatrix = append(mappingMatrix, map[string]interface{}{
+			"asana_section":         asanaSection,
+			"asana_task_count":      count,
+			"maps_to_yt_status":     mappedYTStatus,
+			"normalized_yt_status":  normalizedMapped,
+			"yt_issue_count":        ytCount,
+			"is_syncable":           s.isSyncableSection(asanaSection),
+			"match_found":           ytCount > 0,
+		})
+	}
+
+	// Analyze mappings
+	mappings, _ := s.db.GetAllTicketMappings(userID)
+	mappingDetails := []map[string]interface{}{}
+
+	existingYTIssues := make(map[string]YouTrackIssue)
+	for _, issue := range youtrackIssues {
+		existingYTIssues[issue.ID] = issue
+	}
+
+	existingAsanaTasks := make(map[string]AsanaTask)
+	for _, task := range asanaTasks {
+		existingAsanaTasks[task.GID] = task
+	}
+
+	validMappings := 0
+	invalidMappings := 0
+
+	for _, mapping := range mappings {
+		asanaTask, asanaExists := existingAsanaTasks[mapping.AsanaTaskID]
+		ytIssue, ytExists := existingYTIssues[mapping.YouTrackIssueID]
+
+		status := "valid"
+		issues := []string{}
+
+		if !asanaExists {
+			status = "invalid"
+			issues = append(issues, "Asana task not found")
+			invalidMappings++
+		}
+		if !ytExists {
+			status = "invalid"
+			issues = append(issues, "YouTrack issue not found")
+			invalidMappings++
+		}
+
+		if status == "valid" {
+			validMappings++
+		}
+
+		mappingInfo := map[string]interface{}{
+			"mapping_id":        mapping.ID,
+			"asana_task_id":     mapping.AsanaTaskID,
+			"youtrack_issue_id": mapping.YouTrackIssueID,
+			"status":            status,
+			"issues":            issues,
+		}
+
+		if asanaExists {
+			mappingInfo["asana_task_name"] = asanaTask.Name
+			mappingInfo["asana_section"] = s.asanaService.GetSectionName(asanaTask)
+		}
+
+		if ytExists {
+			mappingInfo["youtrack_summary"] = ytIssue.Summary
+			mappingInfo["youtrack_status"] = s.youtrackService.GetStatusNormalized(ytIssue)
+		}
+
+		mappingDetails = append(mappingDetails, mappingInfo)
+	}
+
+	// Get all unique YouTrack State field values with their raw structure
+	stateFieldAnalysis := s.analyzeYouTrackStateField(youtrackIssues)
+
+	result := map[string]interface{}{
+		"summary": map[string]interface{}{
+			"total_asana_tasks":     len(asanaTasks),
+			"total_youtrack_issues": len(youtrackIssues),
+			"asana_sections_count":  len(asanaColumnCounts),
+			"youtrack_states_count": len(youtrackStateCounts),
+			"total_mappings":        len(mappings),
+			"valid_mappings":        validMappings,
+			"invalid_mappings":      invalidMappings,
+		},
+		"asana_columns": map[string]interface{}{
+			"columns":       asanaColumns,
+			"column_counts": asanaColumnCounts,
+		},
+		"youtrack_states": map[string]interface{}{
+			"states":        youtrackStates,
+			"state_counts":  youtrackStateCounts,
+			"state_details": youtrackStateDetails,
+		},
+		"mapping_matrix":       mappingMatrix,
+		"database_mappings":    mappingDetails,
+		"state_field_analysis": stateFieldAnalysis,
+		"normalization_rules": map[string]string{
+			"backlog":     "Backlog, Open, To Do, Todo",
+			"in_progress": "In Progress, InProgress, In-Progress",
+			"dev":         "DEV, Development, In Dev",
+			"stage":       "STAGE, Staging, In Stage",
+			"blocked":     "Blocked, On Hold",
+		},
+	}
+
+	fmt.Printf("VERIFY: Completed column verification for user %d\n", userID)
+	return result, nil
+}
+
+// analyzeYouTrackStateField analyzes the raw State field structure from YouTrack
+func (s *AnalysisService) analyzeYouTrackStateField(youtrackIssues []YouTrackIssue) map[string]interface{} {
+	stateFieldSamples := []map[string]interface{}{}
+	uniqueStates := make(map[string]map[string]interface{})
+
+	for i, issue := range youtrackIssues {
+		if i >= 10 { // Only analyze first 10 for samples
+			break
+		}
+
+		for _, field := range issue.CustomFields {
+			if field.Name == "State" {
+				rawStatus := s.youtrackService.GetStatus(issue)
+				normalizedStatus := s.youtrackService.GetStatusNormalized(issue)
+
+				sample := map[string]interface{}{
+					"issue_id":          issue.ID,
+					"raw_field_value":   field.Value,
+					"extracted_status":  rawStatus,
+					"normalized_status": normalizedStatus,
+				}
+
+				stateFieldSamples = append(stateFieldSamples, sample)
+
+				// Track unique states
+				if _, exists := uniqueStates[normalizedStatus]; !exists {
+					uniqueStates[normalizedStatus] = map[string]interface{}{
+						"raw_status":        rawStatus,
+						"normalized_status": normalizedStatus,
+						"raw_field_value":   field.Value,
+					}
+				}
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"samples":       stateFieldSamples,
+		"unique_states": uniqueStates,
+		"note":          "Shows raw State field structure from YouTrack API",
+	}
+}
+
+// GetColumnMappingReport generates a detailed report of column mappings
+func (s *AnalysisService) GetColumnMappingReport(userID int) (map[string]interface{}, error) {
+	verification, err := s.VerifyColumnsAndMapping(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a simplified, human-readable report
+	mappingMatrix := verification["mapping_matrix"].([]map[string]interface{})
+	
+	report := []string{}
+	report = append(report, "=== ASANA TO YOUTRACK COLUMN MAPPING ===\n")
+
+	for _, mapping := range mappingMatrix {
+		asanaSection := mapping["asana_section"].(string)
+		asanaCount := mapping["asana_task_count"].(int)
+		mapsToYT := mapping["maps_to_yt_status"].(string)
+		ytCount := mapping["yt_issue_count"].(int)
+		isSyncable := mapping["is_syncable"].(bool)
+		matchFound := mapping["match_found"].(bool)
+
+		syncableStr := "❌ DISPLAY ONLY"
+		if isSyncable {
+			syncableStr = "✅ SYNCABLE"
+		}
+
+		matchStr := "⚠️  NO MATCH"
+		if matchFound {
+			matchStr = "✓ MATCH FOUND"
+		}
+
+		line := fmt.Sprintf("Asana: '%s' (%d tasks) → YouTrack: '%s' (%d issues) [%s] %s",
+			asanaSection, asanaCount, mapsToYT, ytCount, syncableStr, matchStr)
+		report = append(report, line)
+	}
+
+	return map[string]interface{}{
+		"report":       strings.Join(report, "\n"),
+		"full_details": verification,
+	}, nil
 }
