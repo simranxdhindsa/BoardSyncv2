@@ -605,7 +605,7 @@ const TicketDetailView = ({
           <div className="flex-1">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-1">
                   <h3 className={`font-medium ${isSelected ? 'text-red-900' : 'text-gray-900'}`}>
                     {ticketName}
                   </h3>
@@ -617,7 +617,7 @@ const TicketDetailView = ({
                     className={`p-1 rounded hover:bg-gray-200 transition-colors ${isCopied ? 'bg-green-100' : ''}`}
                     title="Copy ticket title"
                   >
-                    <Copy className={`w-3 h-3${isCopied ? 'text-green-600' : 'text-gray-600'}`} />
+                    <Copy className={`w-3 h-3 ${isCopied ? 'text-green-600' : 'text-gray-600'}`} />
                   </button>
                   <button
                     onClick={(e) => {
