@@ -851,41 +851,41 @@ func (h *Handler) GetSyncService() *SyncService {
 //DEBUG
 // Add these handlers to backend/legacy/handlers.go
 
-// VerifyColumnsAndMapping verifies column detection and mapping
-func (h *Handler) VerifyColumnsAndMapping(w http.ResponseWriter, r *http.Request) {
-	user, ok := auth.GetUserFromContext(r)
-	if !ok {
-		utils.SendUnauthorized(w, "Authentication required")
-		return
-	}
+// // VerifyColumnsAndMapping verifies column detection and mapping
+// func (h *Handler) VerifyColumnsAndMapping(w http.ResponseWriter, r *http.Request) {
+// 	user, ok := auth.GetUserFromContext(r)
+// 	if !ok {
+// 		utils.SendUnauthorized(w, "Authentication required")
+// 		return
+// 	}
 
-	fmt.Printf("VERIFY: User %d requested column verification\n", user.UserID)
+// 	fmt.Printf("VERIFY: User %d requested column verification\n", user.UserID)
 
-	result, err := h.analysisService.VerifyColumnsAndMapping(user.UserID)
-	if err != nil {
-		utils.SendInternalError(w, fmt.Sprintf("Failed to verify columns: %v", err))
-		return
-	}
+// 	result, err := h.analysisService.VerifyColumnsAndMapping(user.UserID)
+// 	if err != nil {
+// 		utils.SendInternalError(w, fmt.Sprintf("Failed to verify columns: %v", err))
+// 		return
+// 	}
 
-	utils.SendSuccess(w, result, "Column verification completed successfully")
-}
+// 	utils.SendSuccess(w, result, "Column verification completed successfully")
+// }
 
-// GetColumnMappingReport returns a human-readable mapping report
-func (h *Handler) GetColumnMappingReport(w http.ResponseWriter, r *http.Request) {
-	user, ok := auth.GetUserFromContext(r)
-	if !ok {
-		utils.SendUnauthorized(w, "Authentication required")
-		return
-	}
+// // GetColumnMappingReport returns a human-readable mapping report
+// func (h *Handler) GetColumnMappingReport(w http.ResponseWriter, r *http.Request) {
+// 	user, ok := auth.GetUserFromContext(r)
+// 	if !ok {
+// 		utils.SendUnauthorized(w, "Authentication required")
+// 		return
+// 	}
 
-	report, err := h.analysisService.GetColumnMappingReport(user.UserID)
-	if err != nil {
-		utils.SendInternalError(w, fmt.Sprintf("Failed to generate report: %v", err))
-		return
-	}
+// 	report, err := h.analysisService.GetColumnMappingReport(user.UserID)
+// 	if err != nil {
+// 		utils.SendInternalError(w, fmt.Sprintf("Failed to generate report: %v", err))
+// 		return
+// 	}
 
-	utils.SendSuccess(w, report, "Column mapping report generated successfully")
-}
+// 	utils.SendSuccess(w, report, "Column mapping report generated successfully")
+// }
 
 // GetYouTrackStatesRaw returns raw YouTrack state information for debugging
 func (h *Handler) GetYouTrackStatesRaw(w http.ResponseWriter, r *http.Request) {
@@ -929,9 +929,6 @@ func (h *Handler) GetYouTrackStatesRaw(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccess(w, result, "Raw YouTrack state information retrieved")
 }
 
-
 // Then in your route registration (usually in main.go or handlers.go RegisterRoutes):
 
 // Column verification endpoints
-
-

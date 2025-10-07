@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, Tag, EyeOff, Eye, Plus, CheckCircle, Clock, AlertTriangle, Trash2, X } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Tag, EyeOff, Eye, Plus, CheckCircle, Clock, AlertTriangle, Trash2, X, Bug, Copy, ExternalLink, Search } from 'lucide-react';
 import { getTicketsByType, ignoreTicket, unignoreTicket, deleteTickets } from '../services/api';
 
 const TicketDetailView = ({ 
@@ -29,6 +29,10 @@ const TicketDetailView = ({
 
   // Create all loading state
   const [createAllLoading, setCreateAllLoading] = useState(false);
+
+  // Debug state
+  const [showDebug, setShowDebug] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     loadTickets();
@@ -90,6 +94,13 @@ const TicketDetailView = ({
           </>
         ) : (
           <>
+            <button
+              onClick={() => setShowDebug(!showDebug)}
+              className="flex items-center bg-purple-100 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-200 transition-colors font-medium"
+            >
+              <Bug className="w-4 h-4 mr-2" />
+              {showDebug ? 'Hide' : 'Show'} Debug
+            </button>
             {type === 'missing' && tickets.length > 0 && onCreateMissing && (
               <button
                 onClick={handleCreateAll}
@@ -140,7 +151,7 @@ const TicketDetailView = ({
         setNavBarSlots(null, null);
       }
     };
-  }, [type, column, deleteMode, selectedTickets, tickets.length, loading, createAllLoading]);
+  }, [type, column, deleteMode, selectedTickets, tickets.length, loading, createAllLoading, showDebug]);
 
   useEffect(() => {
     if (!deleteMode) {
@@ -431,6 +442,26 @@ const TicketDetailView = ({
     setDeleteSource('');
   };
 
+  const handleCopyTicketTitle = (ticketName, ticketId) => {
+    navigator.clipboard.writeText(ticketName).then(() => {
+      setCopiedId(ticketId);
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+    });
+  };
+
+  const handleOpenAsanaLink = (ticketId) => {
+    const asanaUrl = `https://app.asana.com/0/0/${ticketId}`;
+    window.open(asanaUrl, '_blank');
+  };
+
+  const handleOpenYouTrackSearch = (ticketName) => {
+    const encodedQuery = encodeURIComponent(ticketName);
+    const youtrackUrl = `https://loop.youtrack.cloud/agiles/183-4/current?query=${encodedQuery}`;
+    window.open(youtrackUrl, '_blank');
+  };
+
   const getTypeInfo = () => {
     const typeConfig = {
       matched: {
@@ -511,6 +542,7 @@ const TicketDetailView = ({
     const isIgnored = ignoredTickets.has(ticketId);
     const isSelected = selectedTickets.has(ticketId);
     const canBeDeleted = type !== 'ignored';
+    const isCopied = copiedId === ticketId;
     
     if (type === 'ignored' && typeof ticket === 'string') {
       return (
@@ -572,10 +604,42 @@ const TicketDetailView = ({
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
             <div className="flex items-start justify-between">
-              <div>
-                <h3 className={`font-medium mb-1 ${isSelected ? 'text-red-900' : 'text-gray-900'}`}>
-                  {ticketName}
-                </h3>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className={`font-medium ${isSelected ? 'text-red-900' : 'text-gray-900'}`}>
+                    {ticketName}
+                  </h3>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyTicketTitle(ticketName, ticketId);
+                    }}
+                    className={`p-1 rounded hover:bg-gray-200 transition-colors ${isCopied ? 'bg-green-100' : ''}`}
+                    title="Copy ticket title"
+                  >
+                    <Copy className={`w-3 h-3${isCopied ? 'text-green-600' : 'text-gray-600'}`} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenYouTrackSearch(ticketName);
+                    }}
+                    className="p-1 rounded hover:bg-gray-200 transition-colors"
+                    title="Search in YouTrack"
+                  >
+                    <Search className="w-3 h-3 text-orange-600" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenAsanaLink(ticketId);
+                    }}
+                    className="p-1 rounded hover:bg-gray-200 transition-colors"
+                    title="Open in Asana"
+                  >
+                    <ExternalLink className="w-3 h-3 text-blue-600" />
+                  </button>
+                </div>
                 <p className={`text-sm ${isSelected ? 'text-red-700' : 'text-gray-600'}`}>
                   ID: {ticketId}
                 </p>
@@ -733,6 +797,91 @@ const TicketDetailView = ({
             <div className="flex items-center">
               <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
               <p className="text-red-800">Error loading tickets: {error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Debug Panel */}
+        {showDebug && tickets.length > 0 && (
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-6">
+            <div className="flex items-center mb-4">
+              <Bug className="w-5 h-5 text-purple-600 mr-2" />
+              <h3 className="text-lg font-semibold text-purple-900">
+                Debug View - Ticket Titles ({tickets.length})
+              </h3>
+            </div>
+            
+            <div className="max-h-96 overflow-y-auto bg-white rounded-lg p-4 space-y-2">
+              {tickets.map((ticket, index) => {
+                const ticketId = ticket.gid || 
+                                ticket.asana_task?.gid || 
+                                ticket.youtrack_issue?.id ||
+                                ticket.id || 
+                                ticket;
+                                
+                const ticketName = ticket.name || 
+                                  ticket.asana_task?.name || 
+                                  ticket.youtrack_issue?.summary ||
+                                  ticket.summary || 
+                                  ticketId;
+                
+                const isCopied = copiedId === ticketId;
+                
+                return (
+                  <div 
+                    key={ticketId}
+                    className="flex items-center justify-between p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors border border-purple-200"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-purple-900">
+                          {index + 1}.
+                        </span>
+                        <span className="text-sm text-gray-900 truncate">
+                          {ticketName}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        ID: {ticketId}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 ml-4">
+                      <button
+                        onClick={() => handleCopyTicketTitle(ticketName, ticketId)}
+                        className={`p-2 rounded-lg transition-colors ${
+                          isCopied 
+                            ? 'bg-green-500 text-white' 
+                            : 'bg-purple-200 text-purple-700 hover:bg-purple-300'
+                        }`}
+                        title={isCopied ? 'Copied!' : 'Copy ticket title'}
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      
+                      <button
+                        onClick={() => handleOpenYouTrackSearch(ticketName)}
+                        className="p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                        title="Search in YouTrack"
+                      >
+                        <Search className="w-4 h-4" />
+                      </button>
+                      
+                      <button
+                        onClick={() => handleOpenAsanaLink(ticketId)}
+                        className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        title="Open in Asana"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="mt-4 text-sm text-purple-700">
+              💡 Click copy icon to copy ticket title • Click search to find in YouTrack • Click external link to open in Asana
             </div>
           </div>
         )}
