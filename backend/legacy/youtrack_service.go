@@ -612,20 +612,26 @@ func (s *YouTrackService) IsDuplicateTicket(userID int, title string) bool {
 	return false
 }
 
-// GetStatus extracts status from a YouTrack issue
+// GetStatus extracts status from a YouTrack issue - FIXED VERSION
+// This now prioritizes the technical 'name' field over 'localizedName' for consistency
 func (s *YouTrackService) GetStatus(issue YouTrackIssue) string {
 	for _, field := range issue.CustomFields {
 		if field.Name == "State" {
 			switch value := field.Value.(type) {
 			case map[string]interface{}:
-				if name, ok := value["localizedName"].(string); ok && name != "" {
+				// PRIORITY 1: Try to get the technical 'name' field first
+				if name, ok := value["name"].(string); ok && name != "" {
+					fmt.Printf("DEBUG: YouTrack Status (technical name): %s\n", name)
 					return name
 				}
-				if name, ok := value["name"].(string); ok && name != "" {
-					return name
+				// PRIORITY 2: Fall back to 'localizedName' if 'name' is not available
+				if localizedName, ok := value["localizedName"].(string); ok && localizedName != "" {
+					fmt.Printf("DEBUG: YouTrack Status (localized name): %s\n", localizedName)
+					return localizedName
 				}
 			case string:
 				if value != "" {
+					fmt.Printf("DEBUG: YouTrack Status (string): %s\n", value)
 					return value
 				}
 			case nil:
@@ -634,6 +640,42 @@ func (s *YouTrackService) GetStatus(issue YouTrackIssue) string {
 		}
 	}
 	return "Unknown"
+}
+
+// GetStatusNormalized gets the status and normalizes it for comparison
+// This handles different variations of the same status
+func (s *YouTrackService) GetStatusNormalized(issue YouTrackIssue) string {
+	status := s.GetStatus(issue)
+
+	// Normalize common variations
+	statusLower := strings.ToLower(strings.TrimSpace(status))
+
+	// Map common variations to standard names
+	statusMap := map[string]string{
+		"backlog":     "Backlog",
+		"open":        "Backlog",
+		"to do":       "Backlog",
+		"todo":        "Backlog",
+		"in progress": "In Progress",
+		"inprogress":  "In Progress",
+		"in-progress": "In Progress",
+		"dev":         "DEV",
+		"development": "DEV",
+		"in dev":      "DEV",
+		"stage":       "STAGE",
+		"staging":     "STAGE",
+		"in stage":    "STAGE",
+		"blocked":     "Blocked",
+		"on hold":     "Blocked",
+	}
+
+	if normalized, exists := statusMap[statusLower]; exists {
+		fmt.Printf("DEBUG: Normalized '%s' to '%s'\n", status, normalized)
+		return normalized
+	}
+
+	// Return original if no mapping found
+	return status
 }
 
 // ExtractAsanaID extracts Asana ID from YouTrack issue description
