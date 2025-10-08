@@ -697,3 +697,89 @@ export const system = {
   getStatus,
   createWebSocketConnection
 };
+
+// frontend/src/services/api.js - ADD these new functions to your existing api.js
+
+// NEW: Get filter options for a column
+export const getFilterOptions = async (column = '') => {
+  let url = `${API_BASE}/filter-options`;
+  if (column) {
+    url += `?column=${encodeURIComponent(column)}`;
+  }
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders()
+  });
+  
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to get filter options: ${response.status}`);
+  }
+  
+  return response.json();
+};
+
+// NEW: Get enhanced analysis with filters and sorting
+export const getEnhancedAnalysis = async (requestBody) => {
+  const response = await fetch(`${API_BASE}/analyze/enhanced`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(requestBody)
+  });
+  
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Enhanced analysis failed: ${response.status}`);
+  }
+  
+  return response.json();
+};
+
+// NEW: Get changed mappings
+export const getChangedMappings = async () => {
+  const response = await fetch(`${API_BASE}/changed-mappings`, {
+    headers: getAuthHeaders()
+  });
+  
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to get changed mappings: ${response.status}`);
+  }
+  
+  return response.json();
+};
+
+// NEW: Sync enhanced tickets (with title/description updates)
+export const syncEnhancedTickets = async (column = '', body = {}) => {
+  let url = `${API_BASE}/sync/enhanced`;
+  if (column) {
+    url += `?column=${encodeURIComponent(column)}`;
+  }
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(body)
+  });
+  
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Enhanced sync failed: ${response.status}`);
+  }
+  
+  return response.json();
+};
+
+// NEW: Get detailed auto-sync status
+export const getAutoSyncDetailed = async () => {
+  const response = await fetch(`${API_BASE}/auto-sync/detailed`, {
+    headers: getAuthHeaders()
+  });
+  
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to get auto-sync details: ${response.status}`);
+  }
+  
+  return response.json();
+};
