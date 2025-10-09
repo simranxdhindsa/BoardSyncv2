@@ -257,13 +257,15 @@ func (s *AnalysisService) processReadyForStageTicket(task AsanaTask, existingIss
 		return
 	}
 
-	expectedYouTrackStatus := "DEV"
+	// Use the mapping function to get the expected YouTrack status for "Ready for Stage"
+	expectedYouTrackStatus := s.asanaService.MapStateToYouTrack(task)
 	actualYouTrackStatus := s.youtrackService.GetStatus(existingIssue)
 
-	fmt.Printf("ANALYSIS: Processing Ready for Stage ticket '%s' - Expected YT: %s, Actual YT: %s\n",
+	fmt.Printf("ANALYSIS: Processing Ready for Stage ticket '%s' - Expected YT: %s (mapped from Asana), Actual YT: %s\n",
 		task.Name, expectedYouTrackStatus, actualYouTrackStatus)
 
-	if actualYouTrackStatus == expectedYouTrackStatus {
+	// Case-insensitive comparison for status matching
+	if strings.EqualFold(actualYouTrackStatus, expectedYouTrackStatus) {
 		matchedTicket := MatchedTicket{
 			AsanaTask:         task,
 			YouTrackIssue:     existingIssue,
@@ -316,7 +318,8 @@ func (s *AnalysisService) processExistingTicket(task AsanaTask, existingIssue Yo
 		return
 	}
 
-	if asanaStatus == youtrackStatus {
+	// Case-insensitive comparison for status matching
+	if strings.EqualFold(asanaStatus, youtrackStatus) {
 		analysis.Matched = append(analysis.Matched, matchedTicket)
 	} else {
 		mismatchedTicket := MismatchedTicket{
@@ -731,7 +734,8 @@ func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existing
 	}
 
 	// If there are title/description changes OR status mismatch, add to mismatched
-	if asanaStatus != youtrackStatus || changes.HasAnyChanges() {
+	// Use case-insensitive comparison for status
+	if !strings.EqualFold(asanaStatus, youtrackStatus) || changes.HasAnyChanges() {
 		mismatchedTicket := MismatchedTicket{
 			AsanaTask:           task,
 			YouTrackIssue:       existingIssue,
