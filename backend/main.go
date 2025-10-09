@@ -84,12 +84,12 @@ func main() {
 
 	// Start server
 	port := getEnvDefault("PORT", "8080")
-	log.Printf("🚀 Server chalu ho gaya on port %s – bas ab crash na hoye 😂", port)
+	log.Printf("🚀 Server chalu ho gaya on port %s – hun bas baba sukh rakhe😂", port)
 	log.Printf("🌐 WebSocket endpoint: ws://localhost:%s/ws – test karke dekhdeya 💻", port)
 	log.Println("🔐 All old API routes hun password maangde ne – security level")
 	log.Println("💾 User settings te ignored tickets hun database vich save hunde ne, per project")
-	log.Println("📂 Har Asana project di apni ignored tickets list – just like your ggf")
-	log.Println("✨ New features paaye ne but challakedekhdeya ki bannda: Filtering, Sorting, te Change Detection")
+	log.Println("📂 Har Asana project di apni ignored tickets list – jiwe tu teri gf di ignored list ch aa")
+	log.Println("✨ New features paaye ne but challake dekhdeya ki bannda: Filtering, Sorting, te Change Detection")
 	log.Println("🔍 Column verification endpoints added for debugging!")
 
 	server := &http.Server{
