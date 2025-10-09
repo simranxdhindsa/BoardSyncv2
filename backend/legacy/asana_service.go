@@ -193,7 +193,7 @@ func (s *AsanaService) MapStateToYouTrack(task AsanaTask) string {
 		return "In Progress"
 	case strings.Contains(sectionName, "ready for stage"):
 		return "DEV"
-	case strings.Contains(sectionName, "dev") && !strings.Contains(sectionName, "ready"):
+	case strings.Contains(sectionName, "dev"):
 		return "DEV"
 	case strings.Contains(sectionName, "stage") && !strings.Contains(sectionName, "ready"):
 		return "STAGE"
