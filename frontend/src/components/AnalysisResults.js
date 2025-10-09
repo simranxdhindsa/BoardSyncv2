@@ -368,7 +368,7 @@ const AnalysisResults = ({
         <div className="mb-8 flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Analysis Results - {selectedColumn?.toUpperCase?.() || 'ALL'}
+              Analysis Results - {selectedColumn?.toUpperCase?.().replace(/_/g, ' ') || 'ALL'}
             </h1>
             <p className="text-gray-600">Review mismatches, sync tickets, and manage tags. Click on any summary card to see detailed views.</p>
           </div>
