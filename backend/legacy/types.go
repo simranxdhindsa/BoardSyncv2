@@ -207,8 +207,8 @@ type TagMapping struct {
 }
 
 // Column definitions
-var SyncableColumns = []string{"backlog", "in progress", "dev", "stage", "blocked"}
-var DisplayOnlyColumns = []string{"ready for stage", "findings"}
+var SyncableColumns = []string{"backlog", "in progress", "dev", "stage", "blocked", "ready for stage"}
+var DisplayOnlyColumns = []string{"findings"}
 var AllColumns = append(SyncableColumns, DisplayOnlyColumns...)
 
 // Default tag-to-subsystem mapping

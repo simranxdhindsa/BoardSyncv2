@@ -47,11 +47,10 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
       label: 'Blocked only', 
       color: 'hover:bg-blue-50 hover:border-blue-200'
     },
-    { 
-      value: 'ready_for_stage', 
-      label: 'Ready for Stage', 
-      color: 'hover:bg-blue-50 hover:border-blue-200',
-      displayOnly: true
+    {
+      value: 'ready_for_stage',
+      label: 'Ready for Stage',
+      color: 'hover:bg-blue-50 hover:border-blue-200'
     },
     { 
       value: 'findings', 
