@@ -7,7 +7,7 @@ import mappingService from '../../services/mappingService';
 import { getUserSettings } from '../../services/api';
 
 // Create Mapping Form Component
-export const CreateMappingForm = ({ onSuccess }) => {
+export const CreateMappingForm = ({ onSuccess, onCancel }) => {
   const [asanaUrl, setAsanaUrl] = useState('');
   const [youtrackUrl, setYoutrackUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,9 +37,20 @@ export const CreateMappingForm = ({ onSuccess }) => {
 
   return (
     <div className="glass-panel rounded-lg p-6">
-      <div className="flex items-center mb-4">
-        <Link2 className="w-5 h-5 text-blue-600 mr-2" />
-        <h2 className="text-xl font-semibold">Link Tickets Manually</h2>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center">
+          <Link2 className="w-5 h-5 text-blue-600 mr-2" />
+          <h2 className="text-xl font-semibold">Link Tickets Manually</h2>
+        </div>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="settings-button-secondary"
+          >
+            Back to List
+          </button>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -119,7 +130,7 @@ export const CreateMappingForm = ({ onSuccess }) => {
 };
 
 // Mappings List Component
-export const MappingsList = ({ refreshTrigger }) => {
+export const MappingsList = ({ refreshTrigger, onCreateNew }) => {
   const [mappings, setMappings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -156,21 +167,6 @@ export const MappingsList = ({ refreshTrigger }) => {
       setError('Failed to load mappings');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this mapping?')) return;
-
-    try {
-      const response = await mappingService.deleteMapping(id);
-      if (response.success) {
-        setMappings(mappings.filter(m => m.id !== id));
-        setSelectedMappings(selectedMappings.filter(sid => sid !== id));
-      }
-    } catch (err) {
-      console.error('Failed to delete mapping:', err);
-      alert('Failed to delete mapping: ' + err.message);
     }
   };
 
@@ -258,7 +254,7 @@ export const MappingsList = ({ refreshTrigger }) => {
     <div className="glass-panel rounded-lg overflow-hidden">
       <div className="px-6 py-4 settings-divider flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold flex items-center">
+          <h2 className="text-xl w-[250px] font-semibold flex items-center">
             <Link2 className="w-5 h-5 mr-2" />
             Active Ticket Mappings
           </h2>
@@ -267,8 +263,8 @@ export const MappingsList = ({ refreshTrigger }) => {
             {selectedMappings.length > 0 && ` • ${selectedMappings.length} selected`}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {selectedMappings.length > 0 && (
+        <div className="mapping-header-actions">
+          {selectedMappings.length > 0 ? (
             <button
               onClick={handleMultiDelete}
               className="multi-delete-button"
@@ -276,6 +272,16 @@ export const MappingsList = ({ refreshTrigger }) => {
               <Trash2 className="w-4 h-4 mr-2" />
               Delete ({selectedMappings.length})
             </button>
+          ) : (
+            onCreateNew && (
+              <button
+                onClick={onCreateNew}
+                className="settings-button"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Link Tickets Manually
+              </button>
+            )
           )}
           <button
             onClick={fetchMappings}
@@ -308,9 +314,6 @@ export const MappingsList = ({ refreshTrigger }) => {
               </th>
               <th className="text-left">
                 Created
-              </th>
-              <th className="text-right">
-                Actions
               </th>
             </tr>
           </thead>
@@ -359,15 +362,6 @@ export const MappingsList = ({ refreshTrigger }) => {
                 </td>
                 <td className="whitespace-nowrap text-sm">
                   {new Date(mapping.created_at).toLocaleDateString()}
-                </td>
-                <td className="whitespace-nowrap text-right text-sm">
-                  <button
-                    onClick={() => handleDelete(mapping.id)}
-                    className="delete-button-table ml-auto"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
-                  </button>
                 </td>
               </tr>
             ))}

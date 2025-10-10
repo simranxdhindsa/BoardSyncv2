@@ -80,6 +80,7 @@ const UserSettings = ({ onBack }) => {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const [mappingRefreshKey, setMappingRefreshKey] = useState(0);
+  const [showCreateMappingForm, setShowCreateMappingForm] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -301,6 +302,26 @@ const UserSettings = ({ onBack }) => {
   const handleMappingCreated = () => {
     setMappingRefreshKey(prev => prev + 1);
     setSuccessMessage('Ticket mapping created successfully!');
+    setShowCreateMappingForm(false); // Return to list view after creating
+  };
+
+  const handleShowCreateForm = () => {
+    setShowCreateMappingForm(true);
+    clearMessages();
+  };
+
+  const handleCancelCreateForm = () => {
+    setShowCreateMappingForm(false);
+    clearMessages();
+  };
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    // Reset to list view when switching to ticket mapping tab
+    if (tabId === 'ticket_mapping') {
+      setShowCreateMappingForm(false);
+    }
+    clearMessages();
   };
 
   const tabs = [
@@ -385,7 +406,7 @@ const UserSettings = ({ onBack }) => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => handleTabChange(tab.id)}
                   className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
                 >
                   <IconComponent className="w-4 h-4 mr-2" />
@@ -710,32 +731,52 @@ const UserSettings = ({ onBack }) => {
                 </p>
               </div>
 
-              {/* Two Column Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Create Form - Left Column */}
-                <div className="lg:col-span-1">
-                  <CreateMappingForm onSuccess={handleMappingCreated} />
-                </div>
+              {/* Conditional View: List or Create Form */}
+              {showCreateMappingForm ? (
+                // Show Create Form
+                <div>
+                  <CreateMappingForm
+                    onSuccess={handleMappingCreated}
+                    onCancel={handleCancelCreateForm}
+                  />
 
-                {/* Mappings List - Right Column */}
-                <div className="lg:col-span-2">
-                  <MappingsList refreshTrigger={mappingRefreshKey} />
+                  {/* Help Section */}
+                  <div className="info-box mt-6">
+                    <h4 className="text-sm font-medium mb-2 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      When to use ticket mapping?
+                    </h4>
+                    <ul className="text-xs space-y-1">
+                      <li>• When Asana and YouTrack ticket titles don't match</li>
+                      <li>• For tickets created manually in YouTrack</li>
+                      <li>• To link historical tickets created before automation</li>
+                      <li>• When automatic matching fails due to special characters</li>
+                    </ul>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                // Show Mappings List
+                <div>
+                  <MappingsList
+                    refreshTrigger={mappingRefreshKey}
+                    onCreateNew={handleShowCreateForm}
+                  />
 
-              {/* Help Section */}
-              <div className="info-box">
-                <h4 className="text-sm font-medium mb-2 flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  When to use ticket mapping?
-                </h4>
-                <ul className="text-xs space-y-1">
-                  <li>• When Asana and YouTrack ticket titles don't match</li>
-                  <li>• For tickets created manually in YouTrack</li>
-                  <li>• To link historical tickets created before automation</li>
-                  <li>• When automatic matching fails due to special characters</li>
-                </ul>
-              </div>
+                  {/* Help Section */}
+                  <div className="info-box mt-6">
+                    <h4 className="text-sm font-medium mb-2 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      When to use ticket mapping?
+                    </h4>
+                    <ul className="text-xs space-y-1">
+                      <li>• When Asana and YouTrack ticket titles don't match</li>
+                      <li>• For tickets created manually in YouTrack</li>
+                      <li>• To link historical tickets created before automation</li>
+                      <li>• When automatic matching fails due to special characters</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

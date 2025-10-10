@@ -642,6 +642,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
+  min-width: 160px;
 }
 
 .multi-delete-button:hover:not(:disabled) {
@@ -750,4 +752,20 @@
 .error-box p {
   color: #991b1b;
   font-size: 0.875rem;
+}
+
+/* Mapping header button container - prevents UI shift */
+.mapping-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  min-width: 500px;
+}
+
+@media (max-width: 768px) {
+  .mapping-header-actions {
+    min-width: auto;
+    flex-wrap: wrap;
+  }
 }
