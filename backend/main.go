@@ -186,8 +186,7 @@ func registerRoutes(
 	// ENHANCED: Analysis with filtering and sorting
 	legacyAPI.HandleFunc("/analyze/enhanced", legacyHandler.AnalyzeTicketsEnhanced).Methods("GET", "POST", "OPTIONS")
 
-	// ENHANCED: Get tickets with title/description changes
-	legacyAPI.HandleFunc("/changed-mappings", legacyHandler.GetChangedMappings).Methods("GET", "OPTIONS")
+	// Removed: GetChangedMappings - title/description change detection no longer needed
 
 	// ENHANCED: Get available filter options
 	legacyAPI.HandleFunc("/filter-options", legacyHandler.GetFilterOptions).Methods("GET", "OPTIONS")
@@ -278,13 +277,13 @@ func handleEnhancedSync(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "GET" {
-		// Return available mismatched tickets with change details
-		result, err := legacyHandler.GetSyncService().GetMismatchedTicketsWithChanges(user.UserID, mappedColumn)
+		// Return available mismatched tickets
+		result, err := legacyHandler.GetSyncService().GetMismatchedTickets(user.UserID, mappedColumn)
 		if err != nil {
 			utils.SendInternalError(w, fmt.Sprintf("Failed to get mismatched tickets: %v", err))
 			return
 		}
-		utils.SendSuccess(w, result, "Mismatched tickets retrieved with change details")
+		utils.SendSuccess(w, result, "Mismatched tickets retrieved")
 		return
 	}
 
@@ -306,13 +305,13 @@ func handleEnhancedSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := syncService.SyncMismatchedTicketsEnhanced(user.UserID, requests, mappedColumn)
+	result, err := syncService.SyncMismatchedTickets(user.UserID, requests, mappedColumn)
 	if err != nil {
 		utils.SendInternalError(w, fmt.Sprintf("Sync failed: %v", err))
 		return
 	}
 
-	utils.SendSuccess(w, result, "Enhanced sync operation completed")
+	utils.SendSuccess(w, result, "Sync operation completed")
 }
 
 // ============================================================================

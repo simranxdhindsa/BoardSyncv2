@@ -119,16 +119,6 @@
       "created_at": "2025-10-09T19:03:57.6945571+05:30",
       "updated_at": "2025-10-09T19:03:57.6945571+05:30"
     },
-    "25": {
-      "id": 25,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211598707438358",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-545",
-      "created_at": "2025-10-09T19:03:58.0367026+05:30",
-      "updated_at": "2025-10-09T19:03:58.0367026+05:30"
-    },
     "26": {
       "id": 26,
       "user_id": 2,
@@ -159,26 +149,6 @@
       "created_at": "2025-10-11T01:22:09.9331316+05:30",
       "updated_at": "2025-10-11T01:22:09.9331316+05:30"
     },
-    "29": {
-      "id": 29,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211598707438368",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-573",
-      "created_at": "2025-10-11T01:22:10.3321635+05:30",
-      "updated_at": "2025-10-11T01:22:10.3321635+05:30"
-    },
-    "30": {
-      "id": 30,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211490436896868",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-574",
-      "created_at": "2025-10-11T01:22:10.7676217+05:30",
-      "updated_at": "2025-10-11T01:22:10.7676217+05:30"
-    },
     "31": {
       "id": 31,
       "user_id": 2,
@@ -188,36 +158,6 @@
       "youtrack_issue_id": "3-575",
       "created_at": "2025-10-11T01:22:11.1681556+05:30",
       "updated_at": "2025-10-11T01:22:11.1681556+05:30"
-    },
-    "32": {
-      "id": 32,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211598709715959",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-576",
-      "created_at": "2025-10-11T01:22:11.5247506+05:30",
-      "updated_at": "2025-10-11T01:22:11.5247506+05:30"
-    },
-    "33": {
-      "id": 33,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211598707438360",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-577",
-      "created_at": "2025-10-11T01:22:11.8901255+05:30",
-      "updated_at": "2025-10-11T01:22:11.8901255+05:30"
-    },
-    "34": {
-      "id": 34,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211598707438362",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-578",
-      "created_at": "2025-10-11T01:22:12.260797+05:30",
-      "updated_at": "2025-10-11T01:22:12.260797+05:30"
     },
     "35": {
       "id": 35,
@@ -229,16 +169,6 @@
       "created_at": "2025-10-11T01:22:12.6492503+05:30",
       "updated_at": "2025-10-11T01:22:12.6492503+05:30"
     },
-    "36": {
-      "id": 36,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211605883406050",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-580",
-      "created_at": "2025-10-11T01:33:54.9646125+05:30",
-      "updated_at": "2025-10-11T01:33:54.9646125+05:30"
-    },
     "37": {
       "id": 37,
       "user_id": 2,
@@ -248,16 +178,6 @@
       "youtrack_issue_id": "3-581",
       "created_at": "2025-10-11T01:33:55.3260554+05:30",
       "updated_at": "2025-10-11T01:33:55.3260554+05:30"
-    },
-    "38": {
-      "id": 38,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211598707438368",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-582",
-      "created_at": "2025-10-11T01:33:55.70319+05:30",
-      "updated_at": "2025-10-11T01:33:55.70319+05:30"
     },
     "39": {
       "id": 39,
@@ -289,16 +209,6 @@
       "created_at": "2025-10-11T01:34:48.1441318+05:30",
       "updated_at": "2025-10-11T01:34:48.1441318+05:30"
     },
-    "42": {
-      "id": 42,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211598707438368",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-586",
-      "created_at": "2025-10-11T01:34:48.4908851+05:30",
-      "updated_at": "2025-10-11T01:34:48.4908851+05:30"
-    },
     "43": {
       "id": 43,
       "user_id": 2,
@@ -309,16 +219,6 @@
       "created_at": "2025-10-11T01:34:48.8432626+05:30",
       "updated_at": "2025-10-11T01:34:48.8432626+05:30"
     },
-    "44": {
-      "id": 44,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211605883406050",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-588",
-      "created_at": "2025-10-11T01:42:00.4764388+05:30",
-      "updated_at": "2025-10-11T01:42:00.4764388+05:30"
-    },
     "45": {
       "id": 45,
       "user_id": 2,
@@ -328,16 +228,6 @@
       "youtrack_issue_id": "3-589",
       "created_at": "2025-10-11T01:42:01.0898542+05:30",
       "updated_at": "2025-10-11T01:42:01.0898542+05:30"
-    },
-    "46": {
-      "id": 46,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211598707438368",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-590",
-      "created_at": "2025-10-11T01:42:01.6031293+05:30",
-      "updated_at": "2025-10-11T01:42:01.6031293+05:30"
     },
     "47": {
       "id": 47,
@@ -368,26 +258,6 @@
       "youtrack_issue_id": "3-593",
       "created_at": "2025-10-11T01:42:30.5800218+05:30",
       "updated_at": "2025-10-11T01:42:30.5800218+05:30"
-    },
-    "50": {
-      "id": 50,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211598707438368",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-594",
-      "created_at": "2025-10-11T01:42:30.9892526+05:30",
-      "updated_at": "2025-10-11T01:42:30.9892526+05:30"
-    },
-    "51": {
-      "id": 51,
-      "user_id": 2,
-      "asana_project_id": "1211341745333034",
-      "asana_task_id": "1211490436896868",
-      "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-595",
-      "created_at": "2025-10-11T01:42:31.3792572+05:30",
-      "updated_at": "2025-10-11T01:42:31.3792572+05:30"
     },
     "52": {
       "id": 52,

@@ -744,25 +744,7 @@ func (h *Handler) AnalyzeTicketsEnhanced(w http.ResponseWriter, r *http.Request)
 	utils.SendSuccess(w, response, "Analysis completed successfully")
 }
 
-// GetChangedMappings returns tickets with title/description changes
-func (h *Handler) GetChangedMappings(w http.ResponseWriter, r *http.Request) {
-	user, ok := auth.GetUserFromContext(r)
-	if !ok {
-		utils.SendUnauthorized(w, "Authentication required")
-		return
-	}
-
-	changedMappings, err := h.analysisService.GetChangedMappings(user.UserID)
-	if err != nil {
-		utils.SendInternalError(w, fmt.Sprintf("Failed to get changed mappings: %v", err))
-		return
-	}
-
-	utils.SendSuccess(w, map[string]interface{}{
-		"changed_mappings": changedMappings,
-		"count":            len(changedMappings),
-	}, "Changed mappings retrieved successfully")
-}
+// GetChangedMappings removed - title/description change detection no longer needed
 
 // GetFilterOptions returns available filter options
 func (h *Handler) GetFilterOptions(w http.ResponseWriter, r *http.Request) {
