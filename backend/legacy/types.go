@@ -97,8 +97,6 @@ type MismatchedTicket struct {
 	AssigneeName      string    `json:"assignee_name"`
 	Priority          string    `json:"priority"`
 	CreatedAt         time.Time `json:"created_at"`
-	TitleMismatch     bool      `json:"title_mismatch"`
-	DescriptionMismatch bool    `json:"description_mismatch"`
 }
 
 type FindingsAlert struct {

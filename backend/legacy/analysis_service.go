@@ -692,7 +692,7 @@ func (s *AnalysisService) PerformAnalysisWithFiltering(userID int, selectedColum
 	return analysis, nil
 }
 
-// Enhanced processExistingTicket with change detection
+// Enhanced processExistingTicket (simplified - removed title/description change detection)
 func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, sectionName string, analysis *TicketAnalysis, userID int) {
 	if existingIssue.ID == "" {
 		fmt.Printf("ANALYSIS WARNING: Task '%s' (GID: %s) has empty YouTrack issue ID - treating as missing\n", task.Name, task.GID)
@@ -710,11 +710,7 @@ func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existing
 	priority := s.asanaService.GetPriority(task, userID)
 	createdAt := s.asanaService.GetCreatedAt(task)
 
-	// Check for title/description changes
-	comparisonService := NewComparisonService(s.db, s.configService)
-	changes := comparisonService.CompareTickets(task, existingIssue)
-
-	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s, Changes: %+v\n", task.Name, asanaStatus, youtrackStatus, changes)
+	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s\n", task.Name, asanaStatus, youtrackStatus)
 
 	matchedTicket := MatchedTicket{
 		AsanaTask:         task,
@@ -733,22 +729,20 @@ func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existing
 		return
 	}
 
-	// If there are title/description changes OR status mismatch, add to mismatched
+	// Only check status mismatch (removed title/description comparison)
 	// Use case-insensitive comparison for status
-	if !strings.EqualFold(asanaStatus, youtrackStatus) || changes.HasAnyChanges() {
+	if !strings.EqualFold(asanaStatus, youtrackStatus) {
 		mismatchedTicket := MismatchedTicket{
-			AsanaTask:           task,
-			YouTrackIssue:       existingIssue,
-			AsanaStatus:         asanaStatus,
-			YouTrackStatus:      youtrackStatus,
-			AsanaTags:           asanaTags,
-			YouTrackSubsystem:   "",
-			TagMismatch:         false,
-			AssigneeName:        assigneeName,
-			Priority:            priority,
-			CreatedAt:           createdAt,
-			TitleMismatch:       changes.HasTitleChange,
-			DescriptionMismatch: changes.HasDescriptionChange,
+			AsanaTask:         task,
+			YouTrackIssue:     existingIssue,
+			AsanaStatus:       asanaStatus,
+			YouTrackStatus:    youtrackStatus,
+			AsanaTags:         asanaTags,
+			YouTrackSubsystem: "",
+			TagMismatch:       false,
+			AssigneeName:      assigneeName,
+			Priority:          priority,
+			CreatedAt:         createdAt,
 		}
 		analysis.Mismatched = append(analysis.Mismatched, mismatchedTicket)
 	} else {
@@ -800,8 +794,4 @@ func (s *AnalysisService) GetFilterOptions(userID int, selectedColumns []string)
 	}, nil
 }
 
-// GetChangedMappings returns all ticket mappings that have title/description changes
-func (s *AnalysisService) GetChangedMappings(userID int) ([]MappingChangeInfo, error) {
-	comparisonService := NewComparisonService(s.db, s.configService)
-	return comparisonService.CheckMappingChanges(userID)
-}
+// GetChangedMappings removed - title/description change detection no longer needed

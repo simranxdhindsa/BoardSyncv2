@@ -165,8 +165,8 @@ func (asm *AutoSyncManager) autoSyncLoop(userID int, intervalSeconds int, stopCh
 
 // performAutoSync performs the actual sync operation
 func (asm *AutoSyncManager) performAutoSync(userID int) error {
-	// Use the enhanced sync method that includes title/description changes
-	err := asm.syncService.AutoSyncWithChanges(userID)
+	// Perform auto-sync for mismatched tickets
+	err := asm.syncService.AutoSync(userID)
 	if err != nil {
 		return fmt.Errorf("auto-sync failed: %w", err)
 	}
@@ -174,7 +174,7 @@ func (asm *AutoSyncManager) performAutoSync(userID int) error {
 	return nil
 }
 
-// GetAutoSyncStatusDetailed returns detailed auto-sync status with change info
+// GetAutoSyncStatusDetailed returns detailed auto-sync status
 func (asm *AutoSyncManager) GetAutoSyncStatusDetailed(userID int) map[string]interface{} {
 	asm.mutex.RLock()
 	defer asm.mutex.RUnlock()
@@ -182,35 +182,23 @@ func (asm *AutoSyncManager) GetAutoSyncStatusDetailed(userID int) map[string]int
 	baseStatus := asm.GetAutoSyncStatus(userID)
 
 	// Get current mismatched tickets to show what would be synced
-	result, err := asm.syncService.GetMismatchedTicketsWithChanges(userID)
+	result, err := asm.syncService.GetMismatchedTickets(userID)
 
-	pendingChanges := map[string]interface{}{
-		"total": 0,
-		"breakdown": map[string]int{
-			"status_only":      0,
-			"title_only":       0,
-			"description_only": 0,
-			"multiple_changes": 0,
-		},
-	}
-
+	pendingCount := 0
 	if err == nil {
-		if breakdown, ok := result["breakdown"].(map[string]interface{}); ok {
-			pendingChanges["breakdown"] = breakdown
-		}
 		if count, ok := result["count"].(int); ok {
-			pendingChanges["total"] = count
+			pendingCount = count
 		}
 	}
 
 	return map[string]interface{}{
-		"running":         baseStatus.Running,
-		"interval":        baseStatus.Interval,
-		"last_sync":       baseStatus.LastSync,
-		"next_sync":       baseStatus.NextSync,
-		"sync_count":      baseStatus.SyncCount,
-		"last_sync_info":  baseStatus.LastSyncInfo,
-		"pending_changes": pendingChanges,
+		"running":        baseStatus.Running,
+		"interval":       baseStatus.Interval,
+		"last_sync":      baseStatus.LastSync,
+		"next_sync":      baseStatus.NextSync,
+		"sync_count":     baseStatus.SyncCount,
+		"last_sync_info": baseStatus.LastSyncInfo,
+		"pending_count":  pendingCount,
 	}
 }
 

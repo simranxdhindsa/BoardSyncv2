@@ -656,140 +656,9 @@ func (s *SyncService) GetSyncPreview(userID int, ticketIDs []string) (map[string
 	}, nil
 }
 
-// backend/legacy/sync_service_enhanced.go - ADD TO EXISTING SYNC SERVICE
-
-// SyncMismatchedTicketsEnhanced synchronizes mismatched tickets including title/description changes
-func (s *SyncService) SyncMismatchedTicketsEnhanced(userID int, requests []SyncRequest, column ...string) (map[string]interface{}, error) {
-	var columnsToAnalyze []string
-
-	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
-		columnsToAnalyze = []string{column[0]}
-		fmt.Printf("SYNC: Syncing tickets for specific column: %s (user %d)\n", column[0], userID)
-	} else {
-		columnsToAnalyze = SyncableColumns
-		fmt.Printf("SYNC: Syncing tickets for all syncable columns (user %d)\n", userID)
-	}
-
-	analysis, err := s.analysisService.PerformAnalysis(userID, columnsToAnalyze)
-	if err != nil {
-		return nil, fmt.Errorf("analysis failed: %w", err)
-	}
-
-	mismatchMap := make(map[string]MismatchedTicket)
-	for _, ticket := range analysis.Mismatched {
-		mismatchMap[ticket.AsanaTask.GID] = ticket
-	}
-
-	results := []map[string]interface{}{}
-	synced := 0
-
-	for _, req := range requests {
-		result := map[string]interface{}{
-			"ticket_id": req.TicketID,
-			"action":    req.Action,
-		}
-
-		ticket, exists := mismatchMap[req.TicketID]
-		if !exists {
-			result["status"] = "failed"
-			result["error"] = "Ticket not found in mismatched list for this column"
-			results = append(results, result)
-			continue
-		}
-
-		switch req.Action {
-		case "sync":
-			if s.ignoreService.IsIgnored(userID, req.TicketID) {
-				result["status"] = "skipped"
-				result["reason"] = "Ticket is ignored"
-			} else {
-				// Check what needs to be updated
-				updates := []string{}
-
-				if ticket.AsanaStatus != ticket.YouTrackStatus {
-					updates = append(updates, "status")
-				}
-				if ticket.TitleMismatch {
-					updates = append(updates, "title")
-				}
-				if ticket.DescriptionMismatch {
-					updates = append(updates, "description")
-				}
-
-				// Update the issue with all changes
-				err := s.youtrackService.UpdateIssue(userID, ticket.YouTrackIssue.ID, ticket.AsanaTask)
-				if err != nil {
-					result["status"] = "failed"
-					result["error"] = err.Error()
-				} else {
-					result["status"] = "synced"
-					result["updates"] = updates
-					result["status_change"] = map[string]string{
-						"from": ticket.YouTrackStatus,
-						"to":   ticket.AsanaStatus,
-					}
-
-					if ticket.TitleMismatch {
-						result["title_updated"] = true
-					}
-					if ticket.DescriptionMismatch {
-						result["description_updated"] = true
-					}
-
-					asanaTags := s.asanaService.GetTags(ticket.AsanaTask)
-					if len(asanaTags) > 0 {
-						tagMapper := NewTagMapperForUser(userID, s.configService)
-						primaryTag := asanaTags[0]
-						mappedSubsystem := tagMapper.MapTagToSubsystem(primaryTag)
-						result["tag_sync"] = map[string]interface{}{
-							"asana_tags":         asanaTags,
-							"mapped_subsystem":   mappedSubsystem,
-							"previous_subsystem": ticket.YouTrackSubsystem,
-						}
-					}
-					synced++
-				}
-			}
-
-		case "ignore_temp":
-			err := s.ignoreService.AddTemporaryIgnore(userID, req.TicketID)
-			if err != nil {
-				result["status"] = "failed"
-				result["error"] = err.Error()
-			} else {
-				result["status"] = "ignored_temporarily"
-			}
-
-		case "ignore_forever":
-			err := s.ignoreService.AddForeverIgnore(userID, req.TicketID)
-			if err != nil {
-				result["status"] = "failed"
-				result["error"] = err.Error()
-			} else {
-				result["status"] = "ignored_permanently"
-			}
-
-		default:
-			result["status"] = "failed"
-			result["error"] = "Invalid action"
-		}
-
-		results = append(results, result)
-	}
-
-	return map[string]interface{}{
-		"status":  "completed",
-		"synced":  synced,
-		"total":   len(requests),
-		"column":  columnsToAnalyze,
-		"results": results,
-		"note":    "Sync operations now include status, title, description, and tag/subsystem updates",
-	}, nil
-}
-
-// AutoSyncWithChanges performs auto-sync including title/description changes
-func (s *SyncService) AutoSyncWithChanges(userID int) error {
-	// Get all mismatched tickets including those with title/description changes
+// AutoSync performs auto-sync for mismatched tickets (status only)
+func (s *SyncService) AutoSync(userID int) error {
+	// Get all mismatched tickets
 	result, err := s.GetMismatchedTickets(userID)
 	if err != nil {
 		return fmt.Errorf("failed to get mismatched tickets: %w", err)
@@ -810,80 +679,15 @@ func (s *SyncService) AutoSyncWithChanges(userID int) error {
 		}
 
 		if len(syncRequests) > 0 {
-			// Perform the sync with enhanced change detection
-			_, err = s.SyncMismatchedTicketsEnhanced(userID, syncRequests)
+			// Perform the sync
+			_, err = s.SyncMismatchedTickets(userID, syncRequests)
 			if err != nil {
 				return fmt.Errorf("sync operation failed: %w", err)
 			}
 
-			fmt.Printf("AUTO-SYNC: Synced %d tickets (including title/description changes) for user %d\n", len(syncRequests), userID)
+			fmt.Printf("AUTO-SYNC: Synced %d tickets for user %d\n", len(syncRequests), userID)
 		}
 	}
 
 	return nil
-}
-
-// GetMismatchedTicketsWithChanges returns mismatched tickets including change details
-func (s *SyncService) GetMismatchedTicketsWithChanges(userID int, column ...string) (map[string]interface{}, error) {
-	var columnsToAnalyze []string
-
-	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
-		columnsToAnalyze = []string{column[0]}
-	} else {
-		columnsToAnalyze = SyncableColumns
-	}
-
-	analysis, err := s.analysisService.PerformAnalysis(userID, columnsToAnalyze)
-	if err != nil {
-		return nil, fmt.Errorf("analysis failed: %w", err)
-	}
-
-	// Categorize mismatches
-	statusMismatches := []MismatchedTicket{}
-	titleMismatches := []MismatchedTicket{}
-	descriptionMismatches := []MismatchedTicket{}
-	multipleMismatches := []MismatchedTicket{}
-
-	for _, ticket := range analysis.Mismatched {
-		mismatchCount := 0
-		if ticket.AsanaStatus != ticket.YouTrackStatus {
-			mismatchCount++
-		}
-		if ticket.TitleMismatch {
-			mismatchCount++
-		}
-		if ticket.DescriptionMismatch {
-			mismatchCount++
-		}
-
-		if mismatchCount > 1 {
-			multipleMismatches = append(multipleMismatches, ticket)
-		} else if ticket.TitleMismatch {
-			titleMismatches = append(titleMismatches, ticket)
-		} else if ticket.DescriptionMismatch {
-			descriptionMismatches = append(descriptionMismatches, ticket)
-		} else {
-			statusMismatches = append(statusMismatches, ticket)
-		}
-	}
-
-	return map[string]interface{}{
-		"status":     "success",
-		"message":    "Mismatched tickets available for sync (including title/description changes)",
-		"count":      len(analysis.Mismatched),
-		"column":     columnsToAnalyze,
-		"mismatched": analysis.Mismatched,
-		"breakdown": map[string]interface{}{
-			"status_only":      len(statusMismatches),
-			"title_only":       len(titleMismatches),
-			"description_only": len(descriptionMismatches),
-			"multiple_changes": len(multipleMismatches),
-		},
-		"usage": map[string]string{
-			"sync_all":       "POST with [{\"ticket_id\":\"ID\",\"action\":\"sync\"}] for each ticket",
-			"ignore_temp":    "POST with [{\"ticket_id\":\"ID\",\"action\":\"ignore_temp\"}]",
-			"ignore_forever": "POST with [{\"ticket_id\":\"ID\",\"action\":\"ignore_forever\"}]",
-		},
-		"note": "Sync now includes status, title, description, and tag/subsystem synchronization",
-	}, nil
 }
