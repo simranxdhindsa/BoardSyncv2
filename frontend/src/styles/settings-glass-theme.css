@@ -533,8 +533,221 @@
     transition: none;
     transform: none;
   }
-  
+
   .settings-spinner {
     animation: none;
   }
+}
+
+/* Glass Panel for Mapping Components - matches luxury theme */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow:
+    0 12px 48px rgba(31, 38, 135, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    0 6px 24px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  z-index: 11;
+}
+
+.glass-panel:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+  box-shadow:
+    0 20px 60px rgba(31, 38, 135, 0.3),
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Mapping Table Styles - luxury theme */
+.mapping-table {
+  background: transparent;
+}
+
+.mapping-table thead {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+.mapping-table th {
+  color: #374151;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.mapping-table tbody {
+  background: transparent;
+}
+
+.mapping-table tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.mapping-table tr:hover {
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+.mapping-table td {
+  padding: 1rem 1.5rem;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+/* Checkbox Styling - luxury theme */
+.mapping-checkbox {
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+  accent-color: #3b82f6;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.mapping-checkbox:hover {
+  transform: scale(1.1);
+}
+
+.mapping-checkbox:checked {
+  background: rgba(59, 130, 246, 0.9);
+}
+
+/* Multi-delete button - luxury theme */
+.multi-delete-button {
+  background: rgba(239, 68, 68, 0.9);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  position: relative;
+  z-index: 12;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.multi-delete-button:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(239, 68, 68, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+}
+
+.multi-delete-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Delete button in table - luxury theme */
+.delete-button-table {
+  background: rgba(239, 68, 68, 0.15);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #991b1b;
+  font-weight: 600;
+  position: relative;
+  z-index: 12;
+  transition: all 0.3s ease;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-button-table:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.2);
+  color: #7f1d1d;
+}
+
+/* Info/Help boxes - luxury theme */
+.info-box {
+  background: rgba(59, 130, 246, 0.15);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.1);
+}
+
+.info-box h3, .info-box h4 {
+  color: #1e40af;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.info-box p, .info-box li {
+  color: #1e3a8a;
+  font-size: 0.875rem;
+}
+
+/* Success box - luxury theme */
+.success-box {
+  background: rgba(16, 185, 129, 0.15);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.1);
+}
+
+.success-box h3, .success-box h4 {
+  color: #065f46;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+/* Warning box - luxury theme */
+.warning-box {
+  background: rgba(245, 158, 11, 0.15);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.1);
+}
+
+/* Error box - luxury theme */
+.error-box {
+  background: rgba(239, 68, 68, 0.15);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.1);
+}
+
+.error-box p {
+  color: #991b1b;
+  font-size: 0.875rem;
 }

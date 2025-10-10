@@ -56,10 +56,10 @@ func NewTagMapperWithCustom(customMappings map[string]string) *TagMapper {
 		mappings: make(map[string]string),
 		filePath: "tag_mappings.json",
 	}
-	
+
 	// Start with default mappings
 	mapper.loadDefaultMappings()
-	
+
 	// Override with custom mappings
 	mapper.mutex.Lock()
 	for k, v := range customMappings {
@@ -68,7 +68,7 @@ func NewTagMapperWithCustom(customMappings map[string]string) *TagMapper {
 		}
 	}
 	mapper.mutex.Unlock()
-	
+
 	return mapper
 }
 
@@ -78,13 +78,13 @@ func NewTagMapperWithFile(filePath string) *TagMapper {
 		mappings: make(map[string]string),
 		filePath: filePath,
 	}
-	
+
 	// Initialize with default mappings
 	mapper.loadDefaultMappings()
-	
+
 	// Try to load from specified file
 	mapper.loadFromFile()
-	
+
 	return mapper
 }
 
@@ -92,7 +92,7 @@ func NewTagMapperWithFile(filePath string) *TagMapper {
 func (tm *TagMapper) loadDefaultMappings() {
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
-	
+
 	for k, v := range DefaultTagMapping {
 		tm.mappings[k] = v
 	}
@@ -103,15 +103,15 @@ func (tm *TagMapper) MapTagToSubsystem(asanaTag string) string {
 	if asanaTag == "" {
 		return ""
 	}
-	
+
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	// First try exact match
 	if subsystem, exists := tm.mappings[asanaTag]; exists {
 		return subsystem
 	}
-	
+
 	// Try case-insensitive match
 	asanaTagLower := strings.ToLower(asanaTag)
 	for tag, subsystem := range tm.mappings {
@@ -119,7 +119,7 @@ func (tm *TagMapper) MapTagToSubsystem(asanaTag string) string {
 			return subsystem
 		}
 	}
-	
+
 	// If no mapping found, use lowercase tag as subsystem
 	return strings.ToLower(asanaTag)
 }
@@ -138,7 +138,7 @@ func (tm *TagMapper) MapMultipleTags(asanaTags []string) string {
 func (tm *TagMapper) GetMappings() map[string]string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	// Return a copy to prevent external modification
 	result := make(map[string]string)
 	for k, v := range tm.mappings {
@@ -152,11 +152,11 @@ func (tm *TagMapper) AddMapping(asanaTag, youTrackSubsystem string) error {
 	if !tm.ValidateMapping(asanaTag, youTrackSubsystem) {
 		return fmt.Errorf("invalid mapping: tag='%s', subsystem='%s'", asanaTag, youTrackSubsystem)
 	}
-	
+
 	tm.mutex.Lock()
 	tm.mappings[asanaTag] = youTrackSubsystem
 	tm.mutex.Unlock()
-	
+
 	return tm.saveToFile()
 }
 
@@ -165,7 +165,7 @@ func (tm *TagMapper) RemoveMapping(asanaTag string) error {
 	tm.mutex.Lock()
 	delete(tm.mappings, asanaTag)
 	tm.mutex.Unlock()
-	
+
 	return tm.saveToFile()
 }
 
@@ -174,11 +174,11 @@ func (tm *TagMapper) UpdateMapping(asanaTag, youTrackSubsystem string) error {
 	if !tm.ValidateMapping(asanaTag, youTrackSubsystem) {
 		return fmt.Errorf("invalid mapping: tag='%s', subsystem='%s'", asanaTag, youTrackSubsystem)
 	}
-	
+
 	tm.mutex.Lock()
 	tm.mappings[asanaTag] = youTrackSubsystem
 	tm.mutex.Unlock()
-	
+
 	return tm.saveToFile()
 }
 
@@ -186,7 +186,7 @@ func (tm *TagMapper) UpdateMapping(asanaTag, youTrackSubsystem string) error {
 func (tm *TagMapper) HasMapping(asanaTag string) bool {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	_, exists := tm.mappings[asanaTag]
 	return exists
 }
@@ -195,7 +195,7 @@ func (tm *TagMapper) HasMapping(asanaTag string) bool {
 func (tm *TagMapper) GetSubsystemForTag(asanaTag string) string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	if subsystem, exists := tm.mappings[asanaTag]; exists {
 		return subsystem
 	}
@@ -206,16 +206,16 @@ func (tm *TagMapper) GetSubsystemForTag(asanaTag string) string {
 func (tm *TagMapper) GetTagsForSubsystem(subsystem string) []string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	var tags []string
 	subsystemLower := strings.ToLower(subsystem)
-	
+
 	for tag, mappedSubsystem := range tm.mappings {
 		if strings.ToLower(mappedSubsystem) == subsystemLower {
 			tags = append(tags, tag)
 		}
 	}
-	
+
 	return tags
 }
 
@@ -223,17 +223,17 @@ func (tm *TagMapper) GetTagsForSubsystem(subsystem string) []string {
 func (tm *TagMapper) GetAllSubsystems() []string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	subsystemSet := make(map[string]bool)
 	for _, subsystem := range tm.mappings {
 		subsystemSet[subsystem] = true
 	}
-	
+
 	var subsystems []string
 	for subsystem := range subsystemSet {
 		subsystems = append(subsystems, subsystem)
 	}
-	
+
 	return subsystems
 }
 
@@ -241,12 +241,12 @@ func (tm *TagMapper) GetAllSubsystems() []string {
 func (tm *TagMapper) GetAllTags() []string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	var tags []string
 	for tag := range tm.mappings {
 		tags = append(tags, tag)
 	}
-	
+
 	return tags
 }
 
@@ -255,31 +255,31 @@ func (tm *TagMapper) ValidateMapping(asanaTag, youTrackSubsystem string) bool {
 	// Basic validation - both should be non-empty and not just whitespace
 	asanaTag = strings.TrimSpace(asanaTag)
 	youTrackSubsystem = strings.TrimSpace(youTrackSubsystem)
-	
+
 	if asanaTag == "" || youTrackSubsystem == "" {
 		return false
 	}
-	
+
 	// Additional validation rules can be added here
 	// For example, checking for special characters, length limits, etc.
-	
+
 	return true
 }
 
 // LoadFromMap loads mappings from a map (useful for loading from config)
 func (tm *TagMapper) LoadFromMap(mappings map[string]string) error {
 	validMappings := make(map[string]string)
-	
+
 	for k, v := range mappings {
 		if tm.ValidateMapping(k, v) {
 			validMappings[k] = v
 		}
 	}
-	
+
 	tm.mutex.Lock()
 	tm.mappings = validMappings
 	tm.mutex.Unlock()
-	
+
 	return tm.saveToFile()
 }
 
@@ -296,7 +296,7 @@ func (tm *TagMapper) Reset() error {
 		tm.mappings[k] = v
 	}
 	tm.mutex.Unlock()
-	
+
 	return tm.saveToFile()
 }
 
@@ -304,7 +304,7 @@ func (tm *TagMapper) Reset() error {
 func (tm *TagMapper) Count() int {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	return len(tm.mappings)
 }
 
@@ -312,7 +312,7 @@ func (tm *TagMapper) Count() int {
 func (tm *TagMapper) IsEmpty() bool {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	return len(tm.mappings) == 0
 }
 
@@ -327,7 +327,7 @@ func (tm *TagMapper) SetFilePath(filePath string) {
 func (tm *TagMapper) GetFilePath() string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	return tm.filePath
 }
 
@@ -350,17 +350,17 @@ func (tm *TagMapper) saveToFile() error {
 	}
 	filePath := tm.filePath
 	tm.mutex.RUnlock()
-	
+
 	data, err := json.MarshalIndent(mappings, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal mappings: %w", err)
 	}
-	
+
 	err = os.WriteFile(filePath, data, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write mappings file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -444,12 +444,12 @@ func (tm *TagMapper) loadFromDatabase() error {
 func (tm *TagMapper) GetMappingStats() map[string]interface{} {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	subsystemCounts := make(map[string]int)
 	for _, subsystem := range tm.mappings {
 		subsystemCounts[subsystem]++
 	}
-	
+
 	return map[string]interface{}{
 		"total_mappings":    len(tm.mappings),
 		"unique_subsystems": len(subsystemCounts),
@@ -462,26 +462,26 @@ func (tm *TagMapper) GetMappingStats() map[string]interface{} {
 func (tm *TagMapper) FindSimilarMappings(tag string) []string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	tagLower := strings.ToLower(tag)
 	var similar []string
-	
+
 	for existingTag := range tm.mappings {
 		existingLower := strings.ToLower(existingTag)
-		
+
 		// Check for partial matches
 		if strings.Contains(existingLower, tagLower) || strings.Contains(tagLower, existingLower) {
 			similar = append(similar, existingTag)
 		}
 	}
-	
+
 	return similar
 }
 
 // BulkUpdateMappings updates multiple mappings at once
 func (tm *TagMapper) BulkUpdateMappings(mappings map[string]string) error {
 	validMappings := make(map[string]string)
-	
+
 	// Validate all mappings first
 	for tag, subsystem := range mappings {
 		if tm.ValidateMapping(tag, subsystem) {
@@ -490,14 +490,14 @@ func (tm *TagMapper) BulkUpdateMappings(mappings map[string]string) error {
 			return fmt.Errorf("invalid mapping: tag='%s', subsystem='%s'", tag, subsystem)
 		}
 	}
-	
+
 	// Update all mappings
 	tm.mutex.Lock()
 	for tag, subsystem := range validMappings {
 		tm.mappings[tag] = subsystem
 	}
 	tm.mutex.Unlock()
-	
+
 	return tm.saveToFile()
 }
 
@@ -520,14 +520,14 @@ func (tm *TagMapper) IsDefaultMapping(tag string) bool {
 func (tm *TagMapper) GetCustomMappings() map[string]string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	custom := make(map[string]string)
 	for tag, subsystem := range tm.mappings {
 		if defaultSubsystem, isDefault := DefaultTagMapping[tag]; !isDefault || defaultSubsystem != subsystem {
 			custom[tag] = subsystem
 		}
 	}
-	
+
 	return custom
 }
 
@@ -535,19 +535,19 @@ func (tm *TagMapper) GetCustomMappings() map[string]string {
 func (tm *TagMapper) SearchMappings(searchTerm string) map[string]string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	results := make(map[string]string)
 	searchLower := strings.ToLower(searchTerm)
-	
+
 	for tag, subsystem := range tm.mappings {
 		tagLower := strings.ToLower(tag)
 		subsystemLower := strings.ToLower(subsystem)
-		
+
 		if strings.Contains(tagLower, searchLower) || strings.Contains(subsystemLower, searchLower) {
 			results[tag] = subsystem
 		}
 	}
-	
+
 	return results
 }
 
@@ -555,20 +555,20 @@ func (tm *TagMapper) SearchMappings(searchTerm string) map[string]string {
 func (tm *TagMapper) GetMappingsBySubsystem() map[string][]string {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
-	
+
 	grouped := make(map[string][]string)
-	
+
 	for tag, subsystem := range tm.mappings {
 		grouped[subsystem] = append(grouped[subsystem], tag)
 	}
-	
+
 	return grouped
 }
 
 // ClearCustomMappings removes all custom mappings, keeping only defaults
 func (tm *TagMapper) ClearCustomMappings() error {
 	tm.mutex.Lock()
-	
+
 	// Keep only default mappings
 	newMappings := make(map[string]string)
 	for tag, subsystem := range tm.mappings {
@@ -576,10 +576,10 @@ func (tm *TagMapper) ClearCustomMappings() error {
 			newMappings[tag] = subsystem
 		}
 	}
-	
+
 	tm.mappings = newMappings
 	tm.mutex.Unlock()
-	
+
 	return tm.saveToFile()
 }
 
@@ -589,29 +589,29 @@ func (tm *TagMapper) ImportMappings(filePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read import file: %w", err)
 	}
-	
+
 	var importMappings map[string]string
 	if err := json.Unmarshal(data, &importMappings); err != nil {
 		return fmt.Errorf("failed to parse import file: %w", err)
 	}
-	
+
 	return tm.LoadFromMap(importMappings)
 }
 
 // ExportMappings exports current mappings to a JSON file
 func (tm *TagMapper) ExportMappings(filePath string) error {
 	mappings := tm.GetMappings()
-	
+
 	data, err := json.MarshalIndent(mappings, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal mappings: %w", err)
 	}
-	
+
 	err = os.WriteFile(filePath, data, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write export file: %w", err)
 	}
-	
+
 	return nil
 }
 
