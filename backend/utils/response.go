@@ -102,9 +102,20 @@ func ValidateYouTrackURL(url string) bool {
 	return strings.Contains(url, "youtrack.cloud") && strings.Contains(url, "/issue/")
 }
 
-// SanitizeTitle replaces "/" with "or" for YouTrack compatibility
+// SanitizeTitle sanitizes title for YouTrack compatibility
+// 1. Removes project ID prefixes (e.g., "ARD-123:", "PROJ-456 ", etc.)
+// 2. Replaces "/" with "or"
 func SanitizeTitle(title string) string {
-	return strings.ReplaceAll(title, "/", " or ")
+	// Remove project ID prefix pattern (e.g., "ARD-123:", "ARD-123 ", "ARD-123-")
+	// Pattern matches: UPPERCASE-DIGITS followed by colon, space, or dash
+	re := regexp.MustCompile(`^[A-Z]+-\d+[:;\s-]*\s*`)
+	sanitized := re.ReplaceAllString(title, "")
+
+	// Replace "/" with "or"
+	sanitized = strings.ReplaceAll(sanitized, "/", " or ")
+
+	// Trim any leading/trailing whitespace
+	return strings.TrimSpace(sanitized)
 }
 
 // SendJSON sends a JSON response with the given status code
