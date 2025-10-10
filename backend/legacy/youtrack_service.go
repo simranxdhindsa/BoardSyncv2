@@ -203,7 +203,7 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": fmt.Sprintf("%s\n\n[Synced from Asana ID: %s]", task.Notes, task.GID),
+		"description": task.Notes,
 		"project": map[string]interface{}{
 			"$type":     "Project",
 			"shortName": settings.YouTrackProjectID,
@@ -223,10 +223,10 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 		})
 	}
 
-	// Add subsystem mapping
+	// Add subsystem mapping using user-specific tag mappings from database
 	asanaTags := asanaService.GetTags(task)
 	if len(asanaTags) > 0 {
-		tagMapper := NewTagMapper()
+		tagMapper := NewTagMapperForUser(userID, s.configService)
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
@@ -279,7 +279,7 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": fmt.Sprintf("%s\n\n[Synced from Asana ID: %s]", task.Notes, task.GID),
+		"description": task.Notes,
 		"project": map[string]interface{}{
 			"$type":     "Project",
 			"shortName": settings.YouTrackProjectID,
@@ -299,10 +299,10 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 		})
 	}
 
-	// Add subsystem mapping
+	// Add subsystem mapping using user-specific tag mappings from database
 	asanaTags := asanaService.GetTags(task)
 	if len(asanaTags) > 0 {
-		tagMapper := NewTagMapper()
+		tagMapper := NewTagMapperForUser(userID, s.configService)
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
@@ -411,7 +411,7 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": fmt.Sprintf("%s\n\n[Synced from Asana ID: %s]", task.Notes, task.GID),
+		"description": task.Notes,
 	}
 
 	customFields := []map[string]interface{}{}
@@ -427,10 +427,10 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 		})
 	}
 
-	// Add subsystem mapping
+	// Add subsystem mapping using user-specific tag mappings from database
 	asanaTags := asanaService.GetTags(task)
 	if len(asanaTags) > 0 {
-		tagMapper := NewTagMapper()
+		tagMapper := NewTagMapperForUser(userID, s.configService)
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {

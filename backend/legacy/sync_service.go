@@ -109,7 +109,7 @@ func (s *SyncService) CreateMissingTickets(userID int, column ...string) (map[st
 				}
 
 				if len(asanaTags) > 0 {
-					tagMapper := NewTagMapper()
+					tagMapper := NewTagMapperForUser(userID, s.configService)
 					primaryTag := asanaTags[0]
 					mappedSubsystem := tagMapper.MapTagToSubsystem(primaryTag)
 					result["mapped_subsystem"] = mappedSubsystem
@@ -215,7 +215,7 @@ func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]
 	}
 
 	if len(asanaTags) > 0 {
-		tagMapper := NewTagMapper()
+		tagMapper := NewTagMapperForUser(userID, s.configService)
 		primaryTag := asanaTags[0]
 		mappedSubsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		response["mapped_subsystem"] = mappedSubsystem
@@ -282,7 +282,7 @@ func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest, 
 
 					asanaTags := s.asanaService.GetTags(ticket.AsanaTask)
 					if len(asanaTags) > 0 {
-						tagMapper := NewTagMapper()
+						tagMapper := NewTagMapperForUser(userID, s.configService)
 						primaryTag := asanaTags[0]
 						mappedSubsystem := tagMapper.MapTagToSubsystem(primaryTag)
 						result["tag_sync"] = map[string]interface{}{
@@ -738,7 +738,7 @@ func (s *SyncService) SyncMismatchedTicketsEnhanced(userID int, requests []SyncR
 
 					asanaTags := s.asanaService.GetTags(ticket.AsanaTask)
 					if len(asanaTags) > 0 {
-						tagMapper := NewTagMapper()
+						tagMapper := NewTagMapperForUser(userID, s.configService)
 						primaryTag := asanaTags[0]
 						mappedSubsystem := tagMapper.MapTagToSubsystem(primaryTag)
 						result["tag_sync"] = map[string]interface{}{
