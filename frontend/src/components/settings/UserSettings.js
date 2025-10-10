@@ -349,12 +349,7 @@ const UserSettings = ({ onBack }) => {
               )}
               <button
                 onClick={handleLogout}
-                className="settings-button-secondary"
-                style={{ 
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  borderColor: 'rgba(239, 68, 68, 0.3)',
-                  color: '#991b1b'
-                }}
+                className="delete-button-table"
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
@@ -729,12 +724,12 @@ const UserSettings = ({ onBack }) => {
               </div>
 
               {/* Help Section */}
-              <div className="glass-panel bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center">
+              <div className="info-box">
+                <h4 className="text-sm font-medium mb-2 flex items-center">
                   <AlertCircle className="w-4 h-4 mr-1" />
                   When to use ticket mapping?
                 </h4>
-                <ul className="text-xs text-blue-700 space-y-1">
+                <ul className="text-xs space-y-1">
                   <li>• When Asana and YouTrack ticket titles don't match</li>
                   <li>• For tickets created manually in YouTrack</li>
                   <li>• To link historical tickets created before automation</li>
@@ -807,12 +802,7 @@ const UserSettings = ({ onBack }) => {
                   </p>
                   <button
                     onClick={handleShowDeleteModal}
-                    className="settings-button-secondary"
-                    style={{ 
-                      background: 'rgba(239, 68, 68, 0.15)',
-                      borderColor: 'rgba(239, 68, 68, 0.3)',
-                      color: '#991b1b'
-                    }}
+                    className="delete-button-table"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Delete Account
@@ -941,19 +931,11 @@ const UserSettings = ({ onBack }) => {
               <button
                 onClick={handleDeleteAccount}
                 disabled={
-                  isDeletingAccount || 
-                  deletionData.confirmation !== 'DELETE' || 
+                  isDeletingAccount ||
+                  deletionData.confirmation !== 'DELETE' ||
                   !deletionData.password
                 }
-                className="settings-button"
-                style={{
-                  background: deletionData.confirmation === 'DELETE' && deletionData.password
-                    ? 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)'
-                    : 'rgba(156, 163, 175, 0.3)',
-                  cursor: (deletionData.confirmation === 'DELETE' && deletionData.password && !isDeletingAccount)
-                    ? 'pointer'
-                    : 'not-allowed'
-                }}
+                className="multi-delete-button"
               >
                 {isDeletingAccount ? (
                   <>

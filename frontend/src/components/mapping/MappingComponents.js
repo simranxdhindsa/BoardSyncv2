@@ -36,15 +36,15 @@ export const CreateMappingForm = ({ onSuccess }) => {
   };
 
   return (
-    <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
+    <div className="glass-panel rounded-lg p-6">
       <div className="flex items-center mb-4">
         <Link2 className="w-5 h-5 text-blue-600 mr-2" />
-        <h2 className="text-xl font-semibold text-gray-900">Link Tickets Manually</h2>
+        <h2 className="text-xl font-semibold">Link Tickets Manually</h2>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="settings-label">
             Asana Task URL
           </label>
           <input
@@ -52,7 +52,7 @@ export const CreateMappingForm = ({ onSuccess }) => {
             value={asanaUrl}
             onChange={(e) => setAsanaUrl(e.target.value)}
             placeholder="https://app.asana.com/.../task/1211475287717816"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 settings-input"
+            className="settings-input"
             required
           />
           <p className="text-xs text-gray-500 mt-1">
@@ -61,7 +61,7 @@ export const CreateMappingForm = ({ onSuccess }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="settings-label">
             YouTrack Issue URL
           </label>
           <input
@@ -69,7 +69,7 @@ export const CreateMappingForm = ({ onSuccess }) => {
             value={youtrackUrl}
             onChange={(e) => setYoutrackUrl(e.target.value)}
             placeholder="https://youtrack.cloud/issue/ARD-222/Title"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 settings-input"
+            className="settings-input"
             required
           />
           <p className="text-xs text-gray-500 mt-1">
@@ -78,19 +78,19 @@ export const CreateMappingForm = ({ onSuccess }) => {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="error-box">
+            <p>{error}</p>
           </div>
         )}
 
         <button
           type="submit"
           disabled={loading || !asanaUrl.trim() || !youtrackUrl.trim()}
-          className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center font-medium transition-colors"
+          className="w-full settings-button"
         >
           {loading ? (
             <>
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              <RefreshCw className="settings-spinner" />
               Linking...
             </>
           ) : (
@@ -102,12 +102,12 @@ export const CreateMappingForm = ({ onSuccess }) => {
         </button>
       </form>
 
-      <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <h3 className="text-sm font-medium text-blue-900 mb-2 flex items-center">
+      <div className="mt-4 success-box">
+        <h3 className="text-sm font-medium mb-2 flex items-center">
           <CheckCircle className="w-4 h-4 mr-1" />
           How it works:
         </h3>
-        <ul className="text-xs text-blue-700 space-y-1">
+        <ul className="text-xs space-y-1">
           <li>• Paste the full URL from both systems</li>
           <li>• System extracts task/issue IDs automatically</li>
           <li>• Future syncs will recognize this link</li>
@@ -124,6 +124,8 @@ export const MappingsList = ({ refreshTrigger }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [youtrackBaseUrl, setYoutrackBaseUrl] = useState('');
+  const [selectedMappings, setSelectedMappings] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
 
   useEffect(() => {
   const loadBaseUrl = async () => {
@@ -164,6 +166,7 @@ export const MappingsList = ({ refreshTrigger }) => {
       const response = await mappingService.deleteMapping(id);
       if (response.success) {
         setMappings(mappings.filter(m => m.id !== id));
+        setSelectedMappings(selectedMappings.filter(sid => sid !== id));
       }
     } catch (err) {
       console.error('Failed to delete mapping:', err);
@@ -171,9 +174,51 @@ export const MappingsList = ({ refreshTrigger }) => {
     }
   };
 
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedMappings([]);
+    } else {
+      setSelectedMappings(mappings.map(m => m.id));
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const handleSelectMapping = (id) => {
+    if (selectedMappings.includes(id)) {
+      setSelectedMappings(selectedMappings.filter(sid => sid !== id));
+      setSelectAll(false);
+    } else {
+      const newSelected = [...selectedMappings, id];
+      setSelectedMappings(newSelected);
+      if (newSelected.length === mappings.length) {
+        setSelectAll(true);
+      }
+    }
+  };
+
+  const handleMultiDelete = async () => {
+    if (selectedMappings.length === 0) return;
+
+    const count = selectedMappings.length;
+    if (!window.confirm(`Are you sure you want to delete ${count} mapping${count !== 1 ? 's' : ''}?`)) return;
+
+    try {
+      const deletePromises = selectedMappings.map(id => mappingService.deleteMapping(id));
+      await Promise.all(deletePromises);
+
+      setMappings(mappings.filter(m => !selectedMappings.includes(m.id)));
+      setSelectedMappings([]);
+      setSelectAll(false);
+    } catch (err) {
+      console.error('Failed to delete mappings:', err);
+      alert('Failed to delete some mappings: ' + err.message);
+      fetchMappings(); // Refresh to get current state
+    }
+  };
+
   if (loading) {
     return (
-      <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
+      <div className="glass-panel rounded-lg p-6">
         <div className="text-center py-8">
           <RefreshCw className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
           <p className="text-gray-600">Loading mappings...</p>
@@ -184,11 +229,11 @@ export const MappingsList = ({ refreshTrigger }) => {
 
   if (error) {
     return (
-      <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div className="glass-panel rounded-lg p-6">
+        <div className="error-box">
           <div className="flex items-center">
-            <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
-            <p className="text-red-800">{error}</p>
+            <AlertTriangle className="w-5 h-5 mr-2" />
+            <p>{error}</p>
           </div>
         </div>
       </div>
@@ -197,8 +242,8 @@ export const MappingsList = ({ refreshTrigger }) => {
 
   if (mappings.length === 0) {
     return (
-      <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+      <div className="glass-panel rounded-lg p-6">
+        <div className="settings-form-group text-center">
           <Link2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
           <p className="text-gray-600 font-medium">No ticket mappings yet</p>
           <p className="text-sm text-gray-500 mt-2">
@@ -210,50 +255,79 @@ export const MappingsList = ({ refreshTrigger }) => {
   }
 
   return (
-    <div className="glass-panel bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+    <div className="glass-panel rounded-lg overflow-hidden">
+      <div className="px-6 py-4 settings-divider flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+          <h2 className="text-xl font-semibold flex items-center">
             <Link2 className="w-5 h-5 mr-2" />
             Active Ticket Mappings
           </h2>
           <p className="text-sm text-gray-600 mt-1">
             {mappings.length} ticket{mappings.length !== 1 ? 's' : ''} linked
+            {selectedMappings.length > 0 && ` • ${selectedMappings.length} selected`}
           </p>
         </div>
-        <button
-          onClick={fetchMappings}
-          className="flex items-center text-blue-600 hover:text-blue-800 transition-colors text-sm font-medium"
-        >
-          <RefreshCw className="w-4 h-4 mr-1" />
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          {selectedMappings.length > 0 && (
+            <button
+              onClick={handleMultiDelete}
+              className="multi-delete-button"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete ({selectedMappings.length})
+            </button>
+          )}
+          <button
+            onClick={fetchMappings}
+            className="settings-button-secondary"
+          >
+            <RefreshCw className="w-4 h-4 mr-1" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full mapping-table">
+          <thead>
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="text-center" style={{ width: '50px' }}>
+                <input
+                  type="checkbox"
+                  checked={selectAll}
+                  onChange={handleSelectAll}
+                  className="mapping-checkbox"
+                  title="Select all"
+                />
+              </th>
+              <th className="text-left">
                 Asana Task ID
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="text-left">
                 YouTrack Issue ID
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="text-left">
                 Created
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+              <th className="text-right">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody>
             {mappings.map((mapping) => (
-              <tr key={mapping.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
+              <tr key={mapping.id}>
+                <td className="text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedMappings.includes(mapping.id)}
+                    onChange={() => handleSelectMapping(mapping.id)}
+                    className="mapping-checkbox"
+                  />
+                </td>
+                <td className="whitespace-nowrap">
                   <div className="flex items-center">
-                    <span className="text-sm font-mono text-gray-900">
+                    <span className="text-sm font-mono">
                       {mapping.asana_task_id}
                     </span>
                     <a
@@ -267,9 +341,9 @@ export const MappingsList = ({ refreshTrigger }) => {
                     </a>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="whitespace-nowrap">
                   <div className="flex items-center">
-                    <span className="text-sm font-mono text-gray-900">
+                    <span className="text-sm font-mono">
                       {mapping.youtrack_issue_id}
                     </span>
                     <a
@@ -283,13 +357,13 @@ export const MappingsList = ({ refreshTrigger }) => {
                     </a>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="whitespace-nowrap text-sm">
                   {new Date(mapping.created_at).toLocaleDateString()}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                <td className="whitespace-nowrap text-right text-sm">
                   <button
                     onClick={() => handleDelete(mapping.id)}
-                    className="text-red-600 hover:text-red-800 font-medium flex items-center ml-auto transition-colors"
+                    className="delete-button-table ml-auto"
                   >
                     <Trash2 className="w-4 h-4 mr-1" />
                     Delete
