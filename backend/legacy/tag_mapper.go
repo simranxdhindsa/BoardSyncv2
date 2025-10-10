@@ -6,28 +6,47 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	configpkg "asana-youtrack-sync/config"
 )
 
 // TagMapper handles mapping of Asana tags to YouTrack subsystems
 type TagMapper struct {
-	mappings map[string]string
-	mutex    sync.RWMutex
-	filePath string
+	mappings      map[string]string
+	mutex         sync.RWMutex
+	filePath      string
+	configService *configpkg.Service
+	userID        int
 }
 
-// NewTagMapper creates a new tag mapper with default mappings
+// NewTagMapper creates a new tag mapper with default mappings (deprecated - use NewTagMapperForUser)
 func NewTagMapper() *TagMapper {
 	mapper := &TagMapper{
 		mappings: make(map[string]string),
 		filePath: "tag_mappings.json",
 	}
-	
+
 	// Initialize with default mappings
 	mapper.loadDefaultMappings()
-	
+
 	// Try to load custom mappings from file
 	mapper.loadFromFile()
-	
+
+	return mapper
+}
+
+// NewTagMapperForUser creates a new tag mapper with user-specific mappings from database
+func NewTagMapperForUser(userID int, configService *configpkg.Service) *TagMapper {
+	mapper := &TagMapper{
+		mappings:      make(map[string]string),
+		filePath:      "tag_mappings.json",
+		configService: configService,
+		userID:        userID,
+	}
+
+	// Load user-specific mappings from database
+	mapper.loadFromDatabase()
+
 	return mapper
 }
 
@@ -350,23 +369,23 @@ func (tm *TagMapper) loadFromFile() error {
 	tm.mutex.RLock()
 	filePath := tm.filePath
 	tm.mutex.RUnlock()
-	
+
 	// Check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// File doesn't exist, which is fine - we'll use defaults
 		return nil
 	}
-	
+
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read mappings file: %w", err)
 	}
-	
+
 	var fileMappings map[string]string
 	if err := json.Unmarshal(data, &fileMappings); err != nil {
 		return fmt.Errorf("failed to unmarshal mappings: %w", err)
 	}
-	
+
 	// Validate and load mappings
 	tm.mutex.Lock()
 	for k, v := range fileMappings {
@@ -375,7 +394,49 @@ func (tm *TagMapper) loadFromFile() error {
 		}
 	}
 	tm.mutex.Unlock()
-	
+
+	return nil
+}
+
+// loadFromDatabase loads tag mappings from user settings in database
+func (tm *TagMapper) loadFromDatabase() error {
+	if tm.configService == nil || tm.userID == 0 {
+		// Fallback to default mappings if no config service or user ID
+		tm.loadDefaultMappings()
+		return nil
+	}
+
+	// Get user settings from database
+	settings, err := tm.configService.GetSettings(tm.userID)
+	if err != nil {
+		fmt.Printf("TAG_MAPPER: Failed to load settings for user %d, using defaults: %v\n", tm.userID, err)
+		tm.loadDefaultMappings()
+		return nil
+	}
+
+	// Load tag mappings from CustomFieldMappings
+	tm.mutex.Lock()
+	defer tm.mutex.Unlock()
+
+	// Clear existing mappings
+	tm.mappings = make(map[string]string)
+
+	// Load from database if available
+	if settings.CustomFieldMappings.TagMapping != nil && len(settings.CustomFieldMappings.TagMapping) > 0 {
+		for asanaTag, youtrackSubsystem := range settings.CustomFieldMappings.TagMapping {
+			if tm.ValidateMapping(asanaTag, youtrackSubsystem) {
+				tm.mappings[asanaTag] = youtrackSubsystem
+			}
+		}
+		fmt.Printf("TAG_MAPPER: Loaded %d tag mappings from database for user %d\n", len(tm.mappings), tm.userID)
+	} else {
+		// No custom mappings in database, use defaults
+		for k, v := range DefaultTagMapping {
+			tm.mappings[k] = v
+		}
+		fmt.Printf("TAG_MAPPER: No custom tag mappings found for user %d, using %d default mappings\n", tm.userID, len(tm.mappings))
+	}
+
 	return nil
 }
 
