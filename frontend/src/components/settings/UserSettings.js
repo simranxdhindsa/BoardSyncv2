@@ -217,36 +217,55 @@ const UserSettings = ({ onBack }) => {
     }
   };
 
-  const addCustomMapping = () => {
+  const addCustomMapping = async () => {
     if (!newMapping.key.trim() || !newMapping.value.trim()) return;
-    
-    setSettings(prev => ({
-      ...prev,
+
+    const updatedSettings = {
+      ...settings,
       custom_field_mappings: {
-        ...prev.custom_field_mappings,
+        ...settings.custom_field_mappings,
         [newMapping.type]: {
-          ...prev.custom_field_mappings[newMapping.type],
+          ...settings.custom_field_mappings[newMapping.type],
           [newMapping.key.trim()]: newMapping.value.trim()
         }
       }
-    }));
-    
+    };
+
+    setSettings(updatedSettings);
     setNewMapping({ ...newMapping, key: '', value: '' });
+
+    // Auto-save to backend
+    try {
+      await updateUserSettings(updatedSettings);
+      setSuccessMessage('Field mapping added successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError('Failed to save field mapping: ' + err.message);
+    }
   };
 
-  const removeCustomMapping = (type, key) => {
-    setSettings(prev => {
-      const updatedMappings = { ...prev.custom_field_mappings[type] };
-      delete updatedMappings[key];
-      
-      return {
-        ...prev,
-        custom_field_mappings: {
-          ...prev.custom_field_mappings,
-          [type]: updatedMappings
-        }
-      };
-    });
+  const removeCustomMapping = async (type, key) => {
+    const updatedMappings = { ...settings.custom_field_mappings[type] };
+    delete updatedMappings[key];
+
+    const updatedSettings = {
+      ...settings,
+      custom_field_mappings: {
+        ...settings.custom_field_mappings,
+        [type]: updatedMappings
+      }
+    };
+
+    setSettings(updatedSettings);
+
+    // Auto-save to backend
+    try {
+      await updateUserSettings(updatedSettings);
+      setSuccessMessage('Field mapping removed successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError('Failed to remove field mapping: ' + err.message);
+    }
   };
 
   const handleLogout = async () => {
@@ -631,6 +650,27 @@ const UserSettings = ({ onBack }) => {
                   </div>
                 )}
               </div>
+
+              {/* Save Button - Only in API Configuration Tab */}
+              <div className="settings-actions">
+                <button
+                  onClick={handleSaveSettings}
+                  disabled={saving}
+                  className="settings-button"
+                >
+                  {saving ? (
+                    <>
+                      <RefreshCw className="settings-spinner" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Settings
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
@@ -852,27 +892,6 @@ const UserSettings = ({ onBack }) => {
               </div>
             </div>
           )}
-
-          {/* Save Button */}
-          <div className="settings-actions">
-            <button
-              onClick={handleSaveSettings}
-              disabled={saving}
-              className="settings-button"
-            >
-              {saving ? (
-                <>
-                  <RefreshCw className="settings-spinner" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  Save Settings
-                </>
-              )}
-            </button>
-          </div>
         </div>
       </div>
 
