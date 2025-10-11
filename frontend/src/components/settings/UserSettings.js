@@ -81,6 +81,8 @@ const UserSettings = ({ onBack }) => {
 
   const [mappingRefreshKey, setMappingRefreshKey] = useState(0);
   const [showCreateMappingForm, setShowCreateMappingForm] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [initialSettings, setInitialSettings] = useState(null);
 
   useEffect(() => {
     loadSettings();
@@ -89,12 +91,12 @@ const UserSettings = ({ onBack }) => {
   const loadSettings = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await getUserSettings();
       const userSettings = response.data || response;
-      
-      setSettings({
+
+      const loadedSettings = {
         asana_pat: userSettings.asana_pat || '',
         youtrack_base_url: userSettings.youtrack_base_url || '',
         youtrack_token: userSettings.youtrack_token || '',
@@ -106,7 +108,11 @@ const UserSettings = ({ onBack }) => {
           status_mapping: {},
           custom_fields: {}
         }
-      });
+      };
+
+      setSettings(loadedSettings);
+      setInitialSettings(loadedSettings);
+      setHasUnsavedChanges(false);
     } catch (err) {
       setError('Failed to load settings: ' + err.message);
     } finally {
@@ -122,10 +128,24 @@ const UserSettings = ({ onBack }) => {
   };
 
   const handleInputChange = (field) => (e) => {
-    setSettings(prev => ({
-      ...prev,
+    const newSettings = {
+      ...settings,
       [field]: e.target.value
-    }));
+    };
+    setSettings(newSettings);
+
+    // Check if API configuration has changed
+    if (initialSettings) {
+      const apiFieldsChanged =
+        newSettings.asana_pat !== initialSettings.asana_pat ||
+        newSettings.youtrack_base_url !== initialSettings.youtrack_base_url ||
+        newSettings.youtrack_token !== initialSettings.youtrack_token ||
+        newSettings.asana_project_id !== initialSettings.asana_project_id ||
+        newSettings.youtrack_project_id !== initialSettings.youtrack_project_id;
+
+      setHasUnsavedChanges(apiFieldsChanged);
+    }
+
     clearMessages();
   };
 
@@ -142,12 +162,15 @@ const UserSettings = ({ onBack }) => {
 
     setLoadingProjects(prev => ({ ...prev, asana: true }));
     clearMessages();
-    
+
     try {
       await updateUserSettings(settings);
+      setInitialSettings(settings); // Update initial settings after save
+      setHasUnsavedChanges(false); // Reset flag
       const response = await getAsanaProjects();
       setAsanaProjects(response.data || response);
       setSuccessMessage('Asana credentials saved and projects loaded successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setError('Failed to load Asana projects: ' + err.message);
     } finally {
@@ -163,12 +186,15 @@ const UserSettings = ({ onBack }) => {
 
     setLoadingProjects(prev => ({ ...prev, youtrack: true }));
     clearMessages();
-    
+
     try {
       await updateUserSettings(settings);
+      setInitialSettings(settings); // Update initial settings after save
+      setHasUnsavedChanges(false); // Reset flag
       const response = await getYouTrackProjects();
       setYoutrackProjects(response.data || response);
       setSuccessMessage('YouTrack credentials saved and projects loaded successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setError('Failed to load YouTrack projects: ' + err.message);
     } finally {
@@ -206,10 +232,13 @@ const UserSettings = ({ onBack }) => {
   const handleSaveSettings = async () => {
     setSaving(true);
     clearMessages();
-    
+
     try {
       await updateUserSettings(settings);
+      setInitialSettings(settings); // Update initial settings after successful save
+      setHasUnsavedChanges(false); // Reset unsaved changes flag
       setSuccessMessage('Settings saved successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000); // Auto-dismiss after 3 seconds
     } catch (err) {
       setError('Failed to save settings: ' + err.message);
     } finally {
@@ -458,29 +487,18 @@ const UserSettings = ({ onBack }) => {
                   <label className="settings-label">
                     Personal Access Token (PAT)
                   </label>
-                  <div className="auth-input-container">
+                  <div className="settings-input-container">
                     <input
                       type={showPasswords.asana_pat ? 'text' : 'password'}
                       value={settings.asana_pat}
                       onChange={handleInputChange('asana_pat')}
                       placeholder="Enter your Asana PAT"
-                      className="settings-input"
-                      style={{ paddingRight: '3rem' }}
+                      className="settings-input settings-input-with-icon"
                     />
                     <button
                       type="button"
                       onClick={() => togglePasswordVisibility('asana_pat')}
-                      className="auth-input-toggle"
-                      style={{ 
-                        position: 'absolute',
-                        right: '0.75rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        zIndex: 13
-                      }}
+                      className="settings-input-toggle"
                     >
                       {showPasswords.asana_pat ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -542,29 +560,18 @@ const UserSettings = ({ onBack }) => {
                   <label className="settings-label">
                     API Token
                   </label>
-                  <div className="auth-input-container">
+                  <div className="settings-input-container">
                     <input
                       type={showPasswords.youtrack_token ? 'text' : 'password'}
                       value={settings.youtrack_token}
                       onChange={handleInputChange('youtrack_token')}
                       placeholder="Enter your YouTrack API token"
-                      className="settings-input"
-                      style={{ paddingRight: '3rem' }}
+                      className="settings-input settings-input-with-icon"
                     />
                     <button
                       type="button"
                       onClick={() => togglePasswordVisibility('youtrack_token')}
-                      className="auth-input-toggle"
-                      style={{ 
-                        position: 'absolute',
-                        right: '0.75rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        zIndex: 13
-                      }}
+                      className="settings-input-toggle"
                     >
                       {showPasswords.youtrack_token ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -652,10 +659,11 @@ const UserSettings = ({ onBack }) => {
               </div>
 
               {/* Save Button - Only in API Configuration Tab */}
-              <div className="settings-actions">
+              <div className="settings-form-group">
+                <div className="settings-divider"></div>
                 <button
                   onClick={handleSaveSettings}
-                  disabled={saving}
+                  disabled={saving || !hasUnsavedChanges}
                   className="settings-button"
                 >
                   {saving ? (
@@ -670,6 +678,25 @@ const UserSettings = ({ onBack }) => {
                     </>
                   )}
                 </button>
+
+                {/* Success/Error messages below the button */}
+                {successMessage && activeTab === 'api' && (
+                  <div className="settings-success mt-4">
+                    <div className="flex items-center">
+                      <CheckCircle className="w-5 h-5 mr-2" />
+                      <p>{successMessage}</p>
+                    </div>
+                  </div>
+                )}
+
+                {error && activeTab === 'api' && (
+                  <div className="settings-error mt-4">
+                    <div className="flex items-center">
+                      <AlertTriangle className="w-5 h-5 mr-2" />
+                      <p>{error}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -169,7 +169,7 @@
 }
 
 .settings-input-with-icon {
-  padding-left: 2.5rem;
+  padding-right: 3rem !important;
 }
 
 .settings-input-toggle {
@@ -177,16 +177,35 @@
   right: 0.75rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #9ca3af;
+  color: #6b7280;
   z-index: 13;
   cursor: pointer;
-  transition: color 0.2s ease;
-  background: none;
+  transition: color 0.2s ease, background 0.2s ease;
+  background: transparent;
   border: none;
+  padding: 0.25rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
 }
 
 .settings-input-toggle:hover {
-  color: #6b7280;
+  color: #374151;
+  background: rgba(59, 130, 246, 0.1);
+  transform: translateY(-50%);
+}
+
+.settings-input-toggle:focus {
+  outline: none;
+  box-shadow: none;
+  transform: translateY(-50%);
+}
+
+.settings-input-toggle:active {
+  background: rgba(59, 130, 246, 0.15);
+  transform: translateY(-50%);
 }
 
 /* Settings Labels */
