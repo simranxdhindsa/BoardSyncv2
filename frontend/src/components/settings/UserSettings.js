@@ -144,6 +144,11 @@ const UserSettings = ({ onBack }) => {
         newSettings.youtrack_project_id !== initialSettings.youtrack_project_id;
 
       setHasUnsavedChanges(apiFieldsChanged);
+
+      // Reset connection status when settings change
+      if (apiFieldsChanged) {
+        setConnectionStatus({ asana: null, youtrack: null });
+      }
     }
 
     clearMessages();
@@ -206,26 +211,36 @@ const UserSettings = ({ onBack }) => {
     setTesting(true);
     setConnectionStatus({ asana: null, youtrack: null });
     clearMessages();
-    
-    const asanaSuccess = asanaProjects.length > 0 && settings.asana_project_id;
-    const youtrackSuccess = youtrackProjects.length > 0 && settings.youtrack_project_id;
-    
-    setTimeout(() => {
+
+    try {
+      // Call the API to test connections with current settings
+      const response = await testConnections();
+      const results = response.data?.results || response.results || {};
+
+      // Frontend validation: Check if projects are loaded AND project IDs are selected
+      const asanaSuccess = results.asana && asanaProjects.length > 0 && settings.asana_project_id;
+      const youtrackSuccess = results.youtrack && youtrackProjects.length > 0 && settings.youtrack_project_id;
+
       setConnectionStatus({
         asana: asanaSuccess,
         youtrack: youtrackSuccess
       });
-      
+
       if (asanaSuccess && youtrackSuccess) {
-        setSuccessMessage('All connections successful!');
-      } else if (!asanaSuccess && !youtrackSuccess) {
-        setError('No connections established. Please load projects and select them first.');
+        setSuccessMessage('All connections successful! You can now save your settings.');
+        setTimeout(() => setSuccessMessage(''), 3000);
       } else {
-        setError('Some connections failed. Please ensure both projects are loaded and selected.');
+        const failedServices = [];
+        if (!asanaSuccess) failedServices.push('Asana');
+        if (!youtrackSuccess) failedServices.push('YouTrack');
+        setError(`Connection test incomplete for: ${failedServices.join(', ')}. Please ensure credentials are valid, projects are loaded, and project IDs are selected.`);
       }
-      
+    } catch (err) {
+      setError('Failed to test connections: ' + err.message);
+      setConnectionStatus({ asana: false, youtrack: false });
+    } finally {
       setTesting(false);
-    }, 800);
+    }
   };
 
   
@@ -236,7 +251,8 @@ const UserSettings = ({ onBack }) => {
     try {
       await updateUserSettings(settings);
       setInitialSettings(settings); // Update initial settings after successful save
-      setHasUnsavedChanges(false); // Reset unsaved changes flag
+      setHasUnsavedChanges(false); // Reset unsaved changes flag - this will disable the Save button
+      // Keep connectionStatus as true so the Save button remains visible but disabled
       setSuccessMessage('Settings saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000); // Auto-dismiss after 3 seconds
     } catch (err) {
@@ -427,25 +443,6 @@ const UserSettings = ({ onBack }) => {
           </div>
         </div>
 
-        {/* Messages */}
-        {error && (
-          <div className="settings-error">
-            <div className="flex items-center">
-              <AlertTriangle className="w-5 h-5 mr-2" />
-              <p>{error}</p>
-            </div>
-          </div>
-        )}
-
-        {successMessage && (
-          <div className="settings-success">
-            <div className="flex items-center">
-              <CheckCircle className="w-5 h-5 mr-2" />
-              <p>{successMessage}</p>
-            </div>
-          </div>
-        )}
-
         {/* Tab Navigation */}
         <div className="settings-tabs">
           <div className="settings-tab-border flex">
@@ -611,90 +608,61 @@ const UserSettings = ({ onBack }) => {
                 </div>
               </div>
 
-              {/* Connection Test */}
-              <div className="settings-form-group">
-                <div className="settings-divider"></div>
-                <button
-                  onClick={handleTestConnections}
-                  disabled={testing || (!settings.asana_pat || !settings.youtrack_base_url || !settings.youtrack_token)}
-                  className="settings-button"
-                >
-                  {testing ? (
-                    <>
-                      <RefreshCw className="settings-spinner" />
-                      Testing Connections...
-                    </>
-                  ) : (
-                    <>
-                      <TestTube className="w-4 h-4 mr-2" />
-                      Test Connections
-                    </>
-                  )}
-                </button>
-
-                {(connectionStatus.asana !== null || connectionStatus.youtrack !== null) && (
-                  <div className="mt-4 space-y-2">
-                    <div className={`settings-connection-status ${
-                      connectionStatus.asana ? 'settings-connection-success' : 'settings-connection-error'
-                    }`}>
-                      {connectionStatus.asana ? (
-                        <CheckCircle className="w-5 h-5 mr-2" />
-                      ) : (
-                        <AlertTriangle className="w-5 h-5 mr-2" />
-                      )}
-                      Asana: {connectionStatus.asana ? 'Connected' : 'Failed'}
-                    </div>
-                    <div className={`settings-connection-status ${
-                      connectionStatus.youtrack ? 'settings-connection-success' : 'settings-connection-error'
-                    }`}>
-                      {connectionStatus.youtrack ? (
-                        <CheckCircle className="w-5 h-5 mr-2" />
-                      ) : (
-                        <AlertTriangle className="w-5 h-5 mr-2" />
-                      )}
-                      YouTrack: {connectionStatus.youtrack ? 'Connected' : 'Failed'}
-                    </div>
-                  </div>
+              {/* Connection Test / Save Button with Message on Right */}
+              <div style={{ marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                {/* Dynamic Button: Test Connections or Save Settings */}
+                {connectionStatus.asana && connectionStatus.youtrack ? (
+                  // Show green Save Settings button when both connections are successful
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={saving || !hasUnsavedChanges}
+                    className="settings-button-success"
+                  >
+                    {saving ? (
+                      <>
+                        <RefreshCw className="settings-spinner" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Settings
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  // Show blue Test Connection button by default
+                  <button
+                    onClick={handleTestConnections}
+                    disabled={testing || (!settings.asana_pat || !settings.youtrack_base_url || !settings.youtrack_token)}
+                    className="settings-button"
+                  >
+                    {testing ? (
+                      <>
+                        <RefreshCw className="settings-spinner" />
+                        Testing Connections...
+                      </>
+                    ) : (
+                      <>
+                        <TestTube className="w-4 h-4 mr-2" />
+                        Test Connections
+                      </>
+                    )}
+                  </button>
                 )}
-              </div>
 
-              {/* Save Button - Only in API Configuration Tab */}
-              <div className="settings-form-group">
-                <div className="settings-divider"></div>
-                <button
-                  onClick={handleSaveSettings}
-                  disabled={saving || !hasUnsavedChanges}
-                  className="settings-button"
-                >
-                  {saving ? (
-                    <>
-                      <RefreshCw className="settings-spinner" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Settings
-                    </>
-                  )}
-                </button>
-
-                {/* Success/Error messages below the button */}
-                {successMessage && activeTab === 'api' && (
-                  <div className="settings-success mt-4">
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 mr-2" />
-                      <p>{successMessage}</p>
-                    </div>
+                {/* Success/Error Messages positioned to the right */}
+                {successMessage && (
+                  <div className="flex items-center" style={{ color: '#059669', fontSize: '0.95rem', fontWeight: '500' }}>
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    <p>{successMessage}</p>
                   </div>
                 )}
 
-                {error && activeTab === 'api' && (
-                  <div className="settings-error mt-4">
-                    <div className="flex items-center">
-                      <AlertTriangle className="w-5 h-5 mr-2" />
-                      <p>{error}</p>
-                    </div>
+                {error && (
+                  <div className="flex items-center" style={{ color: '#991b1b', fontSize: '0.95rem', fontWeight: '500' }}>
+                    <AlertTriangle className="w-5 h-5 mr-2" />
+                    <p>{error}</p>
                   </div>
                 )}
               </div>
