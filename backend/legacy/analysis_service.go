@@ -617,11 +617,11 @@ func (s *AnalysisService) ValidateAnalysisRequest(userID int, columns []string) 
 	}
 
 	if settings.AsanaPAT == "" || settings.AsanaProjectID == "" {
-		return fmt.Errorf("Asana configuration incomplete")
+		return fmt.Errorf("asana configuration incomplete")
 	}
 
 	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" || settings.YouTrackProjectID == "" {
-		return fmt.Errorf("YouTrack configuration incomplete")
+		return fmt.Errorf("youtrack configuration incomplete")
 	}
 
 	if len(columns) > 0 {
