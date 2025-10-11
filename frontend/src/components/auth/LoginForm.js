@@ -247,8 +247,7 @@ const LoginForm = ({ onSuccess }) => {
                 id="password"
                 value={formData.password}
                 onChange={handleInputChange('password')}
-                className="auth-input auth-input-with-icon"
-                style={{ paddingRight: '3rem' }}
+                className="auth-input auth-input-with-icon auth-input-with-toggle"
                 placeholder="Enter your password"
                 disabled={isSubmitting}
               />
