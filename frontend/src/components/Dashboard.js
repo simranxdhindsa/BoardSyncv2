@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Zap, Activity, Play, Square, Clock } from 'lucide-react';
 import FluidText from './FluidText';
-import { 
-  getAutoSyncStatus, 
-  startAutoSync, 
+import '../styles/dashboard-glass.css';
+import {
+  getAutoSyncStatus,
+  startAutoSync,
   stopAutoSync,
   getAutoCreateStatus,
   startAutoCreate,
-  stopAutoCreate 
+  stopAutoCreate
 } from '../services/api';
 
 const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
@@ -154,181 +155,167 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   return (
     <div>
       {/* Main Content */}
-      <div className="pt-4 pb-8">
+      <div className="dashboard-container">
         {/* Header Section with Fluid Text */}
-        <div className="mb-8">
-          <FluidText className="text-3xl font-bold text-gray-900 mb-2 block" sensitivity={2}>
+        <div className="dashboard-header">
+          <FluidText className="fluid-text dashboard-title text-gray-900" sensitivity={2}>
             Pick a column and let's see how badly these two systems disagree with each other
           </FluidText>
         </div>
 
         {/* NEW: Auto Controls Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="auto-controls-grid">
           {/* Auto-Sync Control */}
-          <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <RefreshCw className={`w-5 h-5 mr-2 ${autoSyncRunning ? 'text-green-600 animate-spin' : 'text-gray-600'}`} />
-                <h3 className="text-lg font-semibold text-gray-900">Auto-Sync</h3>
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                  autoSyncRunning ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                }`}>
+          <div className="glass-panel auto-control-panel">
+            <div className="auto-control-header">
+              <div className="auto-control-title-group">
+                <RefreshCw className={`auto-control-icon ${autoSyncRunning ? 'sync-running running' : 'stopped'}`} />
+                <h3 className="auto-control-title">Auto-Sync</h3>
+                <span className={`auto-status-badge ${autoSyncRunning ? 'running' : 'stopped'}`}>
                   {autoSyncRunning ? 'RUNNING' : 'STOPPED'}
                 </span>
               </div>
-              
+
               <button
                 onClick={handleAutoSyncToggle}
                 disabled={toggleLoading.sync}
-                className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-                  autoSyncRunning 
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                    : 'bg-green-100 text-green-700 hover:bg-green-200'
-                } disabled:opacity-50`}
+                className={`auto-control-button ${autoSyncRunning ? 'stop' : 'start'} ${toggleLoading.sync ? 'disabled' : ''}`}
               >
                 {toggleLoading.sync ? (
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  <RefreshCw className="auto-control-button-icon running" />
                 ) : autoSyncRunning ? (
-                  <Square className="w-4 h-4 mr-2" />
+                  <Square className="auto-control-button-icon" />
                 ) : (
-                  <Play className="w-4 h-4 mr-2" />
+                  <Play className="auto-control-button-icon" />
                 )}
                 {autoSyncRunning ? 'Stop' : 'Start'}
               </button>
             </div>
-            
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 mr-2" />
+
+            <div className="auto-control-info">
+              <div className="auto-control-info-row">
+                <Clock className="auto-control-info-icon" />
                 <span>Every {autoSyncInterval} seconds</span>
               </div>
               {autoSyncRunning && (
                 <>
                   <div>Cycles completed: {autoSyncCount}</div>
                   {autoSyncLastInfo && (
-                    <div className="text-xs bg-gray-50 rounded p-2 mt-2">
+                    <div className="auto-control-last-info">
                       Last run: {autoSyncLastInfo}
                     </div>
                   )}
                 </>
               )}
-              <div className="text-xs text-gray-500 mt-2">
+              <div className="auto-control-description">
                 Your tickets stay in perfect sync, while the ignored ones remain undisturbed
               </div>
             </div>
           </div>
 
           {/* Auto-Create Control */}
-          <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <Zap className={`w-5 h-5 mr-2 ${autoCreateRunning ? 'text-blue-600' : 'text-gray-600'}`} />
-                <h3 className="text-lg font-semibold text-gray-900">Auto-Create</h3>
-                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                  autoCreateRunning ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
-                }`}>
+          <div className="glass-panel auto-control-panel">
+            <div className="auto-control-header">
+              <div className="auto-control-title-group">
+                <Zap className={`auto-control-icon ${autoCreateRunning ? 'create-running' : 'stopped'}`} />
+                <h3 className="auto-control-title">Auto-Create</h3>
+                <span className={`auto-status-badge ${autoCreateRunning ? 'running' : 'stopped'}`}>
                   {autoCreateRunning ? 'RUNNING' : 'STOPPED'}
                 </span>
               </div>
-              
+
               <button
                 onClick={handleAutoCreateToggle}
                 disabled={toggleLoading.create}
-                className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-                  autoCreateRunning 
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                } disabled:opacity-50`}
+                className={`auto-control-button ${autoCreateRunning ? 'stop' : 'start'} ${toggleLoading.create ? 'disabled' : ''}`}
               >
                 {toggleLoading.create ? (
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  <RefreshCw className="auto-control-button-icon running" />
                 ) : autoCreateRunning ? (
-                  <Square className="w-4 h-4 mr-2" />
+                  <Square className="auto-control-button-icon" />
                 ) : (
-                  <Play className="w-4 h-4 mr-2" />
+                  <Play className="auto-control-button-icon" />
                 )}
                 {autoCreateRunning ? 'Stop' : 'Start'}
               </button>
             </div>
-            
-            <div className="space-y-2 text-sm text-gray-600">
-              <div className="flex items-center">
-                <Clock className="w-4 h-4 mr-2" />
+
+            <div className="auto-control-info">
+              <div className="auto-control-info-row">
+                <Clock className="auto-control-info-icon" />
                 <span>Every {autoCreateInterval} seconds</span>
               </div>
               {autoCreateRunning && (
                 <>
                   <div>Cycles completed: {autoCreateCount}</div>
                   {autoCreateLastInfo && (
-                    <div className="text-xs bg-gray-50 rounded p-2 mt-2">
+                    <div className="auto-control-last-info">
                       Last run: {autoCreateLastInfo}
                     </div>
                   )}
                 </>
               )}
-              <div className="text-xs text-gray-500 mt-2">
-                Creates what’s missing, but never touches the tickets you’ve sidelined
+              <div className="auto-control-description">
+                Creates what's missing, but never touches the tickets you've sidelined
               </div>
             </div>
           </div>
         </div>
 
         {/* Column Selection with Glass Theme */}
-        <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 interactive-element">
-          <div className="flex items-center mb-6">
-            <Activity className="w-5 h-5 text-blue-600 mr-2" />
-            <FluidText className="text-lg font-semibold text-gray-900" sensitivity={1.2}>
+        <div className="glass-panel column-selection-panel interactive-element">
+          <div className="column-selection-header">
+            <Activity className="column-selection-icon" />
+            <FluidText className="fluid-text column-selection-title" sensitivity={1.2}>
               Select Column
             </FluidText>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+
+          <div className="column-grid">
             {columns.map((column) => (
               <div
                 key={column.value}
                 onClick={() => onColumnSelect(column.value)}
-                className={`glass-panel interactive-element p-4 rounded-lg border cursor-pointer transition-all ${
-                  selectedColumn === column.value
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50'
+                className={`glass-panel column-card interactive-element ${
+                  selectedColumn === column.value ? 'selected' : 'unselected'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <FluidText className="font-medium text-gray-900" sensitivity={0.8}>
+                <div className="column-card-content">
+                  <FluidText className="fluid-text column-card-label" sensitivity={0.8}>
                     {column.label}
                   </FluidText>
                   {column.displayOnly && (
-                    <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                    <span className="column-card-badge">
                       Display Only
                     </span>
                   )}
                 </div>
-                
+
                 {selectedColumn === column.value && (
-                  <div className="mt-2">
-                    <div className="w-full h-1 bg-blue-500 rounded"></div>
+                  <div className="column-card-indicator">
+                    <div className="column-card-indicator-bar"></div>
                   </div>
                 )}
               </div>
             ))}
           </div>
-          
+
           <button
             onClick={onAnalyze}
             disabled={!selectedColumn || loading}
-            className="interactive-element w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-medium transition-colors"
+            className={`interactive-element analyze-button ${!selectedColumn || loading ? 'disabled' : 'active'}`}
           >
             {loading ? (
               <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                <FluidText sensitivity={1}>
+                <RefreshCw className="analyze-button-icon running" />
+                <FluidText className="fluid-text" sensitivity={1}>
                   Analyzing {selectedColumnData?.label}...
                 </FluidText>
               </>
             ) : (
               <>
-                <Zap className="w-4 h-4 mr-2" />
-                <FluidText sensitivity={1}>
+                <Zap className="analyze-button-icon" />
+                <FluidText className="fluid-text" sensitivity={1}>
                   Analyze {selectedColumn ? selectedColumnData?.label : 'Column'}
                 </FluidText>
               </>
@@ -336,8 +323,8 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
           </button>
 
           {selectedColumn && !loading && (
-            <div className="glass-panel mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200 pointer-events-none">
-              <p className="text-blue-800 text-sm text-center select-none">
+            <div className="glass-panel selected-column-info">
+              <p className="selected-column-info-text">
                 Let's see what breaks when we touch <strong>{selectedColumnData?.label}</strong>
               </p>
             </div>
@@ -345,8 +332,8 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
         </div>
 
         {/* Footer Status */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <FluidText sensitivity={0.5}>
+        <div className="dashboard-footer">
+          <FluidText className="fluid-text" sensitivity={0.5}>
             Asana-YouTrack Sync • v1.1 • Making Two Apps Talk to Each Other
           </FluidText>
         </div>
