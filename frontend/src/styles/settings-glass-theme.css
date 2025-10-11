@@ -56,7 +56,8 @@
 }
 
 .settings-tab-border {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  border-top: 3px solid rgba(255, 255, 255, 0.2);
 }
 
 .settings-tab {
@@ -73,11 +74,14 @@
   align-items: center;
   flex: 1;
   justify-content: center;
+  border-radius: 12px;
+  margin: 4px;
 }
 
 .settings-tab:hover {
   background: rgba(255, 255, 255, 0.2);
   color: #1e293b;
+  border-radius: 12px;
 }
 
 .settings-tab.active {
@@ -310,6 +314,40 @@
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
+/* Settings Success Button (Green) */
+.settings-button-success {
+  background: rgba(16, 185, 129, 0.9);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(16, 185, 129, 0.6);
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  position: relative;
+  z-index: 12;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-button-success:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 1);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(16, 185, 129, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+}
+
+.settings-button-success:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* Settings Error Messages */
 .settings-error {
   background: rgba(239, 68, 68, 0.15);
@@ -511,10 +549,15 @@
 .settings-input:focus,
 .settings-select:focus,
 .settings-button:focus,
-.settings-button-secondary:focus,
-.settings-tab:focus {
+.settings-button-secondary:focus {
   outline: 2px solid rgba(59, 130, 246, 0.5);
   outline-offset: 2px;
+}
+
+.settings-tab:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
 }
 
 /* High contrast mode */
