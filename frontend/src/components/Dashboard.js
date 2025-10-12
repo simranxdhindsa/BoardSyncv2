@@ -16,8 +16,6 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   const [autoCreateRunning, setAutoCreateRunning] = useState(false);
   const [autoSyncInterval, setAutoSyncInterval] = useState(15);
   const [autoCreateInterval, setAutoCreateInterval] = useState(15);
-  const [autoSyncCount, setAutoSyncCount] = useState(0);
-  const [autoCreateCount, setAutoCreateCount] = useState(0);
   const [autoSyncLastInfo, setAutoSyncLastInfo] = useState('');
   const [autoCreateLastInfo, setAutoCreateLastInfo] = useState('');
   const [toggleLoading, setToggleLoading] = useState({ sync: false, create: false });
@@ -105,14 +103,12 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
       if (syncStatus.auto_sync) {
         setAutoSyncRunning(syncStatus.auto_sync.running);
         setAutoSyncInterval(syncStatus.auto_sync.interval);
-        setAutoSyncCount(syncStatus.auto_sync.count || 0);
         setAutoSyncLastInfo(syncStatus.auto_sync.last_info || '');
       }
-      
+
       if (createStatus.auto_create) {
         setAutoCreateRunning(createStatus.auto_create.running);
         setAutoCreateInterval(createStatus.auto_create.interval);
-        setAutoCreateCount(createStatus.auto_create.count || 0);
         setAutoCreateLastInfo(createStatus.auto_create.last_info || '');
       }
     } catch (error) {
@@ -186,6 +182,11 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
       intervalInSeconds = tempIntervalValue * 60;
     } else if (tempIntervalUnit === 'hours') {
       intervalInSeconds = tempIntervalValue * 3600;
+    }
+
+    // Validate minimum interval of 15 seconds - prevent save but don't show alert
+    if (intervalInSeconds < 15) {
+      return;
     }
 
     if (showIntervalModal === 'sync') {
@@ -432,7 +433,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
 
             <div className="interval-modal-content">
               <div className="interval-input-group">
-                <label className="interval-label">Interval Value</label>
+                <label className="interval-label">Interval Value (minimum 15 seconds)</label>
                 <input
                   type="number"
                   min="1"
@@ -456,7 +457,27 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
               </div>
 
               <div className="interval-preview">
-                Will run every {tempIntervalValue} {tempIntervalUnit}
+                {(() => {
+                  // Calculate total seconds
+                  let totalSeconds = tempIntervalValue;
+                  if (tempIntervalUnit === 'minutes') {
+                    totalSeconds = tempIntervalValue * 60;
+                  } else if (tempIntervalUnit === 'hours') {
+                    totalSeconds = tempIntervalValue * 3600;
+                  }
+
+                  // Show warning if below 15 seconds
+                  if (totalSeconds < 15) {
+                    return (
+                      <span style={{ color: '#dc2626' }}>
+                        ⚠ Minimum interval is 15 seconds
+                      </span>
+                    );
+                  }
+
+                  // Show normal preview
+                  return `Will run every ${tempIntervalValue} ${tempIntervalUnit}`;
+                })()}
               </div>
             </div>
 
@@ -469,7 +490,12 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
               </button>
               <button
                 onClick={handleSaveInterval}
-                className="interval-modal-button save"
+                disabled={
+                  (tempIntervalUnit === 'seconds' && tempIntervalValue < 15)
+                }
+                className={`interval-modal-button save ${
+                  (tempIntervalUnit === 'seconds' && tempIntervalValue < 15) ? 'disabled' : ''
+                }`}
               >
                 Save
               </button>
