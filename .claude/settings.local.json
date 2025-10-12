@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(go build:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
