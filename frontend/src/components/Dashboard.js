@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Zap, Activity, Play, Square, Clock } from 'lucide-react';
+import { RefreshCw, Zap, Activity, Play, Square, Clock, Inbox, Loader, Code, CheckCircle, AlertCircle, Package, Search, Layers } from 'lucide-react';
 import FluidText from './FluidText';
 import '../styles/dashboard-glass.css';
 import {
@@ -23,46 +23,54 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   const [toggleLoading, setToggleLoading] = useState({ sync: false, create: false });
 
   const columns = [
-    { 
-      value: 'backlog', 
-      label: 'Backlog only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
+    {
+      value: 'backlog',
+      label: 'Backlog only',
+      color: 'hover:bg-blue-50 hover:border-blue-200',
+      icon: Inbox
     },
-    { 
-      value: 'in_progress', 
-      label: 'In Progress only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
+    {
+      value: 'in_progress',
+      label: 'In Progress only',
+      color: 'hover:bg-blue-50 hover:border-blue-200',
+      icon: Loader
     },
-    { 
-      value: 'dev', 
-      label: 'DEV only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
+    {
+      value: 'dev',
+      label: 'DEV only',
+      color: 'hover:bg-blue-50 hover:border-blue-200',
+      icon: Code
     },
-    { 
-      value: 'stage', 
-      label: 'STAGE only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
+    {
+      value: 'stage',
+      label: 'STAGE only',
+      color: 'hover:bg-blue-50 hover:border-blue-200',
+      icon: Package
     },
-    { 
-      value: 'blocked', 
-      label: 'Blocked only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
+    {
+      value: 'blocked',
+      label: 'Blocked only',
+      color: 'hover:bg-blue-50 hover:border-blue-200',
+      icon: AlertCircle
     },
     {
       value: 'ready_for_stage',
       label: 'Ready for Stage',
-      color: 'hover:bg-blue-50 hover:border-blue-200'
-    },
-    { 
-      value: 'findings', 
-      label: 'Findings', 
       color: 'hover:bg-blue-50 hover:border-blue-200',
-      displayOnly: true
+      icon: CheckCircle
     },
-    { 
-      value: 'all_syncable', 
-      label: 'All Syncable', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
+    {
+      value: 'findings',
+      label: 'Findings',
+      color: 'hover:bg-blue-50 hover:border-blue-200',
+      displayOnly: true,
+      icon: Search
+    },
+    {
+      value: 'all_syncable',
+      label: 'All Syncable',
+      color: 'hover:bg-blue-50 hover:border-blue-200',
+      icon: Layers
     }
   ];
 
@@ -272,32 +280,38 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
           </div>
 
           <div className="column-grid">
-            {columns.map((column) => (
-              <div
-                key={column.value}
-                onClick={() => onColumnSelect(column.value)}
-                className={`glass-panel column-card interactive-element ${
-                  selectedColumn === column.value ? 'selected' : 'unselected'
-                }`}
-              >
-                <div className="column-card-content">
-                  <FluidText className="fluid-text column-card-label" sensitivity={0.8}>
-                    {column.label}
-                  </FluidText>
-                  {column.displayOnly && (
-                    <span className="column-card-badge">
-                      Display Only
-                    </span>
+            {columns.map((column) => {
+              const IconComponent = column.icon;
+              return (
+                <div
+                  key={column.value}
+                  onClick={() => onColumnSelect(column.value)}
+                  className={`glass-panel column-card interactive-element ${
+                    selectedColumn === column.value ? 'selected' : 'unselected'
+                  }`}
+                >
+                  <div className="column-card-content">
+                    {IconComponent && (
+                      <IconComponent className="column-card-icon" size={20} />
+                    )}
+                    <FluidText className="fluid-text column-card-label" sensitivity={0.8}>
+                      {column.label}
+                    </FluidText>
+                    {column.displayOnly && (
+                      <span className="column-card-badge">
+                        Display Only
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedColumn === column.value && (
+                    <div className="column-card-indicator">
+                      <div className="column-card-indicator-bar"></div>
+                    </div>
                   )}
                 </div>
-
-                {selectedColumn === column.value && (
-                  <div className="column-card-indicator">
-                    <div className="column-card-indicator-bar"></div>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <button
@@ -323,7 +337,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
           </button>
 
           {selectedColumn && !loading && (
-            <div className="glass-panel selected-column-info">
+            <div className="selected-column-info">
               <p className="selected-column-info-text">
                 Let's see what breaks when we touch <strong>{selectedColumnData?.label}</strong>
               </p>
