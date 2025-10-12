@@ -13,7 +13,7 @@ import {
 } from '../../services/api';
 import { CreateMappingForm, MappingsList } from '../mapping/MappingComponents';
 import { 
-  Settings, 
+  // Settings,
   Key, 
   Link, 
   Link2,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Zap, Activity, Play, Square, Clock, Inbox, Loader, Code, CheckCircle, AlertCircle, Package, Search, Layers } from 'lucide-react';
+import { RefreshCw, Zap, Activity, Play, Square, Clock, Inbox, Loader, Code, CheckCircle, AlertCircle, Package, Search, Layers, Edit } from 'lucide-react';
 import FluidText from './FluidText';
 import '../styles/dashboard-glass.css';
 import {
@@ -21,6 +21,11 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   const [autoSyncLastInfo, setAutoSyncLastInfo] = useState('');
   const [autoCreateLastInfo, setAutoCreateLastInfo] = useState('');
   const [toggleLoading, setToggleLoading] = useState({ sync: false, create: false });
+
+  // Interval editing state
+  const [showIntervalModal, setShowIntervalModal] = useState(null); // 'sync' or 'create'
+  const [tempIntervalValue, setTempIntervalValue] = useState(15);
+  const [tempIntervalUnit, setTempIntervalUnit] = useState('seconds'); // 'seconds', 'minutes', 'hours'
 
   const columns = [
     {
@@ -160,6 +165,66 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
     }
   };
 
+  // Interval editing handlers
+  const handleOpenIntervalModal = (type) => {
+    const currentInterval = type === 'sync' ? autoSyncInterval : autoCreateInterval;
+    setShowIntervalModal(type);
+    setTempIntervalValue(currentInterval);
+    setTempIntervalUnit('seconds');
+  };
+
+  const handleCloseIntervalModal = () => {
+    setShowIntervalModal(null);
+    setTempIntervalValue(15);
+    setTempIntervalUnit('seconds');
+  };
+
+  const handleSaveInterval = async () => {
+    // Convert to seconds based on unit
+    let intervalInSeconds = tempIntervalValue;
+    if (tempIntervalUnit === 'minutes') {
+      intervalInSeconds = tempIntervalValue * 60;
+    } else if (tempIntervalUnit === 'hours') {
+      intervalInSeconds = tempIntervalValue * 3600;
+    }
+
+    if (showIntervalModal === 'sync') {
+      setAutoSyncInterval(intervalInSeconds);
+      // If running, restart with new interval
+      if (autoSyncRunning) {
+        try {
+          await stopAutoSync();
+          await startAutoSync(intervalInSeconds);
+        } catch (error) {
+          console.error('Failed to update sync interval:', error);
+        }
+      }
+    } else if (showIntervalModal === 'create') {
+      setAutoCreateInterval(intervalInSeconds);
+      // If running, restart with new interval
+      if (autoCreateRunning) {
+        try {
+          await stopAutoCreate();
+          await startAutoCreate(intervalInSeconds);
+        } catch (error) {
+          console.error('Failed to update create interval:', error);
+        }
+      }
+    }
+
+    handleCloseIntervalModal();
+  };
+
+  const formatInterval = (seconds) => {
+    if (seconds < 60) {
+      return `${seconds} seconds`;
+    } else if (seconds < 3600) {
+      return `${Math.floor(seconds / 60)} minutes`;
+    } else {
+      return `${Math.floor(seconds / 3600)} hours`;
+    }
+  };
+
   return (
     <div>
       {/* Main Content */}
@@ -203,17 +268,19 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
             <div className="auto-control-info">
               <div className="auto-control-info-row">
                 <Clock className="auto-control-info-icon" />
-                <span>Every {autoSyncInterval} seconds</span>
+                <span>Every {formatInterval(autoSyncInterval)}</span>
+                <button
+                  onClick={() => handleOpenIntervalModal('sync')}
+                  className="interval-edit-button"
+                  title="Edit interval"
+                >
+                  <Edit className="interval-edit-icon" />
+                </button>
               </div>
-              {autoSyncRunning && (
-                <>
-                  <div>Cycles completed: {autoSyncCount}</div>
-                  {autoSyncLastInfo && (
-                    <div className="auto-control-last-info">
-                      Last run: {autoSyncLastInfo}
-                    </div>
-                  )}
-                </>
+              {autoSyncRunning && autoSyncLastInfo && (
+                <div className="auto-control-last-info">
+                  Last run: {autoSyncLastInfo}
+                </div>
               )}
               <div className="auto-control-description">
                 Your tickets stay in perfect sync, while the ignored ones remain undisturbed
@@ -251,17 +318,19 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
             <div className="auto-control-info">
               <div className="auto-control-info-row">
                 <Clock className="auto-control-info-icon" />
-                <span>Every {autoCreateInterval} seconds</span>
+                <span>Every {formatInterval(autoCreateInterval)}</span>
+                <button
+                  onClick={() => handleOpenIntervalModal('create')}
+                  className="interval-edit-button"
+                  title="Edit interval"
+                >
+                  <Edit className="interval-edit-icon" />
+                </button>
               </div>
-              {autoCreateRunning && (
-                <>
-                  <div>Cycles completed: {autoCreateCount}</div>
-                  {autoCreateLastInfo && (
-                    <div className="auto-control-last-info">
-                      Last run: {autoCreateLastInfo}
-                    </div>
-                  )}
-                </>
+              {autoCreateRunning && autoCreateLastInfo && (
+                <div className="auto-control-last-info">
+                  Last run: {autoCreateLastInfo}
+                </div>
               )}
               <div className="auto-control-description">
                 Creates what's missing, but never touches the tickets you've sidelined
@@ -352,6 +421,62 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
           </FluidText>
         </div>
       </div>
+
+      {/* Interval Edit Modal */}
+      {showIntervalModal && (
+        <div className="modal-overlay" onClick={handleCloseIntervalModal}>
+          <div className="glass-panel interval-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="interval-modal-title">
+              Edit {showIntervalModal === 'sync' ? 'Auto-Sync' : 'Auto-Create'} Interval
+            </h3>
+
+            <div className="interval-modal-content">
+              <div className="interval-input-group">
+                <label className="interval-label">Interval Value</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={tempIntervalValue}
+                  onChange={(e) => setTempIntervalValue(Number(e.target.value))}
+                  className="interval-input"
+                />
+              </div>
+
+              <div className="interval-input-group">
+                <label className="interval-label">Time Unit</label>
+                <select
+                  value={tempIntervalUnit}
+                  onChange={(e) => setTempIntervalUnit(e.target.value)}
+                  className="interval-select"
+                >
+                  <option value="seconds">Seconds</option>
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                </select>
+              </div>
+
+              <div className="interval-preview">
+                Will run every {tempIntervalValue} {tempIntervalUnit}
+              </div>
+            </div>
+
+            <div className="interval-modal-actions">
+              <button
+                onClick={handleCloseIntervalModal}
+                className="interval-modal-button cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveInterval}
+                className="interval-modal-button save"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
