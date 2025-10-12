@@ -3,7 +3,9 @@
     "allow": [
       "Bash(go build:*)",
       "Bash(rm:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm start)",
+      "Bash(npx kill-port:*)"
     ],
     "deny": [],
     "ask": []

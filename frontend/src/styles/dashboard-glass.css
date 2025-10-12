@@ -304,6 +304,17 @@
   background: #2563eb;
 }
 
+.interval-modal-button.save.disabled {
+  background: rgba(107, 114, 128, 0.3);
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.interval-modal-button.save.disabled:hover {
+  background: rgba(107, 114, 128, 0.3);
+}
+
 /* Column selection panel */
 .column-selection-panel {
   padding: 1.5rem;
