@@ -112,12 +112,21 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 	usedYouTrackIssues := make(map[string]bool) // Track which YouTrack issues are already mapped
 
 	for _, issue := range youTrackIssues {
-		// Check if this YouTrack issue has a database mapping
+		// Check if this YouTrack issue has a database mapping (check both internal ID and readable ID)
 		if asanaTaskID, hasMappingYT := mappingYTToAsana[issue.ID]; hasMappingYT {
 			youTrackMap[asanaTaskID] = issue
 			usedYouTrackIssues[issue.ID] = true
-			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana task '%s' via DATABASE mapping\n", issue.ID, asanaTaskID)
+			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' (ID: %s) to Asana task '%s' via DATABASE mapping (internal ID)\n", issue.IDReadable, issue.ID, asanaTaskID)
 			continue
+		}
+		// Also check readable ID (like "ARD-339")
+		if issue.IDReadable != "" {
+			if asanaTaskID, hasMappingReadable := mappingYTToAsana[issue.IDReadable]; hasMappingReadable {
+				youTrackMap[asanaTaskID] = issue
+				usedYouTrackIssues[issue.ID] = true
+				fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana task '%s' via DATABASE mapping (readable ID)\n", issue.IDReadable, asanaTaskID)
+				continue
+			}
 		}
 
 		// Description extraction DISABLED to prevent false matches
