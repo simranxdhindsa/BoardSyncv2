@@ -45,6 +45,7 @@ type AsanaResponse struct {
 // YouTrack data structures
 type YouTrackIssue struct {
 	ID           string `json:"id"`
+	IDReadable   string `json:"idReadable"`
 	Summary      string `json:"summary"`
 	Description  string `json:"description"`
 	Created      int64  `json:"created"`

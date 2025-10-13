@@ -63,7 +63,7 @@ func (s *YouTrackService) GetIssues(userID int) ([]YouTrackIssue, error) {
 // getIssuesWithProjectKey tries direct project key approach
 func (s *YouTrackService) getIssuesWithProjectKey(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	query := fmt.Sprintf("project: {%s}", settings.YouTrackProjectID)
-	fields := "id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
+	fields := "id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
 
 	encodedQuery := strings.ReplaceAll(query, " ", "%20")
 	encodedQuery = strings.ReplaceAll(encodedQuery, "{", "%7B")
@@ -84,7 +84,7 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 		fmt.Sprintf("#%s", settings.YouTrackProjectID),
 	}
 
-	fields := "id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
+	fields := "id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
 
 	for _, query := range queries {
 		encodedQuery := strings.ReplaceAll(query, " ", "%20")
@@ -106,7 +106,7 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 
 // getIssuesSimpleCloud tries simple issues endpoint
 func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([]YouTrackIssue, error) {
-	url := fmt.Sprintf("%s/api/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)&top=200",
+	url := fmt.Sprintf("%s/api/issues?fields=id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)&top=200",
 		settings.YouTrackBaseURL)
 
 	allIssues, err := s.makeRequest(settings, url)
@@ -128,9 +128,9 @@ func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([
 // getIssuesViaProjects tries project-specific endpoint
 func (s *YouTrackService) getIssuesViaProjects(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	urls := []string{
-		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
+		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
 			settings.YouTrackBaseURL, settings.YouTrackProjectID),
-		fmt.Sprintf("%s/api/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
+		fmt.Sprintf("%s/api/projects/%s/issues?fields=id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
 			settings.YouTrackBaseURL, settings.YouTrackProjectID),
 	}
 
@@ -614,7 +614,7 @@ func (s *YouTrackService) IsDuplicateTicket(userID int, title string) bool {
 	query := fmt.Sprintf("project:%s summary:%s", settings.YouTrackProjectID, title)
 	encodedQuery := strings.ReplaceAll(query, " ", "%20")
 
-	url := fmt.Sprintf("%s/api/issues?fields=id,summary&query=%s&top=5",
+	url := fmt.Sprintf("%s/api/issues?fields=id,idReadable,summary&query=%s&top=5",
 		settings.YouTrackBaseURL, encodedQuery)
 
 	issues, err := s.makeRequest(settings, url)
