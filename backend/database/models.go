@@ -25,6 +25,7 @@ type UserSettings struct {
     YouTrackToken       string                 `json:"youtrack_token" db:"youtrack_token"`
     AsanaProjectID      string                 `json:"asana_project_id" db:"asana_project_id"`
     YouTrackProjectID   string                 `json:"youtrack_project_id" db:"youtrack_project_id"`
+    YouTrackBoardID     string                 `json:"youtrack_board_id" db:"youtrack_board_id"`
     CustomFieldMappings CustomFieldMappings    `json:"custom_field_mappings" db:"custom_field_mappings"`
     CreatedAt           time.Time              `json:"created_at" db:"created_at"`
     UpdatedAt           time.Time              `json:"updated_at" db:"updated_at"`
@@ -141,4 +142,10 @@ type YouTrackProject struct {
     ID        string `json:"id"`
     Name      string `json:"name"`
     ShortName string `json:"shortName"`
+}
+
+// YouTrackBoard represents a YouTrack agile board
+type YouTrackBoard struct {
+    ID   string `json:"id"`
+    Name string `json:"name"`
 }

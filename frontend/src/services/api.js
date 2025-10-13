@@ -200,6 +200,19 @@ export const getYouTrackProjects = async () => {
   return response.json();
 };
 
+export const getYouTrackBoards = async () => {
+  const response = await fetch(`${API_BASE}/api/settings/youtrack/boards`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error('Failed to get YouTrack boards');
+  }
+
+  return response.json();
+};
+
 export const testConnections = async () => {
   const response = await fetch(`${API_BASE}/api/settings/test-connections`, {
     method: 'POST',
