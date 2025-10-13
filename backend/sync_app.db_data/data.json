@@ -91,6 +91,26 @@
       "created_at": "2025-10-13T22:36:40.6506677+05:30",
       "updated_at": "2025-10-13T22:36:40.6506677+05:30"
     },
+    "13": {
+      "id": 13,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211555041484091",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1237",
+      "created_at": "2025-10-13T22:59:41.5623159+05:30",
+      "updated_at": "2025-10-13T22:59:41.5623159+05:30"
+    },
+    "14": {
+      "id": 14,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211557619655637",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1238",
+      "created_at": "2025-10-13T22:59:53.4595608+05:30",
+      "updated_at": "2025-10-13T22:59:53.4595608+05:30"
+    },
     "9": {
       "id": 9,
       "user_id": 1,
@@ -106,5 +126,5 @@
   "next_settings_id": 3,
   "next_operation_id": 1,
   "next_ignored_id": 1,
-  "next_mapping_id": 13
+  "next_mapping_id": 15
 }
