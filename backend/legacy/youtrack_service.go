@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"asana-youtrack-sync/config"
+	"asana-youtrack-sync/database"
 	"asana-youtrack-sync/utils"
 )
 
@@ -709,4 +710,60 @@ func (s *YouTrackService) FindIssueByAsanaID(userID int, asanaTaskID string) (st
 	}
 
 	return "", fmt.Errorf("no YouTrack issue found for Asana task %s", asanaTaskID)
+}
+
+
+// GetBoards retrieves available YouTrack agile boards for a user
+func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" {
+		return nil, fmt.Errorf("youtrack credentials not configured")
+	}
+
+	url := fmt.Sprintf("%s/api/agiles?$top=-1&fields=id,name,sprintsSettings(disableSprints),projects(id)",
+		settings.YouTrackBaseURL)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var rawBoards []map[string]interface{}
+	if err := json.Unmarshal(body, &rawBoards); err != nil {
+		return nil, fmt.Errorf("failed to parse boards: %w", err)
+	}
+
+	var boards []database.YouTrackBoard
+	for _, board := range rawBoards {
+		id, _ := board["id"].(string)
+		name, _ := board["name"].(string)
+		if id != "" && name != "" {
+			boards = append(boards, database.YouTrackBoard{
+				ID:   id,
+				Name: name,
+			})
+		}
+	}
+
+	return boards, nil
 }

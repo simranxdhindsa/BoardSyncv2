@@ -180,7 +180,7 @@ func (db *DB) GetUserSettings(userID int) (*UserSettings, error) {
 	return nil, fmt.Errorf("settings not found")
 }
 
-func (db *DB) UpdateUserSettings(userID int, asanaPAT, youtrackBaseURL, youtrackToken, asanaProjectID, youtrackProjectID string, mappings CustomFieldMappings) (*UserSettings, error) {
+func (db *DB) UpdateUserSettings(userID int, asanaPAT, youtrackBaseURL, youtrackToken, asanaProjectID, youtrackProjectID, youtrackBoardID string, mappings CustomFieldMappings) (*UserSettings, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
@@ -201,6 +201,7 @@ func (db *DB) UpdateUserSettings(userID int, asanaPAT, youtrackBaseURL, youtrack
 	settings.YouTrackToken = youtrackToken
 	settings.AsanaProjectID = asanaProjectID
 	settings.YouTrackProjectID = youtrackProjectID
+	settings.YouTrackBoardID = youtrackBoardID
 	settings.CustomFieldMappings = mappings
 	settings.UpdatedAt = time.Now()
 
