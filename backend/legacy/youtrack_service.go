@@ -231,14 +231,13 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
+			// Use SingleOwnedIssueCustomField for single-value owned fields
 			customFields = append(customFields, map[string]interface{}{
-				"$type": "MultiOwnedIssueCustomField",
+				"$type": "SingleOwnedIssueCustomField",
 				"name":  "Subsystem",
-				"value": []map[string]interface{}{
-					{
-						"$type": "OwnedBundleElement",
-						"name":  subsystem,
-					},
+				"value": map[string]interface{}{
+					"$type": "OwnedBundleElement",
+					"name":  subsystem,
 				},
 			})
 		}
@@ -248,7 +247,21 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 		payload["customFields"] = customFields
 	}
 
-	return s.createOrUpdateIssue(settings, "", payload)
+	// Create the issue and get the ID
+	issueID, err := s.createIssueAndGetID(settings, payload)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
+
+	// Automatically assign the issue to the configured board
+	if err := s.AssignIssueToBoard(userID, issueID); err != nil {
+		fmt.Printf("Warning: Failed to assign issue to board: %v\n", err)
+		// Don't fail the whole operation if board assignment fails
+	}
+
+	return nil
 }
 
 // CreateIssueWithReturn creates a new YouTrack issue and returns the issue ID
@@ -307,14 +320,13 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
+			// Use SingleOwnedIssueCustomField for single-value owned fields
 			customFields = append(customFields, map[string]interface{}{
-				"$type": "MultiOwnedIssueCustomField",
+				"$type": "SingleOwnedIssueCustomField",
 				"name":  "Subsystem",
-				"value": []map[string]interface{}{
-					{
-						"$type": "OwnedBundleElement",
-						"name":  subsystem,
-					},
+				"value": map[string]interface{}{
+					"$type": "OwnedBundleElement",
+					"name":  subsystem,
 				},
 			})
 		}
@@ -331,6 +343,13 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 	}
 
 	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
+
+	// Automatically assign the issue to the configured board
+	if err := s.AssignIssueToBoard(userID, issueID); err != nil {
+		fmt.Printf("Warning: Failed to assign issue to board: %v\n", err)
+		// Don't fail the whole operation if board assignment fails
+	}
+
 	return issueID, nil
 }
 
@@ -435,14 +454,13 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
+			// Use SingleOwnedIssueCustomField for single-value owned fields
 			customFields = append(customFields, map[string]interface{}{
-				"$type": "MultiOwnedIssueCustomField",
+				"$type": "SingleOwnedIssueCustomField",
 				"name":  "Subsystem",
-				"value": []map[string]interface{}{
-					{
-						"$type": "OwnedBundleElement",
-						"name":  subsystem,
-					},
+				"value": map[string]interface{}{
+					"$type": "OwnedBundleElement",
+					"name":  subsystem,
 				},
 			})
 		}
@@ -766,4 +784,123 @@ func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error
 	}
 
 	return boards, nil
+}
+
+// AssignIssueToBoard assigns a YouTrack issue to an agile board
+func (s *YouTrackService) AssignIssueToBoard(userID int, issueID string) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" {
+		return fmt.Errorf("youtrack credentials not configured")
+	}
+
+	// If no board is configured, skip board assignment
+	if settings.YouTrackBoardID == "" {
+		fmt.Printf("No board configured for user %d, skipping board assignment\n", userID)
+		return nil
+	}
+
+	// Get board details to get the board name
+	boards, err := s.GetBoards(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get boards: %w", err)
+	}
+
+	var boardName string
+	for _, board := range boards {
+		if board.ID == settings.YouTrackBoardID {
+			boardName = board.Name
+			break
+		}
+	}
+
+	if boardName == "" {
+		return fmt.Errorf("board with ID %s not found", settings.YouTrackBoardID)
+	}
+
+	// Get the issue's readable ID (like ARD-123)
+	issueReadableID, err := s.getIssueReadableID(settings, issueID)
+	if err != nil {
+		return fmt.Errorf("failed to get issue readable ID: %w", err)
+	}
+
+	// Use YouTrack commands API to add issue to board
+	commandPayload := map[string]interface{}{
+		"query": fmt.Sprintf("add Board %s", boardName),
+		"issues": []map[string]interface{}{
+			{
+				"idReadable": issueReadableID,
+			},
+		},
+	}
+
+	jsonPayload, err := json.Marshal(commandPayload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal command payload: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/commands", settings.YouTrackBaseURL)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return fmt.Errorf("failed to create command request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("command request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("youtrack command API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	fmt.Printf("Successfully assigned issue %s to board '%s'\n", issueReadableID, boardName)
+	return nil
+}
+
+// getIssueReadableID retrieves the readable ID (like ARD-123) for an issue
+func (s *YouTrackService) getIssueReadableID(settings *config.UserSettings, issueID string) (string, error) {
+	url := fmt.Sprintf("%s/api/issues/%s?fields=idReadable", settings.YouTrackBaseURL, issueID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var issue struct {
+		IDReadable string `json:"idReadable"`
+	}
+	if err := json.Unmarshal(body, &issue); err != nil {
+		return "", fmt.Errorf("failed to parse issue: %w", err)
+	}
+
+	return issue.IDReadable, nil
 }
