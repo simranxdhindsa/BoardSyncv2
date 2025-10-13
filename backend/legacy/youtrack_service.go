@@ -201,10 +201,13 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 	// Sanitize title - replace "/" with "or"
 	sanitizedTitle := utils.SanitizeTitle(task.Name)
 
+	// Clean description - remove Asana ticket links and asset links
+	cleanedDescription := utils.CleanDescription(task.Notes)
+
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": task.Notes,
+		"description": cleanedDescription,
 		"project": map[string]interface{}{
 			"$type":     "Project",
 			"shortName": settings.YouTrackProjectID,
@@ -290,10 +293,13 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 	// Sanitize title - replace "/" with "or"
 	sanitizedTitle := utils.SanitizeTitle(task.Name)
 
+	// Clean description - remove Asana ticket links and asset links
+	cleanedDescription := utils.CleanDescription(task.Notes)
+
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": task.Notes,
+		"description": cleanedDescription,
 		"project": map[string]interface{}{
 			"$type":     "Project",
 			"shortName": settings.YouTrackProjectID,
@@ -428,10 +434,13 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 	// Sanitize title - replace "/" with "or"
 	sanitizedTitle := utils.SanitizeTitle(task.Name)
 
+	// Clean description - remove Asana ticket links and asset links
+	cleanedDescription := utils.CleanDescription(task.Notes)
+
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": task.Notes,
+		"description": cleanedDescription,
 	}
 
 	customFields := []map[string]interface{}{}

@@ -118,6 +118,42 @@ func SanitizeTitle(title string) string {
 	return strings.TrimSpace(sanitized)
 }
 
+// CleanDescription removes Asana ticket links and asset links from description
+// Removes patterns like:
+// - "BE Ticket Link: https://app.asana.com/..."
+// - "FE Ticket Link: https://app.asana.com/..."
+// - Asset links: "https://app.asana.com/app/asana/-/get_asset?asset_id=..."
+func CleanDescription(description string) string {
+	if description == "" {
+		return description
+	}
+
+	// Remove "BE Ticket Link:" or "FE Ticket Link:" followed by the URL
+	re1 := regexp.MustCompile(`(?i)(BE|FE)\s+Ticket\s+Link:\s*https://app\.asana\.com[^\s]*`)
+	cleaned := re1.ReplaceAllString(description, "")
+
+	// Remove standalone Asana task URLs (https://app.asana.com/.../task/...)
+	re2 := regexp.MustCompile(`https://app\.asana\.com/[^\s]*task/[^\s]*`)
+	cleaned = re2.ReplaceAllString(cleaned, "")
+
+	// Remove Asana asset URLs (https://app.asana.com/app/asana/-/get_asset?asset_id=...)
+	re3 := regexp.MustCompile(`https://app\.asana\.com/app/asana/-/get_asset\?asset_id=[^\s]*`)
+	cleaned = re3.ReplaceAllString(cleaned, "")
+
+	// Remove any remaining standalone asana.com URLs
+	re4 := regexp.MustCompile(`https://app\.asana\.com[^\s]*`)
+	cleaned = re4.ReplaceAllString(cleaned, "")
+
+	// Clean up multiple consecutive newlines (more than 2)
+	re5 := regexp.MustCompile(`\n{3,}`)
+	cleaned = re5.ReplaceAllString(cleaned, "\n\n")
+
+	// Trim leading/trailing whitespace
+	cleaned = strings.TrimSpace(cleaned)
+
+	return cleaned
+}
+
 // SendJSON sends a JSON response with the given status code
 func SendJSON(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
