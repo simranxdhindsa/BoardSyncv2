@@ -391,14 +391,39 @@ func (db *DB) CreateTicketMapping(userID int, asanaProjectID, asanaTaskID, youtr
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
+	// Check if exact mapping already exists (same Asana ID and YouTrack ID)
 	for _, mapping := range db.ticketMappings {
-		if mapping.UserID == userID && 
-		   mapping.AsanaTaskID == asanaTaskID && 
+		if mapping.UserID == userID &&
+		   mapping.AsanaTaskID == asanaTaskID &&
 		   mapping.YouTrackIssueID == youtrackIssueID {
+			log.Printf("DB: Mapping already exists: Asana %s <-> YouTrack %s for user %d\n",
+				asanaTaskID, youtrackIssueID, userID)
 			return mapping, nil
 		}
 	}
 
+	// Check if mapping exists for this Asana task with a DIFFERENT YouTrack ID
+	// This happens when a ticket is deleted from YouTrack and recreated (new ID)
+	for _, mapping := range db.ticketMappings {
+		if mapping.UserID == userID && mapping.AsanaTaskID == asanaTaskID {
+			// Found existing mapping with different YouTrack ID - UPDATE it
+			oldYouTrackID := mapping.YouTrackIssueID
+			mapping.YouTrackProjectID = youtrackProjectID
+			mapping.YouTrackIssueID = youtrackIssueID
+			mapping.UpdatedAt = time.Now()
+
+			if err := db.saveData(); err != nil {
+				return nil, err
+			}
+
+			log.Printf("DB: Updated existing ticket mapping: Asana %s: OLD YouTrack %s -> NEW YouTrack %s for user %d\n",
+				asanaTaskID, oldYouTrackID, youtrackIssueID, userID)
+
+			return mapping, nil
+		}
+	}
+
+	// No existing mapping found - create new one
 	mapping := &TicketMapping{
 		ID:                db.nextMappingID,
 		UserID:            userID,
@@ -417,7 +442,7 @@ func (db *DB) CreateTicketMapping(userID int, asanaProjectID, asanaTaskID, youtr
 		return nil, err
 	}
 
-	log.Printf("DB: Created ticket mapping: Asana %s <-> YouTrack %s for user %d\n", 
+	log.Printf("DB: Created ticket mapping: Asana %s <-> YouTrack %s for user %d\n",
 		asanaTaskID, youtrackIssueID, userID)
 
 	return mapping, nil
