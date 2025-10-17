@@ -1460,6 +1460,46 @@
       "created_at": "2025-10-14T00:51:11.0547448+05:30",
       "updated_at": "2025-10-14T00:51:11.0547448+05:30"
     },
+    "80": {
+      "id": 80,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211634585114276",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1289",
+      "created_at": "2025-10-14T15:20:45.1122443+05:30",
+      "updated_at": "2025-10-14T15:20:45.1122443+05:30"
+    },
+    "81": {
+      "id": 81,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211645710744536",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1302",
+      "created_at": "2025-10-15T15:04:20.7962627+05:30",
+      "updated_at": "2025-10-15T15:04:20.7962627+05:30"
+    },
+    "82": {
+      "id": 82,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211669298236847",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1327",
+      "created_at": "2025-10-17T18:12:50.7544269+05:30",
+      "updated_at": "2025-10-17T18:12:50.7544269+05:30"
+    },
+    "83": {
+      "id": 83,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211645710744544",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1328",
+      "created_at": "2025-10-17T18:12:51.6810904+05:30",
+      "updated_at": "2025-10-17T18:12:51.6810904+05:30"
+    },
     "9": {
       "id": 9,
       "user_id": 1,
@@ -1475,5 +1515,5 @@
   "next_settings_id": 3,
   "next_operation_id": 1,
   "next_ignored_id": 92,
-  "next_mapping_id": 80
+  "next_mapping_id": 84
 }
