@@ -5,7 +5,9 @@
       "Bash(rm:*)",
       "Bash(npm run build:*)",
       "Bash(npm start)",
-      "Bash(npx kill-port:*)"
+      "Bash(npx kill-port:*)",
+      "Bash(go get:*)",
+      "Bash(go mod:*)"
     ],
     "deny": [],
     "ask": []

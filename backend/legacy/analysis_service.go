@@ -34,28 +34,61 @@ func normalizeTitle(title string) string {
 	// Convert to lowercase
 	normalized := strings.ToLower(title)
 
-	// Remove YouTrack issue ID prefix (e.g., "ARD-386 Title" -> "Title")
-	// Pattern: PROJECT-NUMBER at the start
-	if len(normalized) > 0 {
-		parts := strings.SplitN(normalized, " ", 2)
-		if len(parts) == 2 {
-			// Check if first part looks like an issue ID (contains letters and numbers with hyphen)
-			firstPart := parts[0]
-			if strings.Contains(firstPart, "-") && len(firstPart) < 20 {
-				// Likely an issue ID, use the rest of the title
-				normalized = parts[1]
-			}
-		}
-	}
+	// IMPORTANT: DO NOT remove "BE:" or "FE:" prefixes - they distinguish different tickets
+	// Only remove YouTrack issue ID prefix (e.g., "ARD-386 Title" -> "Title")
+	// Pattern: PROJECT-NUMBER at the start (e.g., "ARD-123", "PROJ-456")
+if len(normalized) > 0 {
+    parts := strings.SplitN(normalized, " ", 2)
+    if len(parts) == 2 {
+        firstPart := parts[0]
 
-	// Remove special characters and extra spaces
-	normalized = strings.ReplaceAll(normalized, "/", " ")
-	normalized = strings.ReplaceAll(normalized, "-", " ")
-	normalized = strings.ReplaceAll(normalized, "_", " ")
-	normalized = strings.ReplaceAll(normalized, "  ", " ")
-	normalized = strings.TrimSpace(normalized)
+        // Clean up trailing punctuation (e.g., "ARD-390:")
+        firstPartClean := strings.TrimRightFunc(firstPart, func(r rune) bool {
+            return !(('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || ('0' <= r && r <= '9') || r == '-')
+        })
 
-	return normalized
+        if strings.Contains(firstPartClean, "-") && len(firstPartClean) < 20 {
+            hyphenIdx := strings.Index(firstPartClean, "-")
+            beforeHyphen := firstPartClean[:hyphenIdx]
+            afterHyphen := firstPartClean[hyphenIdx+1:]
+
+            isProjectID := true
+            for _, ch := range beforeHyphen {
+                if !(ch >= 'a' && ch <= 'z') && !(ch >= 'A' && ch <= 'Z') {
+                    isProjectID = false
+                    break
+                }
+            }
+            for _, ch := range afterHyphen {
+                if !(ch >= '0' && ch <= '9') {
+                    isProjectID = false
+                    break
+                }
+            }
+
+            if isProjectID && len(beforeHyphen) > 0 && len(afterHyphen) > 0 {
+                normalized = parts[1] // remove ticket ID
+            }
+        }
+    }
+}
+
+// Remove special characters and extra spaces
+normalized = strings.ReplaceAll(normalized, "/", " ")
+normalized = strings.ReplaceAll(normalized, "-", " ")
+normalized = strings.ReplaceAll(normalized, "_", " ")
+normalized = strings.ReplaceAll(normalized, "  ", " ")
+normalized = strings.TrimSpace(normalized)
+
+// Keep FE: / BE: prefixes only if they appear AFTER ticket ID (not before)
+if strings.HasPrefix(strings.ToLower(normalized), "fe:") || strings.HasPrefix(strings.ToLower(normalized), "be:") {
+    // do nothing, they were meant to be kept
+} else {
+    // check inside the string, if FE:/BE: appears later, it should stay
+    normalized = strings.TrimSpace(normalized)
+}
+
+return normalized
 }
 
 // titlesMatch checks if two titles match (exact match only after normalization)
