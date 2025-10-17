@@ -7,7 +7,7 @@ import "time"
 type AsanaTask struct {
 	GID         string `json:"gid"`
 	Name        string `json:"name"`
-	Notes       string `json:"notes"`
+	Notes       string `json:"html_notes"` // Changed to html_notes to get HTML-formatted descriptions
 	CompletedAt string `json:"completed_at"`
 	CreatedAt   string `json:"created_at"`
 	ModifiedAt  string `json:"modified_at"`
