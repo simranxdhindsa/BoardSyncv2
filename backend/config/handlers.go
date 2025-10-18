@@ -36,11 +36,8 @@ func (h *Handler) RegisterRoutes(router *mux.Router, authService *auth.Service) 
 	settings.HandleFunc("", h.UpdateSettings).Methods("PUT", "OPTIONS")
 	settings.HandleFunc("/asana/projects", h.GetAsanaProjects).Methods("GET", "OPTIONS")
 	settings.HandleFunc("/youtrack/projects", h.GetYouTrackProjects).Methods("GET", "OPTIONS")
-<<<<<<< HEAD
-=======
 	settings.HandleFunc("/columns/asana", h.GetAsanaSections).Methods("GET", "OPTIONS")
 	settings.HandleFunc("/columns/youtrack", h.GetYouTrackStates).Methods("GET", "OPTIONS")
->>>>>>> features
 	settings.HandleFunc("/youtrack/boards", h.GetYouTrackBoards).Methods("GET", "OPTIONS")
 	settings.HandleFunc("/test-connections", h.TestConnections).Methods("POST", "OPTIONS")
 }
@@ -177,33 +174,6 @@ func (h *Handler) GetYouTrackProjects(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccess(w, projects, "YouTrack projects retrieved successfully")
 }
 
-// GetYouTrackBoards retrieves available YouTrack agile boards
-func (h *Handler) GetYouTrackBoards(w http.ResponseWriter, r *http.Request) {
-	// Handle preflight OPTIONS request
-	if r.Method == "OPTIONS" {
-		h.handleOptions(w, r)
-		return
-	}
-
-	user, ok := auth.GetUserFromContext(r)
-	if !ok {
-		utils.SendUnauthorized(w, "Authentication required")
-		return
-	}
-
-	boards, err := h.service.GetYouTrackBoards(user.UserID)
-	if err != nil {
-		if err.Error() == "YouTrack credentials not configured" {
-			utils.SendBadRequest(w, "YouTrack credentials not configured. Please update your settings first.")
-			return
-		}
-		utils.SendInternalError(w, "Failed to fetch YouTrack boards: "+err.Error())
-		return
-	}
-
-	utils.SendSuccess(w, boards, "YouTrack boards retrieved successfully")
-}
-
 // TestConnections tests API connections
 func (h *Handler) TestConnections(w http.ResponseWriter, r *http.Request) {
 	// Handle preflight OPTIONS request
@@ -245,8 +215,6 @@ func (h *Handler) TestConnections(w http.ResponseWriter, r *http.Request) {
 		"all_connected": allConnected,
 	}, message)
 }
-<<<<<<< HEAD
-=======
 
 // GetAsanaSections retrieves all sections (columns) from the Asana project
 func (h *Handler) GetAsanaSections(w http.ResponseWriter, r *http.Request) {
@@ -329,4 +297,3 @@ func (h *Handler) GetYouTrackBoards(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccess(w, boards, "YouTrack boards retrieved successfully")
 }
 
->>>>>>> features

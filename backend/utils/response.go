@@ -7,9 +7,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	md "github.com/JohannesKaufmann/html-to-markdown"
-	"github.com/JohannesKaufmann/html-to-markdown/plugin"
 )
 
 // APIResponse represents a standardized API response
@@ -119,58 +116,6 @@ func SanitizeTitle(title string) string {
 
 	// Trim any leading/trailing whitespace
 	return strings.TrimSpace(sanitized)
-}
-
-// CleanDescription converts HTML to Markdown and removes Asana ticket links
-// 1. Converts HTML formatting (bold, italic, lists, code, etc.) to Markdown
-// 2. Removes Asana-specific links like:
-//    - "BE Ticket Link: https://app.asana.com/..."
-//    - "FE Ticket Link: https://app.asana.com/..."
-//    - Asset links: "https://app.asana.com/app/asana/-/get_asset?asset_id=..."
-func CleanDescription(description string) string {
-	if description == "" {
-		return description
-	}
-
-	// Step 1: Convert HTML to Markdown
-	// Asana uses HTML for rich text formatting (bold, italic, lists, code, etc.)
-	// YouTrack uses Markdown, so we need to convert
-	converter := md.NewConverter("", true, nil)
-
-	// Configure the converter to handle common HTML elements properly
-	converter.Use(plugin.GitHubFlavored())
-
-	markdown, err := converter.ConvertString(description)
-	if err != nil {
-		// If conversion fails, use the original description
-		fmt.Printf("HTML to Markdown conversion failed: %v\n", err)
-		markdown = description
-	}
-
-	// Step 2: Remove "BE Ticket Link:" or "FE Ticket Link:" followed by the URL
-	re1 := regexp.MustCompile(`(?i)(BE|FE)\s+Ticket\s+Link:\s*https://app\.asana\.com[^\s]*`)
-	cleaned := re1.ReplaceAllString(markdown, "")
-
-	// Step 3: Remove standalone Asana task URLs (https://app.asana.com/.../task/...)
-	re2 := regexp.MustCompile(`https://app\.asana\.com/[^\s]*task/[^\s]*`)
-	cleaned = re2.ReplaceAllString(cleaned, "")
-
-	// Step 4: Remove Asana asset URLs (https://app.asana.com/app/asana/-/get_asset?asset_id=...)
-	re3 := regexp.MustCompile(`https://app\.asana\.com/app/asana/-/get_asset\?asset_id=[^\s]*`)
-	cleaned = re3.ReplaceAllString(cleaned, "")
-
-	// Step 5: Remove any remaining standalone asana.com URLs
-	re4 := regexp.MustCompile(`https://app\.asana\.com[^\s]*`)
-	cleaned = re4.ReplaceAllString(cleaned, "")
-
-	// Step 6: Clean up multiple consecutive newlines (more than 2)
-	re5 := regexp.MustCompile(`\n{3,}`)
-	cleaned = re5.ReplaceAllString(cleaned, "\n\n")
-
-	// Step 7: Trim leading/trailing whitespace
-	cleaned = strings.TrimSpace(cleaned)
-
-	return cleaned
 }
 
 // SendJSON sends a JSON response with the given status code

@@ -34,71 +34,34 @@ func normalizeTitle(title string) string {
 	// Convert to lowercase
 	normalized := strings.ToLower(title)
 
-	// IMPORTANT: DO NOT remove "BE:" or "FE:" prefixes - they distinguish different tickets
-	// Only remove YouTrack issue ID prefix (e.g., "ARD-386 Title" -> "Title")
-	// Pattern: PROJECT-NUMBER at the start (e.g., "ARD-123", "PROJ-456")
-if len(normalized) > 0 {
-    parts := strings.SplitN(normalized, " ", 2)
-    if len(parts) == 2 {
-        firstPart := parts[0]
+	// Remove special characters and extra spaces
+	normalized = strings.ReplaceAll(normalized, "/", " ")
+	normalized = strings.ReplaceAll(normalized, "-", " ")
+	normalized = strings.ReplaceAll(normalized, "_", " ")
+	normalized = strings.ReplaceAll(normalized, "  ", " ")
+	normalized = strings.TrimSpace(normalized)
 
-        // Clean up trailing punctuation (e.g., "ARD-390:")
-        firstPartClean := strings.TrimRightFunc(firstPart, func(r rune) bool {
-            return !(('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || ('0' <= r && r <= '9') || r == '-')
-        })
-
-        if strings.Contains(firstPartClean, "-") && len(firstPartClean) < 20 {
-            hyphenIdx := strings.Index(firstPartClean, "-")
-            beforeHyphen := firstPartClean[:hyphenIdx]
-            afterHyphen := firstPartClean[hyphenIdx+1:]
-
-            isProjectID := true
-            for _, ch := range beforeHyphen {
-                if !(ch >= 'a' && ch <= 'z') && !(ch >= 'A' && ch <= 'Z') {
-                    isProjectID = false
-                    break
-                }
-            }
-            for _, ch := range afterHyphen {
-                if !(ch >= '0' && ch <= '9') {
-                    isProjectID = false
-                    break
-                }
-            }
-
-            if isProjectID && len(beforeHyphen) > 0 && len(afterHyphen) > 0 {
-                normalized = parts[1] // remove ticket ID
-            }
-        }
-    }
+	return normalized
 }
 
-// Remove special characters and extra spaces
-normalized = strings.ReplaceAll(normalized, "/", " ")
-normalized = strings.ReplaceAll(normalized, "-", " ")
-normalized = strings.ReplaceAll(normalized, "_", " ")
-normalized = strings.ReplaceAll(normalized, "  ", " ")
-normalized = strings.TrimSpace(normalized)
-
-// Keep FE: / BE: prefixes only if they appear AFTER ticket ID (not before)
-if strings.HasPrefix(strings.ToLower(normalized), "fe:") || strings.HasPrefix(strings.ToLower(normalized), "be:") {
-    // do nothing, they were meant to be kept
-} else {
-    // check inside the string, if FE:/BE: appears later, it should stay
-    normalized = strings.TrimSpace(normalized)
-}
-
-return normalized
-}
-
-// titlesMatch checks if two titles match (exact match only after normalization)
+// titlesMatch checks if two titles match (with fuzzy matching)
 func titlesMatch(title1, title2 string) bool {
 	norm1 := normalizeTitle(title1)
 	norm2 := normalizeTitle(title2)
 
-	// ONLY exact match after normalization - no fuzzy matching
-	// This prevents false positives where similar tickets incorrectly match
-	return norm1 == norm2
+	// Exact match after normalization
+	if norm1 == norm2 {
+		return true
+	}
+
+	// Check if one contains the other (for partial matches)
+	if len(norm1) > 10 && len(norm2) > 10 {
+		if strings.Contains(norm1, norm2) || strings.Contains(norm2, norm1) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // PerformAnalysis performs comprehensive ticket analysis for a user
@@ -145,31 +108,21 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 	usedYouTrackIssues := make(map[string]bool) // Track which YouTrack issues are already mapped
 
 	for _, issue := range youTrackIssues {
-		// Check if this YouTrack issue has a database mapping (check both internal ID and readable ID)
+		// Check if this YouTrack issue has a database mapping
 		if asanaTaskID, hasMappingYT := mappingYTToAsana[issue.ID]; hasMappingYT {
 			youTrackMap[asanaTaskID] = issue
 			usedYouTrackIssues[issue.ID] = true
-			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' (ID: %s) to Asana task '%s' via DATABASE mapping (internal ID)\n", issue.IDReadable, issue.ID, asanaTaskID)
+			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana task '%s' via DATABASE mapping\n", issue.ID, asanaTaskID)
 			continue
 		}
-		// Also check readable ID (like "ARD-339")
-		if issue.IDReadable != "" {
-			if asanaTaskID, hasMappingReadable := mappingYTToAsana[issue.IDReadable]; hasMappingReadable {
-				youTrackMap[asanaTaskID] = issue
-				usedYouTrackIssues[issue.ID] = true
-				fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana task '%s' via DATABASE mapping (readable ID)\n", issue.IDReadable, asanaTaskID)
-				continue
-			}
-		}
 
-		// Description extraction DISABLED to prevent false matches
-		// Only use database mappings and title matching
-		// asanaID := s.youtrackService.ExtractAsanaID(issue)
-		// if asanaID != "" {
-		// 	youTrackMap[asanaID] = issue
-		// 	usedYouTrackIssues[issue.ID] = true
-		// 	fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana ID '%s' via DESCRIPTION\n", issue.ID, asanaID)
-		// }
+		// Fallback to description extraction
+		asanaID := s.youtrackService.ExtractAsanaID(issue)
+		if asanaID != "" {
+			youTrackMap[asanaID] = issue
+			usedYouTrackIssues[issue.ID] = true
+			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana ID '%s' via DESCRIPTION\n", issue.ID, asanaID)
+		}
 	}
 
 	// Priority 3: Title-based matching for unmapped issues (NEW LOGIC)
@@ -229,36 +182,25 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 	// Step 6: Process filtered Asana tasks
 	for _, task := range asanaTasks {
 		if s.ignoreService.IsIgnored(userID, task.GID) {
-			fmt.Printf("DEBUG: Task '%s' (GID: %s) is IGNORED - skipping\n", task.Name, task.GID)
 			continue
 		}
 
 		sectionName := s.asanaService.GetSectionName(task)
 		asanaTags := s.asanaService.GetTags(task)
 
-		fmt.Printf("DEBUG: Processing task '%s' (GID: %s) in section '%s'\n", task.Name, task.GID, sectionName)
-
 		// Handle special columns first
 		if strings.Contains(sectionName, "findings") {
-			fmt.Printf("DEBUG: Task '%s' is in FINDINGS section\n", task.Name)
 			s.processFindings(task, youTrackMap, analysis)
 			continue
 		}
 
 		// Handle "Ready for Stage" - sync with DEV status in YouTrack
 		if strings.Contains(sectionName, "ready for stage") {
-			fmt.Printf("DEBUG: Task '%s' is in READY FOR STAGE section\n", task.Name)
 			existingIssue, existsInYouTrack := youTrackMap[task.GID]
 
 			if existsInYouTrack {
-<<<<<<< HEAD
-				fmt.Printf("DEBUG: Task '%s' EXISTS in YouTrack as '%s'\n", task.Name, existingIssue.ID)
-				s.processReadyForStageTicket(task, existingIssue, asanaTags, analysis)
-=======
 				s.processReadyForStageTicket(userID, task, existingIssue, asanaTags, analysis)
->>>>>>> features
 			} else {
-				fmt.Printf("DEBUG: Task '%s' MISSING in YouTrack\n", task.Name)
 				analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
 			}
 
@@ -270,21 +212,11 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 		existingIssue, existsInYouTrack := youTrackMap[task.GID]
 
 		if existsInYouTrack {
-<<<<<<< HEAD
-			fmt.Printf("DEBUG: Task '%s' (GID: %s) MATCHED with YouTrack issue '%s' (Summary: '%s')\n",
-				task.Name, task.GID, existingIssue.ID, existingIssue.Summary)
-			s.processExistingTicket(task, existingIssue, asanaTags, sectionName, analysis)
-=======
 			s.processExistingTicket(userID, task, existingIssue, asanaTags, sectionName, analysis)
->>>>>>> features
 		} else {
 			if s.isSyncableSection(sectionName) {
-				fmt.Printf("DEBUG: Task '%s' (GID: %s) MISSING in YouTrack (syncable section: '%s')\n",
-					task.Name, task.GID, sectionName)
+				fmt.Printf("ANALYSIS: Task '%s' (GID: %s) missing in YouTrack\n", task.Name, task.GID)
 				analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
-			} else {
-				fmt.Printf("DEBUG: Task '%s' (GID: %s) NOT in syncable section: '%s' - SKIPPING\n",
-					task.Name, task.GID, sectionName)
 			}
 		}
 	}
@@ -704,11 +636,11 @@ func (s *AnalysisService) ValidateAnalysisRequest(userID int, columns []string) 
 	}
 
 	if settings.AsanaPAT == "" || settings.AsanaProjectID == "" {
-		return fmt.Errorf("asana configuration incomplete")
+		return fmt.Errorf("Asana configuration incomplete")
 	}
 
 	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" || settings.YouTrackProjectID == "" {
-		return fmt.Errorf("youtrack configuration incomplete")
+		return fmt.Errorf("YouTrack configuration incomplete")
 	}
 
 	if len(columns) > 0 {

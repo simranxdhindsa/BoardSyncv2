@@ -63,7 +63,7 @@ func (s *YouTrackService) GetIssues(userID int) ([]YouTrackIssue, error) {
 // getIssuesWithProjectKey tries direct project key approach
 func (s *YouTrackService) getIssuesWithProjectKey(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	query := fmt.Sprintf("project: {%s}", settings.YouTrackProjectID)
-	fields := "id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
+	fields := "id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
 
 	encodedQuery := strings.ReplaceAll(query, " ", "%20")
 	encodedQuery = strings.ReplaceAll(encodedQuery, "{", "%7B")
@@ -84,7 +84,7 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 		fmt.Sprintf("#%s", settings.YouTrackProjectID),
 	}
 
-	fields := "id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
+	fields := "id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
 
 	for _, query := range queries {
 		encodedQuery := strings.ReplaceAll(query, " ", "%20")
@@ -106,7 +106,7 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 
 // getIssuesSimpleCloud tries simple issues endpoint
 func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([]YouTrackIssue, error) {
-	url := fmt.Sprintf("%s/api/issues?fields=id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)&top=200",
+	url := fmt.Sprintf("%s/api/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)&top=200",
 		settings.YouTrackBaseURL)
 
 	allIssues, err := s.makeRequest(settings, url)
@@ -128,9 +128,9 @@ func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([
 // getIssuesViaProjects tries project-specific endpoint
 func (s *YouTrackService) getIssuesViaProjects(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	urls := []string{
-		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
+		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
 			settings.YouTrackBaseURL, settings.YouTrackProjectID),
-		fmt.Sprintf("%s/api/projects/%s/issues?fields=id,idReadable,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
+		fmt.Sprintf("%s/api/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
 			settings.YouTrackBaseURL, settings.YouTrackProjectID),
 	}
 
@@ -205,13 +205,10 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 	// Sanitize title - replace "/" with "or"
 	sanitizedTitle := utils.SanitizeTitle(task.Name)
 
-	// Clean description - remove Asana ticket links and asset links
-	cleanedDescription := utils.CleanDescription(task.Notes)
-
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": cleanedDescription,
+		"description": task.Notes,
 		"project": map[string]interface{}{
 			"$type":     "Project",
 			"shortName": settings.YouTrackProjectID,
@@ -238,13 +235,14 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
-			// Use SingleOwnedIssueCustomField for single-value owned fields
 			customFields = append(customFields, map[string]interface{}{
-				"$type": "SingleOwnedIssueCustomField",
+				"$type": "MultiOwnedIssueCustomField",
 				"name":  "Subsystem",
-				"value": map[string]interface{}{
-					"$type": "OwnedBundleElement",
-					"name":  subsystem,
+				"value": []map[string]interface{}{
+					{
+						"$type": "OwnedBundleElement",
+						"name":  subsystem,
+					},
 				},
 			})
 		}
@@ -254,21 +252,7 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 		payload["customFields"] = customFields
 	}
 
-	// Create the issue and get the ID
-	issueID, err := s.createIssueAndGetID(settings, payload)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
-
-	// Automatically assign the issue to the configured board
-	if err := s.AssignIssueToBoard(userID, issueID); err != nil {
-		fmt.Printf("Warning: Failed to assign issue to board: %v\n", err)
-		// Don't fail the whole operation if board assignment fails
-	}
-
-	return nil
+	return s.createOrUpdateIssue(settings, "", payload)
 }
 
 // CreateIssueWithReturn creates a new YouTrack issue and returns the issue ID
@@ -301,13 +285,10 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 	// Sanitize title - replace "/" with "or"
 	sanitizedTitle := utils.SanitizeTitle(task.Name)
 
-	// Clean description - remove Asana ticket links and asset links
-	cleanedDescription := utils.CleanDescription(task.Notes)
-
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": cleanedDescription,
+		"description": task.Notes,
 		"project": map[string]interface{}{
 			"$type":     "Project",
 			"shortName": settings.YouTrackProjectID,
@@ -334,13 +315,14 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
-			// Use SingleOwnedIssueCustomField for single-value owned fields
 			customFields = append(customFields, map[string]interface{}{
-				"$type": "SingleOwnedIssueCustomField",
+				"$type": "MultiOwnedIssueCustomField",
 				"name":  "Subsystem",
-				"value": map[string]interface{}{
-					"$type": "OwnedBundleElement",
-					"name":  subsystem,
+				"value": []map[string]interface{}{
+					{
+						"$type": "OwnedBundleElement",
+						"name":  subsystem,
+					},
 				},
 			})
 		}
@@ -357,13 +339,6 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 	}
 
 	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
-
-	// Automatically assign the issue to the configured board
-	if err := s.AssignIssueToBoard(userID, issueID); err != nil {
-		fmt.Printf("Warning: Failed to assign issue to board: %v\n", err)
-		// Don't fail the whole operation if board assignment fails
-	}
-
 	return issueID, nil
 }
 
@@ -446,13 +421,10 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 	// Sanitize title - replace "/" with "or"
 	sanitizedTitle := utils.SanitizeTitle(task.Name)
 
-	// Clean description - remove Asana ticket links and asset links
-	cleanedDescription := utils.CleanDescription(task.Notes)
-
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": cleanedDescription,
+		"description": task.Notes,
 	}
 
 	customFields := []map[string]interface{}{}
@@ -475,13 +447,14 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
-			// Use SingleOwnedIssueCustomField for single-value owned fields
 			customFields = append(customFields, map[string]interface{}{
-				"$type": "SingleOwnedIssueCustomField",
+				"$type": "MultiOwnedIssueCustomField",
 				"name":  "Subsystem",
-				"value": map[string]interface{}{
-					"$type": "OwnedBundleElement",
-					"name":  subsystem,
+				"value": []map[string]interface{}{
+					{
+						"$type": "OwnedBundleElement",
+						"name":  subsystem,
+					},
 				},
 			})
 		}
@@ -635,7 +608,7 @@ func (s *YouTrackService) IsDuplicateTicket(userID int, title string) bool {
 	query := fmt.Sprintf("project:%s summary:%s", settings.YouTrackProjectID, title)
 	encodedQuery := strings.ReplaceAll(query, " ", "%20")
 
-	url := fmt.Sprintf("%s/api/issues?fields=id,idReadable,summary&query=%s&top=5",
+	url := fmt.Sprintf("%s/api/issues?fields=id,summary&query=%s&top=5",
 		settings.YouTrackBaseURL, encodedQuery)
 
 	issues, err := s.makeRequest(settings, url)
@@ -751,10 +724,6 @@ func (s *YouTrackService) FindIssueByAsanaID(userID int, asanaTaskID string) (st
 	return "", fmt.Errorf("no YouTrack issue found for Asana task %s", asanaTaskID)
 }
 
-<<<<<<< HEAD
-
-// GetBoards retrieves available YouTrack agile boards for a user
-=======
 // GetStates retrieves all workflow states from a YouTrack project
 func (s *YouTrackService) GetStates(userID int) ([]database.YouTrackState, error) {
 	settings, err := s.configService.GetSettings(userID)
@@ -824,7 +793,6 @@ func (s *YouTrackService) GetStates(userID int) ([]database.YouTrackState, error
 }
 
 // GetBoards retrieves all agile boards from YouTrack
->>>>>>> features
 func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error) {
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
@@ -849,11 +817,7 @@ func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-<<<<<<< HEAD
-		return nil, fmt.Errorf("request failed: %w", err)
-=======
 		return nil, fmt.Errorf("API request failed: %w", err)
->>>>>>> features
 	}
 	defer resp.Body.Close()
 
@@ -865,11 +829,7 @@ func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error
 
 	var rawBoards []map[string]interface{}
 	if err := json.Unmarshal(body, &rawBoards); err != nil {
-<<<<<<< HEAD
-		return nil, fmt.Errorf("failed to parse boards: %w", err)
-=======
 		return nil, fmt.Errorf("failed to decode response: %w", err)
->>>>>>> features
 	}
 
 	var boards []database.YouTrackBoard
@@ -886,125 +846,3 @@ func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error
 
 	return boards, nil
 }
-<<<<<<< HEAD
-
-// AssignIssueToBoard assigns a YouTrack issue to an agile board
-func (s *YouTrackService) AssignIssueToBoard(userID int, issueID string) error {
-	settings, err := s.configService.GetSettings(userID)
-	if err != nil {
-		return fmt.Errorf("failed to get user settings: %w", err)
-	}
-
-	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" {
-		return fmt.Errorf("youtrack credentials not configured")
-	}
-
-	// If no board is configured, skip board assignment
-	if settings.YouTrackBoardID == "" {
-		fmt.Printf("No board configured for user %d, skipping board assignment\n", userID)
-		return nil
-	}
-
-	// Get board details to get the board name
-	boards, err := s.GetBoards(userID)
-	if err != nil {
-		return fmt.Errorf("failed to get boards: %w", err)
-	}
-
-	var boardName string
-	for _, board := range boards {
-		if board.ID == settings.YouTrackBoardID {
-			boardName = board.Name
-			break
-		}
-	}
-
-	if boardName == "" {
-		return fmt.Errorf("board with ID %s not found", settings.YouTrackBoardID)
-	}
-
-	// Get the issue's readable ID (like ARD-123)
-	issueReadableID, err := s.getIssueReadableID(settings, issueID)
-	if err != nil {
-		return fmt.Errorf("failed to get issue readable ID: %w", err)
-	}
-
-	// Use YouTrack commands API to add issue to board
-	commandPayload := map[string]interface{}{
-		"query": fmt.Sprintf("add Board %s", boardName),
-		"issues": []map[string]interface{}{
-			{
-				"idReadable": issueReadableID,
-			},
-		},
-	}
-
-	jsonPayload, err := json.Marshal(commandPayload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal command payload: %w", err)
-	}
-
-	url := fmt.Sprintf("%s/api/commands", settings.YouTrackBaseURL)
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
-	if err != nil {
-		return fmt.Errorf("failed to create command request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("command request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("youtrack command API error: %d - %s", resp.StatusCode, string(body))
-	}
-
-	fmt.Printf("Successfully assigned issue %s to board '%s'\n", issueReadableID, boardName)
-	return nil
-}
-
-// getIssueReadableID retrieves the readable ID (like ARD-123) for an issue
-func (s *YouTrackService) getIssueReadableID(settings *config.UserSettings, issueID string) (string, error) {
-	url := fmt.Sprintf("%s/api/issues/%s?fields=idReadable", settings.YouTrackBaseURL, issueID)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
-	req.Header.Set("Accept", "application/json")
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
-	}
-
-	var issue struct {
-		IDReadable string `json:"idReadable"`
-	}
-	if err := json.Unmarshal(body, &issue); err != nil {
-		return "", fmt.Errorf("failed to parse issue: %w", err)
-	}
-
-	return issue.IDReadable, nil
-}
-=======
->>>>>>> features
