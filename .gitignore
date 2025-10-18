@@ -2,4 +2,8 @@
 */ignored_tickets.json
 */backup/
 */boardsync.exe
+<<<<<<< HEAD
 */build/
+=======
+*/nul
+>>>>>>> features

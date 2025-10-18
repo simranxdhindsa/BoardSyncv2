@@ -3,11 +3,15 @@
     "allow": [
       "Bash(go build:*)",
       "Bash(rm:*)",
+<<<<<<< HEAD
       "Bash(npm run build:*)",
       "Bash(npm start)",
       "Bash(npx kill-port:*)",
       "Bash(go get:*)",
       "Bash(go mod:*)"
+=======
+      "Bash(dir:*)"
+>>>>>>> features
     ],
     "deny": [],
     "ask": []

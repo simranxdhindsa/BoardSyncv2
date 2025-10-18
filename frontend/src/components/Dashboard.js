@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import { RefreshCw, Zap, Activity, Play, Square, Clock, Inbox, Loader, Code, CheckCircle, AlertCircle, Package, Search, Layers, Edit } from 'lucide-react';
 import FluidText from './FluidText';
 import '../styles/dashboard-glass.css';
+=======
+import { RefreshCw, Zap, Activity, Play, Square, Clock, Inbox, Loader, Code, Package, AlertCircle, CheckCircle, Search, Layers } from 'lucide-react';
+import FluidText from './FluidText';
+>>>>>>> features
 import {
   getAutoSyncStatus,
   startAutoSync,
   stopAutoSync,
   getAutoCreateStatus,
   startAutoCreate,
+<<<<<<< HEAD
   stopAutoCreate
+=======
+  stopAutoCreate,
+  getUserSettings
+>>>>>>> features
 } from '../services/api';
 
 const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
@@ -19,6 +29,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   const [autoSyncLastInfo, setAutoSyncLastInfo] = useState('');
   const [autoCreateLastInfo, setAutoCreateLastInfo] = useState('');
   const [toggleLoading, setToggleLoading] = useState({ sync: false, create: false });
+<<<<<<< HEAD
 
   // Interval editing state
   const [showIntervalModal, setShowIntervalModal] = useState(null); // 'sync' or 'create'
@@ -76,8 +87,76 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
       icon: Layers
     }
   ];
+=======
+  const [columns, setColumns] = useState([]);
+  const [columnsLoading, setColumnsLoading] = useState(true);
+>>>>>>> features
 
   const selectedColumnData = columns.find(col => col.value === selectedColumn);
+
+  // Function to assign icons based on column name
+  const getIconForColumn = (columnName) => {
+    const lowerName = columnName.toLowerCase();
+
+    if (lowerName.includes('backlog')) return Inbox;
+    if (lowerName.includes('progress')) return Loader;
+    if (lowerName.includes('dev')) return Code;
+    if (lowerName.includes('stage')) return Package;
+    if (lowerName.includes('blocked')) return AlertCircle;
+    if (lowerName.includes('ready')) return CheckCircle;
+    if (lowerName.includes('finding')) return Search;
+    if (lowerName.includes('all')) return Layers;
+
+    // Default icon
+    return Activity;
+  };
+
+  // Load columns from user's column mappings
+  useEffect(() => {
+    loadColumnsFromSettings();
+  }, []);
+
+  const loadColumnsFromSettings = async () => {
+    setColumnsLoading(true);
+    try {
+      const response = await getUserSettings();
+      const settings = response.data || response;
+
+      // Generate columns from user's column mappings
+      const mappedColumns = [];
+
+      if (settings.column_mappings?.asana_to_youtrack) {
+        settings.column_mappings.asana_to_youtrack.forEach(mapping => {
+          const columnValue = mapping.asana_column.toLowerCase().replace(/\s+/g, '_');
+          mappedColumns.push({
+            value: columnValue,
+            label: mapping.asana_column,
+            color: 'hover:bg-blue-50 hover:border-blue-200',
+            displayOnly: mapping.display_only,
+            icon: getIconForColumn(mapping.asana_column)
+          });
+        });
+      }
+
+      // Always add "All Syncable" option at the end (only if there are mapped columns)
+      if (mappedColumns.length > 0) {
+        mappedColumns.push({
+          value: 'all_syncable',
+          label: 'All Syncable',
+          color: 'hover:bg-blue-50 hover:border-blue-200',
+          icon: Layers
+        });
+      }
+
+      setColumns(mappedColumns);
+    } catch (err) {
+      console.error('Failed to load column mappings:', err);
+      // Fallback to empty array if settings not configured
+      setColumns([]);
+    } finally {
+      setColumnsLoading(false);
+    }
+  };
 
   // Load auto-sync and auto-create status on mount
   useEffect(() => {
@@ -349,6 +428,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
             </FluidText>
           </div>
 
+<<<<<<< HEAD
           <div className="column-grid">
             {columns.map((column) => {
               const IconComponent = column.icon;
@@ -383,6 +463,58 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
               );
             })}
           </div>
+=======
+          {columnsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="w-5 h-5 mr-2 animate-spin text-blue-600" />
+              <span className="text-gray-600">Loading columns...</span>
+            </div>
+          ) : columns.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600 mb-2">No column mappings configured.</p>
+              <p className="text-sm text-gray-500">Please configure your column mappings in Settings → Column Mapping</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+              {columns.map((column) => {
+                const IconComponent = column.icon;
+                return (
+                  <div
+                    key={column.value}
+                    onClick={() => onColumnSelect(column.value)}
+                    className={`glass-panel interactive-element p-4 rounded-lg border cursor-pointer transition-all ${
+                      selectedColumn === column.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-blue-200 hover:bg-blue-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        {IconComponent && (
+                          <IconComponent className="w-5 h-5 mr-2 text-gray-600" />
+                        )}
+                        <FluidText className="font-medium text-gray-900" sensitivity={0.8}>
+                          {column.label}
+                        </FluidText>
+                      </div>
+                      {column.displayOnly && (
+                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                          Display Only
+                        </span>
+                      )}
+                    </div>
+
+                    {selectedColumn === column.value && (
+                      <div className="mt-2">
+                        <div className="w-full h-1 bg-blue-500 rounded"></div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+>>>>>>> features
 
           <button
             onClick={onAnalyze}
@@ -407,11 +539,17 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
           </button>
 
           {selectedColumn && !loading && (
+<<<<<<< HEAD
             <div className="selected-column-info">
               <p className="selected-column-info-text">
                 Let's see what breaks when we touch <strong>{selectedColumnData?.label}</strong>
               </p>
             </div>
+=======
+            <p className="mt-4 text-gray-600 text-sm text-center select-none">
+              Let's see what breaks when we touch <strong>{selectedColumnData?.label}</strong>
+            </p>
+>>>>>>> features
           )}
         </div>
 
