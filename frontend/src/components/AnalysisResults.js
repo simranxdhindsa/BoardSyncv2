@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff } from 'lucide-react';
 import TicketDetailView from './TicketDetailView';
-import { analyzeTickets } from '../services/api';
+import { analyzeTickets, getUserSettings } from '../services/api';
 
 const AnalysisResults = ({ 
   analysisData, 
@@ -27,11 +27,28 @@ const AnalysisResults = ({
   
   // LOCAL STATE for optimistic updates
   const [localAnalysisData, setLocalAnalysisData] = useState(analysisData);
-  
+
+  // Column mappings state
+  const [columnMappings, setColumnMappings] = useState([]);
+
   // Update local data when prop changes
   useEffect(() => {
     setLocalAnalysisData(analysisData);
   }, [analysisData]);
+
+  // Load column mappings on mount
+  useEffect(() => {
+    const loadColumnMappings = async () => {
+      try {
+        const response = await getUserSettings();
+        const settings = response.data || response;
+        setColumnMappings(settings.column_mappings?.asana_to_youtrack || []);
+      } catch (error) {
+        console.error('Failed to load column mappings:', error);
+      }
+    };
+    loadColumnMappings();
+  }, []);
 
   // Data extraction
   let analysis = null;
@@ -214,7 +231,7 @@ const AnalysisResults = ({
 
   // SYNC ALL HANDLER - Wait for all API calls
   const handleSyncAll = async () => {
-    const mismatchedTickets = safeAnalysis.mismatched || [];
+    const mismatchedTickets = syncableMismatched;
     if (mismatchedTickets.length === 0) return;
     
     setSyncAllLoading(true);
@@ -280,9 +297,9 @@ const AnalysisResults = ({
   // CREATE ALL HANDLER - Wait for API success
   const handleCreateAll = async () => {
     setCreateAllLoading(true);
-    
+
     try {
-      const missingTickets = safeAnalysis.missing_youtrack || [];
+      const missingTickets = syncableMissing;
       
       // Wait for create to complete
       await onCreateMissing();
@@ -304,9 +321,90 @@ const AnalysisResults = ({
     }
   };
 
+  // Helper function to check if a column is marked as display_only
+  const isDisplayOnlyColumn = (columnName) => {
+    if (!columnMappings || columnMappings.length === 0) return false;
+    const mapping = columnMappings.find(m =>
+      m.asana_column.toLowerCase().replace(/\s+/g, '_') === columnName.toLowerCase()
+    );
+    return mapping?.display_only === true;
+  };
+
+  // Helper function to get all display-only column data from analysis
+  const getDisplayOnlyColumns = () => {
+    const displayOnlyData = [];
+
+    // Get all display-only columns from column mappings
+    columnMappings.forEach(mapping => {
+      if (mapping.display_only) {
+        const columnKey = mapping.asana_column.toLowerCase().replace(/\s+/g, '_');
+        const tickets = [];
+
+        // Check backend's special fields first (findings_tickets, ready_for_stage, blocked_tickets)
+        if (safeAnalysis[columnKey] && Array.isArray(safeAnalysis[columnKey])) {
+          tickets.push(...safeAnalysis[columnKey]);
+        } else if (columnKey === 'findings' && safeAnalysis.findings_tickets) {
+          tickets.push(...safeAnalysis.findings_tickets);
+        } else if (columnKey === 'ready_for_stage' && safeAnalysis.ready_for_stage) {
+          tickets.push(...safeAnalysis.ready_for_stage);
+        } else if (columnKey === 'blocked' && safeAnalysis.blocked_tickets) {
+          tickets.push(...safeAnalysis.blocked_tickets.map(bt => bt.asana_task || bt));
+        }
+
+        // Also collect from matched, mismatched, and missing arrays based on asana_status/section name
+        const allTickets = [
+          ...(safeAnalysis.matched || []).map(t => ({ ...(t.asana_task || t), _source: 'matched' })),
+          ...(safeAnalysis.mismatched || []).map(t => ({ ...(t.asana_task || t), _source: 'mismatched' })),
+          ...(safeAnalysis.missing_youtrack || []).map(t => ({ ...t, _source: 'missing' }))
+        ];
+
+        allTickets.forEach(ticket => {
+          const ticketStatus = (ticket.memberships?.[0]?.section?.name || '').toLowerCase().replace(/\s+/g, '_');
+          if (ticketStatus === columnKey) {
+            // Avoid duplicates
+            const isDuplicate = tickets.some(t => t.gid === ticket.gid);
+            if (!isDuplicate) {
+              tickets.push(ticket);
+            }
+          }
+        });
+
+        if (tickets.length > 0) {
+          displayOnlyData.push({
+            key: columnKey,
+            label: mapping.asana_column,
+            tickets: tickets,
+            count: tickets.length
+          });
+        }
+      }
+    });
+
+    return displayOnlyData;
+  };
+
+  const displayOnlyColumns = getDisplayOnlyColumns();
+
+  // Check if the current selected column is display-only
+  const isCurrentColumnDisplayOnly = selectedColumn && isDisplayOnlyColumn(selectedColumn);
+
+  // Filter tickets to EXCLUDE display-only column tickets from sync sections
+  const getSyncableTickets = (tickets) => {
+    if (!tickets || !Array.isArray(tickets)) return [];
+    return tickets.filter(ticket => {
+      const status = ticket.asana_status || ticket.memberships?.[0]?.section?.name || '';
+      const columnKey = status.toLowerCase().replace(/\s+/g, '_');
+      return !isDisplayOnlyColumn(columnKey);
+    });
+  };
+
+  // Filtered ticket arrays (exclude display-only columns)
+  const syncableMismatched = getSyncableTickets(safeAnalysis.mismatched);
+  const syncableMissing = getSyncableTickets(safeAnalysis.missing_youtrack);
+
   const TagsDisplay = ({ tags }) => {
     if (!tags || tags.length === 0) return <span className="text-gray-400">No tags</span>;
-    
+
     return (
       <div className="flex flex-wrap gap-1">
         {tags.map((tag, index) => (
@@ -492,12 +590,12 @@ const AnalysisResults = ({
           </div>
         </div>
 
-        {/* Mismatched Tickets Preview */}
-        {summaryData.mismatched > 0 && (
+        {/* Mismatched Tickets Preview - Only show if NOT display-only column */}
+        {!isCurrentColumnDisplayOnly && syncableMismatched.length > 0 && (
           <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
-                Mismatched Tickets ({summaryData.mismatched})
+                Mismatched Tickets ({syncableMismatched.length})
               </h2>
               <div className="flex space-x-2">
                 <button 
@@ -538,7 +636,7 @@ const AnalysisResults = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {(safeAnalysis.mismatched || []).slice(0, 5).map((ticket) => {
+                  {syncableMismatched.slice(0, 5).map((ticket) => {
                     const ticketId = ticket.asana_task?.gid || ticket.gid;
                     const isSyncing = syncing[ticketId];
                     const isSynced = syncedTickets.has(ticketId);
@@ -601,14 +699,14 @@ const AnalysisResults = ({
                   })}
                 </tbody>
               </table>
-              {(safeAnalysis.mismatched || []).length > 5 && (
+              {syncableMismatched.length > 5 && (
                 <div className="mt-4 text-center">
-                  <button 
+                  <button
                     onClick={() => handleSummaryCardClick('mismatched')}
                     className="glass-panel interactive-element bg-blue-50 border border-blue-200 text-blue-700 px-6 py-3 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all font-medium inline-flex items-center"
                   >
                     <Eye className="w-4 h-4 mr-2" />
-                    View all {(safeAnalysis.mismatched || []).length} mismatched tickets
+                    View all {syncableMismatched.length} mismatched tickets
                     <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
                   </button>
                 </div>
@@ -617,12 +715,12 @@ const AnalysisResults = ({
           </div>
         )}
 
-        {/* Missing Tickets Preview */}
-        {summaryData.missing_youtrack > 0 && (
+        {/* Missing Tickets Preview - Only show if NOT display-only column */}
+        {!isCurrentColumnDisplayOnly && syncableMissing.length > 0 && (
           <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
-                Missing in YouTrack ({summaryData.missing_youtrack})
+                Missing in YouTrack ({syncableMissing.length})
               </h2>
               <div className="flex space-x-2">
                 <button 
@@ -653,7 +751,7 @@ const AnalysisResults = ({
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(safeAnalysis.missing_youtrack || []).slice(0, 6).map((task, index) => {
+              {syncableMissing.slice(0, 6).map((task, index) => {
                 const taskId = task.gid;
                 const isCreating = creating[taskId];
                 const isCreated = createdTickets.has(taskId);
@@ -699,14 +797,14 @@ const AnalysisResults = ({
               })}
             </div>
             
-            {(safeAnalysis.missing_youtrack || []).length > 6 && (
+            {syncableMissing.length > 6 && (
               <div className="mt-4 text-center">
-                <button 
+                <button
                   onClick={() => handleSummaryCardClick('missing')}
                   className="glass-panel interactive-element bg-blue-50 border border-blue-200 text-blue-700 px-6 py-3 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all font-medium inline-flex items-center"
                 >
                   <Eye className="w-4 h-4 mr-2" />
-                  View all {(safeAnalysis.missing_youtrack || []).length} missing tickets
+                  View all {syncableMissing.length} missing tickets
                   <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
                 </button>
               </div>
@@ -714,69 +812,52 @@ const AnalysisResults = ({
           </div>
         )}
 
-        {/* Display Only Sections */}
-        {(summaryData.ready_for_stage > 0 || summaryData.findings_tickets > 0) && (
+        {/* Display Only Sections - Dynamic - Only show if IS display-only column */}
+        {isCurrentColumnDisplayOnly && displayOnlyColumns.length > 0 && (
           <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Display Only Sections</h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {summaryData.ready_for_stage > 0 && (
-                <div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">
-                    Ready for Stage ({summaryData.ready_for_stage})
-                  </h3>
-                  <div className="space-y-2">
-                    {(safeAnalysis.ready_for_stage || []).slice(0, 3).map((task) => (
-                      <div key={task.gid} className="glass-panel bg-green-50 border border-green-200 rounded-lg p-3">
-                        <p className="font-medium text-gray-900">{task.name}</p>
-                        <div className="mt-1">
-                          <TagsDisplay tags={task.tags?.map(t => t.name) || []} />
-                        </div>
-                        <p className="text-sm text-green-700 mt-1">Display only - not synced</p>
-                      </div>
-                    ))}
-                    {(safeAnalysis.ready_for_stage || []).length > 3 && (
-                      <button 
-                        onClick={() => handleSummaryCardClick('ready_for_stage')}
-                        className="glass-panel interactive-element bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-lg hover:bg-green-100 hover:border-green-300 transition-all text-sm font-medium inline-flex items-center"
-                      >
-                        <Eye className="w-3 h-3 mr-2" />
-                        View all {(safeAnalysis.ready_for_stage || []).length} tickets
-                        <ArrowLeft className="w-3 h-3 ml-2 rotate-180" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
 
-              {summaryData.findings_tickets > 0 && (
-                <div>
-                  <h3 className="text-lg font-medium text-gray-700 mb-3">
-                    Findings ({summaryData.findings_tickets})
-                  </h3>
-                  <div className="space-y-2">
-                    {(safeAnalysis.findings_tickets || []).slice(0, 3).map((task) => (
-                      <div key={task.gid} className="glass-panel bg-orange-50 border border-orange-200 rounded-lg p-3">
-                        <p className="font-medium text-gray-900">{task.name}</p>
-                        <div className="mt-1">
-                          <TagsDisplay tags={task.tags?.map(t => t.name) || []} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {displayOnlyColumns.map((column, index) => {
+                // Assign different colors to different columns
+                const colors = [
+                  { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', hover: 'hover:bg-green-100 hover:border-green-300' },
+                  { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', hover: 'hover:bg-orange-100 hover:border-orange-300' },
+                  { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', hover: 'hover:bg-purple-100 hover:border-purple-300' },
+                  { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700', hover: 'hover:bg-pink-100 hover:border-pink-300' },
+                  { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', hover: 'hover:bg-indigo-100 hover:border-indigo-300' }
+                ];
+                const colorScheme = colors[index % colors.length];
+
+                return (
+                  <div key={column.key}>
+                    <h3 className="text-lg font-medium text-gray-700 mb-3">
+                      {column.label} ({column.count})
+                    </h3>
+                    <div className="space-y-2">
+                      {column.tickets.slice(0, 3).map((task) => (
+                        <div key={task.gid} className={`glass-panel ${colorScheme.bg} ${colorScheme.border} border rounded-lg p-3`}>
+                          <p className="font-medium text-gray-900">{task.name}</p>
+                          <div className="mt-1">
+                            <TagsDisplay tags={task.tags?.map(t => t.name) || []} />
+                          </div>
+                          <p className={`text-sm ${colorScheme.text} mt-1`}>Display only - not synced</p>
                         </div>
-                        <p className="text-sm text-orange-700 mt-1">Display only - not synced</p>
-                      </div>
-                    ))}
-                    {(safeAnalysis.findings_tickets || []).length > 3 && (
-                      <button 
-                        onClick={() => handleSummaryCardClick('findings')}
-                        className="glass-panel interactive-element bg-orange-50 border border-orange-200 text-orange-700 px-4 py-2 rounded-lg hover:bg-orange-100 hover:border-orange-300 transition-all text-sm font-medium inline-flex items-center"
-                      >
-                        <Eye className="w-3 h-3 mr-2" />
-                        View all {(safeAnalysis.findings_tickets || []).length} tickets
-                        <ArrowLeft className="w-3 h-3 ml-2 rotate-180" />
-                      </button>
-                    )}
+                      ))}
+                      {column.tickets.length > 3 && (
+                        <button
+                          onClick={() => handleSummaryCardClick(column.key)}
+                          className={`glass-panel interactive-element ${colorScheme.bg} ${colorScheme.border} border ${colorScheme.text} px-4 py-2 rounded-lg ${colorScheme.hover} transition-all text-sm font-medium inline-flex items-center`}
+                        >
+                          <Eye className="w-3 h-3 mr-2" />
+                          View all {column.tickets.length} tickets
+                          <ArrowLeft className="w-3 h-3 ml-2 rotate-180" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })}
             </div>
           </div>
         )}
