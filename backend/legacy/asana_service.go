@@ -2,6 +2,7 @@
 package legacy
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -124,6 +125,74 @@ func (s *AsanaService) GetCreatedAt(task AsanaTask) time.Time {
 }
 
 // DeleteTask deletes an Asana task
+// UpdateTaskStatus updates only the status/section of an Asana task (for rollback)
+func (s *AsanaService) UpdateTaskStatus(userID int, taskID, sectionName string) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.AsanaPAT == "" || settings.AsanaProjectID == "" {
+		return fmt.Errorf("asana credentials not configured")
+	}
+
+	// Get all sections for the project to find the section GID
+	sections, err := s.GetSections(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get sections: %w", err)
+	}
+
+	var targetSectionGID string
+	for _, section := range sections {
+		if section.Name == sectionName {
+			targetSectionGID = section.GID
+			break
+		}
+	}
+
+	if targetSectionGID == "" {
+		return fmt.Errorf("section '%s' not found in project", sectionName)
+	}
+
+	// Move task to the section
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/sections/%s/addTask", targetSectionGID)
+
+	payload := map[string]interface{}{
+		"data": map[string]interface{}{
+			"task": taskID,
+		},
+	}
+
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("asana update error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	fmt.Printf("Successfully updated Asana task %s to section '%s' for user %d\n", taskID, sectionName, userID)
+	return nil
+}
+
 func (s *AsanaService) DeleteTask(userID int, taskID string) error {
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {

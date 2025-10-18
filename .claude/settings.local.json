@@ -3,7 +3,17 @@
     "allow": [
       "Bash(go build:*)",
       "Bash(rm:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(find \"d:\\Practice\\BoardSyncAPI\\BoardSyncv2\\frontend\\src\" -type f ( -name \"*.js\" -o -name \"*.jsx\" ))",
+      "Bash(npm run build)",
+      "Bash(timeout 30 npm start)",
+      "Bash(node -c App.js)",
+      "Bash(node -c SyncHistory.js)",
+      "Bash(node -c AuditLogs.js)",
+      "Bash(node -c TicketAuditTrail.js)",
+      "Bash(node -c TicketDetailView.js)",
+      "Bash(node -c \"d:\\Practice\\BoardSyncAPI\\BoardSyncv2\\frontend\\src\\services\\api.js\")",
+      "Bash(node -c \"d:\\Practice\\BoardSyncAPI\\BoardSyncv2\\frontend\\src\\components\\settings\\UserSettings.js\")"
     ],
     "deny": [],
     "ask": []

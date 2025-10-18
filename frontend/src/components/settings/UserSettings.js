@@ -3,12 +3,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  getUserSettings, 
-  updateUserSettings, 
-  getAsanaProjects, 
+import {
+  getUserSettings,
+  updateUserSettings,
+  getAsanaProjects,
   getYouTrackProjects,
   testConnections,
+  changePassword,
   deleteAccount
 } from '../../services/api';
 import { CreateMappingForm, MappingsList } from '../mapping/MappingComponents';
@@ -85,6 +86,14 @@ const UserSettings = ({ onBack }) => {
     confirmation: ''
   });
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const [mappingRefreshKey, setMappingRefreshKey] = useState(0);
   const [showCreateMappingForm, setShowCreateMappingForm] = useState(false);
@@ -373,6 +382,60 @@ const UserSettings = ({ onBack }) => {
     setShowDeleteModal(false);
     setDeletionData({ password: '', confirmation: '' });
     setError(null);
+  };
+
+  const handleShowChangePasswordModal = () => {
+    setError(null);
+    setSuccessMessage('');
+    setShowChangePasswordModal(true);
+  };
+
+  const handleChangePassword = async () => {
+    // Validation
+    if (!passwordData.oldPassword) {
+      setError('Please enter your current password');
+      return;
+    }
+
+    if (!passwordData.newPassword) {
+      setError('Please enter a new password');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setError('New password must be at least 6 characters long');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setError(null);
+
+    try {
+      await changePassword(passwordData.oldPassword, passwordData.newPassword);
+
+      setSuccessMessage('Password changed successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      closeChangePasswordModal();
+    } catch (err) {
+      setError('Failed to change password: ' + err.message);
+      setIsChangingPassword(false);
+    }
+  };
+
+  const closeChangePasswordModal = () => {
+    setShowChangePasswordModal(false);
+    setPasswordData({
+      oldPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setError(null);
+    setIsChangingPassword(false);
   };
 
   const handleMappingCreated = () => {
@@ -876,9 +939,9 @@ const UserSettings = ({ onBack }) => {
                   <Shield className="w-5 h-5 mr-2" />
                   Security
                 </h4>
-                
+
                 <button
-                  onClick={() => alert('Change password feature coming soon!')}
+                  onClick={handleShowChangePasswordModal}
                   className="settings-button-secondary"
                 >
                   <Key className="w-4 h-4 mr-2" />
@@ -915,6 +978,126 @@ const UserSettings = ({ onBack }) => {
           )}
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={closeChangePasswordModal}
+        >
+          <div
+            className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Key className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Change Password
+                  </h2>
+                </div>
+                <button
+                  onClick={closeChangePasswordModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.oldPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
+                  placeholder="Enter current password"
+                  className="settings-input"
+                  disabled={isChangingPassword}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                  placeholder="Enter new password (min 6 characters)"
+                  className="settings-input"
+                  disabled={isChangingPassword}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  placeholder="Re-enter new password"
+                  className="settings-input"
+                  disabled={isChangingPassword}
+                />
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <p className="text-sm text-green-800">{successMessage}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                onClick={closeChangePasswordModal}
+                disabled={isChangingPassword}
+                className="settings-button-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={
+                  isChangingPassword ||
+                  !passwordData.oldPassword ||
+                  !passwordData.newPassword ||
+                  !passwordData.confirmPassword
+                }
+                className="settings-button"
+              >
+                {isChangingPassword ? (
+                  <>
+                    <RefreshCw className="settings-spinner" />
+                    Changing Password...
+                  </>
+                ) : (
+                  <>
+                    <Key className="w-4 h-4 mr-2" />
+                    Change Password
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Modal */}
       {showDeleteModal && (
