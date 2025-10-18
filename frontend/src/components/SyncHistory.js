@@ -39,7 +39,13 @@ const SyncHistory = ({ onSuccess, onError }) => {
       const response = await getSyncHistory(15);
       // Handle nested response format: response.data.operations
       const operations = response.operations || response.data?.operations || response.data || [];
-      setOperations(operations);
+
+      // Filter out rollback operations - they shouldn't appear in main history
+      const filteredOperations = operations.filter(op =>
+        op.operation_type !== 'rollback' && op.operation_type !== 'Rollback'
+      );
+
+      setOperations(filteredOperations);
     } catch (error) {
       onError?.('Failed to load sync history: ' + error.message);
     } finally {
@@ -104,6 +110,9 @@ const SyncHistory = ({ onSuccess, onError }) => {
   };
 
   const canRollback = (operation) => {
+    // Don't allow rollback of rollback operations
+    if (operation.operation_type === 'rollback' || operation.operation_type === 'Rollback') return false;
+
     if (operation.status !== 'completed') return false;
     if (operation.status === 'rolled_back') return false;
 
