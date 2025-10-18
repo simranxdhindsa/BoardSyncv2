@@ -26,6 +26,8 @@ const SyncHistory = ({ onSuccess, onError }) => {
   const [expandedOp, setExpandedOp] = useState(null);
   const [snapshotSummaries, setSnapshotSummaries] = useState({});
   const [rollingBack, setRollingBack] = useState(null);
+  const [showRollbackDialog, setShowRollbackDialog] = useState(false);
+  const [rollbackOperationId, setRollbackOperationId] = useState(null);
 
   useEffect(() => {
     loadSyncHistory();
@@ -35,7 +37,9 @@ const SyncHistory = ({ onSuccess, onError }) => {
     setLoading(true);
     try {
       const response = await getSyncHistory(15);
-      setOperations(response.operations || response.data || []);
+      // Handle nested response format: response.data.operations
+      const operations = response.operations || response.data?.operations || response.data || [];
+      setOperations(operations);
     } catch (error) {
       onError?.('Failed to load sync history: ' + error.message);
     } finally {
@@ -66,12 +70,16 @@ const SyncHistory = ({ onSuccess, onError }) => {
     }
   };
 
-  const handleRollback = async (operationId) => {
-    if (!window.confirm('Are you sure you want to rollback this operation? This will undo all changes made during the sync.')) {
-      return;
-    }
+  const handleRollbackClick = (operationId) => {
+    setRollbackOperationId(operationId);
+    setShowRollbackDialog(true);
+  };
 
+  const handleRollbackConfirm = async () => {
+    const operationId = rollbackOperationId;
+    setShowRollbackDialog(false);
     setRollingBack(operationId);
+
     try {
       const response = await rollbackSync(operationId);
 
@@ -86,7 +94,13 @@ const SyncHistory = ({ onSuccess, onError }) => {
       onError?.('Failed to rollback operation: ' + error.message);
     } finally {
       setRollingBack(null);
+      setRollbackOperationId(null);
     }
+  };
+
+  const handleRollbackCancel = () => {
+    setShowRollbackDialog(false);
+    setRollbackOperationId(null);
   };
 
   const canRollback = (operation) => {
@@ -142,9 +156,58 @@ const SyncHistory = ({ onSuccess, onError }) => {
       'asana_to_youtrack': 'Asana → YouTrack',
       'youtrack_to_asana': 'YouTrack → Asana',
       'bidirectional': 'Bidirectional',
-      'rollback': 'Rollback'
+      'rollback': 'Rollback',
+      'Ticket Creation': 'Ticket Creation',
+      'Ticket Sync': 'Ticket Sync',
+      'create': 'Ticket Creation',
+      'sync': 'Ticket Sync'
     };
     return types[type] || type;
+  };
+
+  const getOperationSummary = (operation) => {
+    const data = operation.operation_data || {};
+
+    // For Ticket Creation
+    if (operation.operation_type === 'Ticket Creation' || operation.operation_type === 'create') {
+      const created = data.created || 0;
+      const skipped = data.skipped || 0;
+      const failed = data.failed || 0;
+      const column = data.column || 'all columns';
+
+      // If we have actual data, show it
+      if (created > 0 || skipped > 0 || failed > 0) {
+        return `${column} - Created: ${created}, Skipped: ${skipped}, Failed: ${failed}`;
+      }
+
+      // Old operation without detailed data
+      return `${column} - Operation completed (legacy record)`;
+    }
+
+    // For Ticket Sync
+    if (operation.operation_type === 'Ticket Sync' || operation.operation_type === 'sync') {
+      const synced = data.synced || 0;
+      const failed = data.failed || 0;
+      const total = data.total || 0;
+      const ticketCount = data.ticket_count || 0;
+      const column = data.column || 'all columns';
+
+      // If we have actual data, show it
+      if (synced > 0 || failed > 0 || total > 0) {
+        return `${column} - Synced: ${synced}/${total}, Failed: ${failed}`;
+      }
+
+      // Old operation with ticket_count only
+      if (ticketCount > 0) {
+        return `${column} - ${ticketCount} ticket${ticketCount > 1 ? 's' : ''} synced (legacy record)`;
+      }
+
+      // Very old operation without detailed data
+      return `${column} - Operation completed (legacy record)`;
+    }
+
+    // Fallback
+    return data.column || data.action || 'Operation completed';
   };
 
   if (loading) {
@@ -199,6 +262,9 @@ const SyncHistory = ({ onSuccess, onError }) => {
                     {getOperationType(operation.operation_type)}
                   </h3>
                   <p className="text-sm text-gray-600">
+                    {getOperationSummary(operation)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
                     {formatDate(operation.created_at)}
                   </p>
                 </div>
@@ -209,7 +275,7 @@ const SyncHistory = ({ onSuccess, onError }) => {
 
                 {canRollback(operation) && (
                   <button
-                    onClick={() => handleRollback(operation.id)}
+                    onClick={() => handleRollbackClick(operation.id)}
                     disabled={rollingBack === operation.id}
                     className="rollback-button"
                   >
@@ -252,43 +318,51 @@ const SyncHistory = ({ onSuccess, onError }) => {
             {/* Expanded Details */}
             {expandedOp === operation.id && (
               <div className="mt-4 pt-4 border-t border-white border-opacity-30">
-                {snapshotSummaries[operation.id] ? (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="summary-stat-card">
-                      <div className="summary-stat-number text-green-600">
-                        {snapshotSummaries[operation.id].tickets_created || 0}
-                      </div>
-                      <div className="summary-stat-label">Created</div>
-                    </div>
-                    <div className="summary-stat-card">
-                      <div className="summary-stat-number text-blue-600">
-                        {snapshotSummaries[operation.id].tickets_updated || 0}
-                      </div>
-                      <div className="summary-stat-label">Updated</div>
-                    </div>
-                    <div className="summary-stat-card">
-                      <div className="summary-stat-number text-purple-600">
-                        {snapshotSummaries[operation.id].mappings_changed || 0}
-                      </div>
-                      <div className="summary-stat-label">Mappings</div>
-                    </div>
-                    <div className="summary-stat-card">
-                      <div className="summary-stat-number text-orange-600">
-                        {snapshotSummaries[operation.id].total_changes || 0}
-                      </div>
-                      <div className="summary-stat-label">Total Changes</div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-600">No detailed information available for this operation.</p>
-                )}
-
                 {operation.operation_data && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Operation Details:</h4>
-                    <pre className="text-xs text-gray-600 bg-white bg-opacity-30 p-3 rounded-lg overflow-auto">
-                      {JSON.stringify(operation.operation_data, null, 2)}
-                    </pre>
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Operation Summary:</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {operation.operation_data.created !== undefined && (
+                        <div className="summary-stat-card">
+                          <div className="summary-stat-number text-green-600">
+                            {operation.operation_data.created}
+                          </div>
+                          <div className="summary-stat-label">Created</div>
+                        </div>
+                      )}
+                      {operation.operation_data.skipped !== undefined && (
+                        <div className="summary-stat-card">
+                          <div className="summary-stat-number text-yellow-600">
+                            {operation.operation_data.skipped}
+                          </div>
+                          <div className="summary-stat-label">Skipped</div>
+                        </div>
+                      )}
+                      {operation.operation_data.synced !== undefined && (
+                        <div className="summary-stat-card">
+                          <div className="summary-stat-number text-blue-600">
+                            {operation.operation_data.synced}
+                          </div>
+                          <div className="summary-stat-label">Synced</div>
+                        </div>
+                      )}
+                      {operation.operation_data.failed !== undefined && operation.operation_data.failed > 0 && (
+                        <div className="summary-stat-card">
+                          <div className="summary-stat-number text-red-600">
+                            {operation.operation_data.failed}
+                          </div>
+                          <div className="summary-stat-label">Failed</div>
+                        </div>
+                      )}
+                      {operation.operation_data.total !== undefined && (
+                        <div className="summary-stat-card">
+                          <div className="summary-stat-number text-purple-600">
+                            {operation.operation_data.total}
+                          </div>
+                          <div className="summary-stat-label">Total</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -302,6 +376,98 @@ const SyncHistory = ({ onSuccess, onError }) => {
           <p className="text-sm text-gray-600">
             Showing last 15 operations. Older operations are automatically removed.
           </p>
+        </div>
+      )}
+
+      {/* Rollback Confirmation Dialog */}
+      {showRollbackDialog && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleRollbackCancel}
+          style={{ backdropFilter: 'blur(8px)' }}
+        >
+          <div
+            className="glass-panel max-w-md w-full mx-4"
+            style={{
+              borderRadius: '20px',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              className="p-6"
+              style={{
+                background: 'rgba(255, 255, 255, 0.3)',
+                backdropFilter: 'blur(20px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.3)'
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="settings-profile-avatar" style={{ width: '3rem', height: '3rem', background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)' }}>
+                    <AlertCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Confirm Rollback
+                  </h2>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-gray-700 mb-3">
+                  Are you sure you want to rollback this operation?
+                </p>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                    <div className="text-sm text-yellow-800">
+                      <p className="font-semibold mb-1">This action will:</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>Undo all changes made during this sync</li>
+                        <li>Restore tickets to their previous state</li>
+                        <li>Delete any tickets that were created</li>
+                        <li>Revert status and field updates</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="p-6 flex justify-end space-x-3"
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(16px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+                borderTop: '1px solid rgba(255, 255, 255, 0.3)'
+              }}
+            >
+              <button
+                onClick={handleRollbackCancel}
+                className="settings-button-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRollbackConfirm}
+                className="settings-button"
+                style={{
+                  background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Yes, Rollback
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

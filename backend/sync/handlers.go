@@ -28,12 +28,7 @@ func HandleRollback(
 			return
 		}
 
-		// Convert user.ID from string to int
-		userID, err := strconv.Atoi(user.ID)
-		if err != nil {
-			http.Error(w, "Invalid user ID", http.StatusBadRequest)
-			return
-		}
+		userID := user.UserID
 
 		vars := mux.Vars(r)
 		operationIDStr := vars["id"]
