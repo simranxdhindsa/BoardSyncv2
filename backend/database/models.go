@@ -18,19 +18,6 @@ type User struct {
 
 // UserSettings represents user configuration
 type UserSettings struct {
-<<<<<<< HEAD
-    ID                   int                    `json:"id" db:"id"`
-    UserID               int                    `json:"user_id" db:"user_id"`
-    AsanaPAT            string                 `json:"asana_pat" db:"asana_pat"`
-    YouTrackBaseURL     string                 `json:"youtrack_base_url" db:"youtrack_base_url"`
-    YouTrackToken       string                 `json:"youtrack_token" db:"youtrack_token"`
-    AsanaProjectID      string                 `json:"asana_project_id" db:"asana_project_id"`
-    YouTrackProjectID   string                 `json:"youtrack_project_id" db:"youtrack_project_id"`
-    YouTrackBoardID     string                 `json:"youtrack_board_id" db:"youtrack_board_id"`
-    CustomFieldMappings CustomFieldMappings    `json:"custom_field_mappings" db:"custom_field_mappings"`
-    CreatedAt           time.Time              `json:"created_at" db:"created_at"`
-    UpdatedAt           time.Time              `json:"updated_at" db:"updated_at"`
-=======
 	ID                  int                 `json:"id" db:"id"`
 	UserID              int                 `json:"user_id" db:"user_id"`
 	AsanaPAT            string              `json:"asana_pat" db:"asana_pat"`
@@ -43,7 +30,6 @@ type UserSettings struct {
 	ColumnMappings      ColumnMappings      `json:"column_mappings" db:"column_mappings"`
 	CreatedAt           time.Time           `json:"created_at" db:"created_at"`
 	UpdatedAt           time.Time           `json:"updated_at" db:"updated_at"`
->>>>>>> features
 }
 
 // CustomFieldMappings represents custom field mapping configuration
@@ -196,24 +182,13 @@ type AsanaProject struct {
 
 // YouTrackProject represents a YouTrack project
 type YouTrackProject struct {
-<<<<<<< HEAD
-    ID        string `json:"id"`
-    Name      string `json:"name"`
-    ShortName string `json:"shortName"`
-=======
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	ShortName string `json:"shortName"`
->>>>>>> features
 }
 
 // YouTrackBoard represents a YouTrack agile board
 type YouTrackBoard struct {
-<<<<<<< HEAD
-    ID   string `json:"id"`
-    Name string `json:"name"`
-}
-=======
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
@@ -228,4 +203,3 @@ type AsanaSection struct {
 type YouTrackState struct {
 	Name string `json:"name"`
 }
->>>>>>> features
