@@ -46,11 +46,16 @@ const UserSettings = ({ onBack }) => {
     youtrack_token: '',
     asana_project_id: '',
     youtrack_project_id: '',
+    youtrack_board_id: '',
     custom_field_mappings: {
       tag_mapping: {},
       priority_mapping: {},
       status_mapping: {},
       custom_fields: {}
+    },
+    column_mappings: {
+      asana_to_youtrack: [],
+      youtrack_to_asana: []
     }
   });
 
@@ -104,11 +109,16 @@ const UserSettings = ({ onBack }) => {
         youtrack_token: userSettings.youtrack_token || '',
         asana_project_id: userSettings.asana_project_id || '',
         youtrack_project_id: userSettings.youtrack_project_id || '',
+        youtrack_board_id: userSettings.youtrack_board_id || '',
         custom_field_mappings: userSettings.custom_field_mappings || {
           tag_mapping: {},
           priority_mapping: {},
           status_mapping: {},
           custom_fields: {}
+        },
+        column_mappings: userSettings.column_mappings || {
+          asana_to_youtrack: [],
+          youtrack_to_asana: []
         }
       };
 

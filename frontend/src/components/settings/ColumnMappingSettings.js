@@ -202,16 +202,6 @@ const ColumnMappingSettings = ({
         </p>
       </div>
 
-      {/* Columns Loading Status */}
-      {(loading.sections || loading.states) && (
-        <div className="settings-form-group">
-          <div className="flex items-center justify-center py-4">
-            <RefreshCw className="w-5 h-5 mr-2 animate-spin text-blue-600" />
-            <span className="text-gray-600">Loading columns from Asana and YouTrack...</span>
-          </div>
-        </div>
-      )}
-
       {/* Show info if columns not loaded */}
       {!loading.sections && !loading.states && (asanaSections.length === 0 || youtrackStates.length === 0) && (
         <div className="info-box">
