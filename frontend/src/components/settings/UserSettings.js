@@ -984,16 +984,30 @@ const UserSettings = ({ onBack }) => {
         <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
           onClick={closeChangePasswordModal}
+          style={{ backdropFilter: 'blur(8px)' }}
         >
           <div
-            className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4"
+            className="glass-panel max-w-md w-full mx-4"
+            style={{
+              borderRadius: '20px',
+              overflow: 'hidden'
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-gray-200">
+            {/* Modal Header */}
+            <div
+              className="p-6"
+              style={{
+                background: 'rgba(255, 255, 255, 0.3)',
+                backdropFilter: 'blur(20px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.3)'
+              }}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Key className="w-6 h-6 text-blue-600" />
+                  <div className="settings-profile-avatar" style={{ width: '3rem', height: '3rem' }}>
+                    <Key className="w-5 h-5 text-blue-600" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900">
                     Change Password
@@ -1002,15 +1016,22 @@ const UserSettings = ({ onBack }) => {
                 <button
                   onClick={closeChangePasswordModal}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.3)',
+                    borderRadius: '8px',
+                    padding: '0.5rem',
+                    border: '1px solid rgba(255, 255, 255, 0.4)'
+                  }}
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
+            {/* Modal Body */}
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label className="settings-label">
                   Current Password
                 </label>
                 <input
@@ -1024,7 +1045,7 @@ const UserSettings = ({ onBack }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label className="settings-label">
                   New Password
                 </label>
                 <input
@@ -1038,7 +1059,7 @@ const UserSettings = ({ onBack }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label className="settings-label">
                   Confirm New Password
                 </label>
                 <input
@@ -1052,19 +1073,28 @@ const UserSettings = ({ onBack }) => {
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <div className="error-box">
                   <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
 
               {successMessage && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                <div className="success-box">
                   <p className="text-sm text-green-800">{successMessage}</p>
                 </div>
               )}
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+            {/* Modal Footer */}
+            <div
+              className="p-6 flex justify-end space-x-3"
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(16px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+                borderTop: '1px solid rgba(255, 255, 255, 0.3)'
+              }}
+            >
               <button
                 onClick={closeChangePasswordModal}
                 disabled={isChangingPassword}
