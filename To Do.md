@@ -24,3 +24,5 @@ Support images, PDFs, documents
 Handle attachment deletions
 
 1. now we have hardcoded columns mapping like DEV to DEV, Ready for Stage to DEV, backlgo to backlog, right? noe that should also be ccustomised by user preference and should have an option to map these in settings menu
+1. now we have hardcoded columns mapping like DEV to DEV, Ready for Stage to DEV, backlgo to backlog, right? noe that should also be ccustomised by user preference and should have an option to map these in settings menu
+

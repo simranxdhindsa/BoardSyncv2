@@ -192,10 +192,14 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 	}
 
 	asanaService := NewAsanaService(s.configService)
-	state := asanaService.MapStateToYouTrack(task)
+	state := asanaService.MapStateToYouTrackWithSettings(userID, task)
 
-	if state == "FINDINGS_NO_SYNC" || state == "READY_FOR_STAGE_NO_SYNC" {
+	// Check if column is display-only or unmapped
+	if state == "DISPLAY_ONLY" {
 		return fmt.Errorf("cannot create ticket for display-only column")
+	}
+	if state == "" {
+		return fmt.Errorf("cannot create ticket: column not mapped in settings")
 	}
 
 	// Sanitize title - replace "/" with "or"
@@ -284,10 +288,14 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 	}
 
 	asanaService := NewAsanaService(s.configService)
-	state := asanaService.MapStateToYouTrack(task)
+	state := asanaService.MapStateToYouTrackWithSettings(userID, task)
 
-	if state == "FINDINGS_NO_SYNC" || state == "READY_FOR_STAGE_NO_SYNC" {
+	// Check if column is display-only or unmapped
+	if state == "DISPLAY_ONLY" {
 		return "", fmt.Errorf("cannot create ticket for display-only column")
+	}
+	if state == "" {
+		return "", fmt.Errorf("cannot create ticket: column not mapped in settings")
 	}
 
 	// Sanitize title - replace "/" with "or"
@@ -425,10 +433,14 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 	}
 
 	asanaService := NewAsanaService(s.configService)
-	state := asanaService.MapStateToYouTrack(task)
+	state := asanaService.MapStateToYouTrackWithSettings(userID, task)
 
-	if state == "FINDINGS_NO_SYNC" || state == "READY_FOR_STAGE_NO_SYNC" {
+	// Check if column is display-only or unmapped
+	if state == "DISPLAY_ONLY" {
 		return fmt.Errorf("cannot update ticket for display-only column")
+	}
+	if state == "" {
+		return fmt.Errorf("cannot update ticket: column not mapped in settings")
 	}
 
 	// Sanitize title - replace "/" with "or"
@@ -739,8 +751,80 @@ func (s *YouTrackService) FindIssueByAsanaID(userID int, asanaTaskID string) (st
 	return "", fmt.Errorf("no YouTrack issue found for Asana task %s", asanaTaskID)
 }
 
+<<<<<<< HEAD
 
 // GetBoards retrieves available YouTrack agile boards for a user
+=======
+// GetStates retrieves all workflow states from a YouTrack project
+func (s *YouTrackService) GetStates(userID int) ([]database.YouTrackState, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" || settings.YouTrackProjectID == "" {
+		return nil, fmt.Errorf("youtrack credentials not configured")
+	}
+
+	// Fetch the project's custom fields to get the State field
+	url := fmt.Sprintf("%s/api/admin/projects/%s/customFields?fields=field(name,fieldType(id)),bundle(values(name))",
+		settings.YouTrackBaseURL, settings.YouTrackProjectID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	// Parse the response to find the State field
+	var customFields []map[string]interface{}
+	if err := json.Unmarshal(body, &customFields); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Find the State field and extract its values
+	var states []database.YouTrackState
+	for _, field := range customFields {
+		if fieldInfo, ok := field["field"].(map[string]interface{}); ok {
+			if fieldName, ok := fieldInfo["name"].(string); ok && fieldName == "State" {
+				if bundle, ok := field["bundle"].(map[string]interface{}); ok {
+					if values, ok := bundle["values"].([]interface{}); ok {
+						for _, val := range values {
+							if valMap, ok := val.(map[string]interface{}); ok {
+								if stateName, ok := valMap["name"].(string); ok {
+									states = append(states, database.YouTrackState{
+										Name: stateName,
+									})
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	fmt.Printf("Retrieved %d YouTrack states for user %d\n", len(states), userID)
+	return states, nil
+}
+
+// GetBoards retrieves all agile boards from YouTrack
+>>>>>>> features
 func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error) {
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
@@ -765,7 +849,11 @@ func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
+<<<<<<< HEAD
 		return nil, fmt.Errorf("request failed: %w", err)
+=======
+		return nil, fmt.Errorf("API request failed: %w", err)
+>>>>>>> features
 	}
 	defer resp.Body.Close()
 
@@ -777,7 +865,11 @@ func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error
 
 	var rawBoards []map[string]interface{}
 	if err := json.Unmarshal(body, &rawBoards); err != nil {
+<<<<<<< HEAD
 		return nil, fmt.Errorf("failed to parse boards: %w", err)
+=======
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+>>>>>>> features
 	}
 
 	var boards []database.YouTrackBoard
@@ -794,6 +886,7 @@ func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error
 
 	return boards, nil
 }
+<<<<<<< HEAD
 
 // AssignIssueToBoard assigns a YouTrack issue to an agile board
 func (s *YouTrackService) AssignIssueToBoard(userID int, issueID string) error {
@@ -913,3 +1006,5 @@ func (s *YouTrackService) getIssueReadableID(settings *config.UserSettings, issu
 
 	return issue.IDReadable, nil
 }
+=======
+>>>>>>> features

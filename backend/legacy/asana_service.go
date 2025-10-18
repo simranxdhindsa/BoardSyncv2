@@ -10,6 +10,7 @@ import (
 	"time"
 
 	configpkg "asana-youtrack-sync/config"
+	"asana-youtrack-sync/database"
 )
 
 // AsanaService handles Asana API operations with user-specific settings
@@ -179,32 +180,45 @@ func (s *AsanaService) GetSectionName(task AsanaTask) string {
 	return strings.ToLower(task.Memberships[0].Section.Name)
 }
 
-// MapStateToYouTrack maps Asana section to YouTrack state
+// MapStateToYouTrack maps Asana section to YouTrack state using custom column mappings
 func (s *AsanaService) MapStateToYouTrack(task AsanaTask) string {
 	if len(task.Memberships) == 0 {
-		return "Backlog"
+		return "" // No section, will be filtered out
 	}
 
-	sectionName := strings.ToLower(task.Memberships[0].Section.Name)
+	sectionName := task.Memberships[0].Section.Name
+	return sectionName // Return the actual section name, mapping will be done in analysis
+}
 
-	switch {
-	case strings.Contains(sectionName, "backlog"):
-		return "Backlog"
-	case strings.Contains(sectionName, "in progress"):
-		return "In Progress"
-	case strings.Contains(sectionName, "ready for stage"):
-		return "DEV"
-	case strings.Contains(sectionName, "dev"):
-		return "DEV"
-	case strings.Contains(sectionName, "stage") && !strings.Contains(sectionName, "ready"):
-		return "STAGE"
-	case strings.Contains(sectionName, "blocked"):
-		return "Blocked"
-	case strings.Contains(sectionName, "findings"):
-		return "FINDINGS_NO_SYNC"
-	default:
-		return "Backlog"
+// MapStateToYouTrackWithSettings maps Asana section to YouTrack state using user's custom column mappings
+func (s *AsanaService) MapStateToYouTrackWithSettings(userID int, task AsanaTask) string {
+	if len(task.Memberships) == 0 {
+		return "" // No section
 	}
+
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		// Fallback to section name if settings not available
+		return task.Memberships[0].Section.Name
+	}
+
+	sectionName := task.Memberships[0].Section.Name
+
+	// Use custom column mappings from user settings
+	for _, mapping := range settings.ColumnMappings.AsanaToYouTrack {
+		// Case-insensitive comparison
+		if strings.EqualFold(mapping.AsanaColumn, sectionName) {
+			if mapping.DisplayOnly {
+				// Display-only columns return special marker
+				return "DISPLAY_ONLY"
+			}
+			return mapping.YouTrackStatus
+		}
+	}
+
+	// If no mapping found, return empty string (will be filtered out)
+	fmt.Printf("WARNING: No mapping found for Asana column '%s' for user %d\n", sectionName, userID)
+	return ""
 }
 
 // FilterTasksByColumns filters Asana tasks by specified columns
@@ -273,4 +287,49 @@ func (s *AsanaService) FilterTasksByColumns(tasks []AsanaTask, selectedColumns [
 
 	fmt.Printf("FILTER DEBUG: Filtered %d tasks from %d total for columns: %v\n", len(filtered), len(tasks), selectedColumns)
 	return filtered
+}
+
+// GetSections retrieves all sections (columns) from an Asana project
+func (s *AsanaService) GetSections(userID int) ([]database.AsanaSection, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.AsanaPAT == "" || settings.AsanaProjectID == "" {
+		return nil, fmt.Errorf("asana credentials not configured")
+	}
+
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/sections", settings.AsanaProjectID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("asana API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var response struct {
+		Data []database.AsanaSection `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	fmt.Printf("Retrieved %d Asana sections for user %d\n", len(response.Data), userID)
+	return response.Data, nil
 }
