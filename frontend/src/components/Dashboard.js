@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Zap, Activity, Play, Square, Clock } from 'lucide-react';
 import FluidText from './FluidText';
-import { 
-  getAutoSyncStatus, 
-  startAutoSync, 
+import {
+  getAutoSyncStatus,
+  startAutoSync,
   stopAutoSync,
   getAutoCreateStatus,
   startAutoCreate,
-  stopAutoCreate 
+  stopAutoCreate,
+  getUserSettings
 } from '../services/api';
 
 const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
@@ -20,52 +21,55 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   const [autoSyncLastInfo, setAutoSyncLastInfo] = useState('');
   const [autoCreateLastInfo, setAutoCreateLastInfo] = useState('');
   const [toggleLoading, setToggleLoading] = useState({ sync: false, create: false });
-
-  const columns = [
-    { 
-      value: 'backlog', 
-      label: 'Backlog only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
-    },
-    { 
-      value: 'in_progress', 
-      label: 'In Progress only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
-    },
-    { 
-      value: 'dev', 
-      label: 'DEV only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
-    },
-    { 
-      value: 'stage', 
-      label: 'STAGE only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
-    },
-    { 
-      value: 'blocked', 
-      label: 'Blocked only', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
-    },
-    {
-      value: 'ready_for_stage',
-      label: 'Ready for Stage',
-      color: 'hover:bg-blue-50 hover:border-blue-200'
-    },
-    { 
-      value: 'findings', 
-      label: 'Findings', 
-      color: 'hover:bg-blue-50 hover:border-blue-200',
-      displayOnly: true
-    },
-    { 
-      value: 'all_syncable', 
-      label: 'All Syncable', 
-      color: 'hover:bg-blue-50 hover:border-blue-200'
-    }
-  ];
+  const [columns, setColumns] = useState([]);
+  const [columnsLoading, setColumnsLoading] = useState(true);
 
   const selectedColumnData = columns.find(col => col.value === selectedColumn);
+
+  // Load columns from user's column mappings
+  useEffect(() => {
+    loadColumnsFromSettings();
+  }, []);
+
+  const loadColumnsFromSettings = async () => {
+    setColumnsLoading(true);
+    try {
+      const response = await getUserSettings();
+      const settings = response.data || response;
+
+      // Generate columns from user's column mappings
+      const mappedColumns = [];
+
+      if (settings.column_mappings?.asana_to_youtrack) {
+        settings.column_mappings.asana_to_youtrack.forEach(mapping => {
+          const columnValue = mapping.asana_column.toLowerCase().replace(/\s+/g, '_');
+          mappedColumns.push({
+            value: columnValue,
+            label: mapping.asana_column,
+            color: 'hover:bg-blue-50 hover:border-blue-200',
+            displayOnly: mapping.display_only
+          });
+        });
+      }
+
+      // Always add "All Syncable" option at the end (only if there are mapped columns)
+      if (mappedColumns.length > 0) {
+        mappedColumns.push({
+          value: 'all_syncable',
+          label: 'All Syncable',
+          color: 'hover:bg-blue-50 hover:border-blue-200'
+        });
+      }
+
+      setColumns(mappedColumns);
+    } catch (err) {
+      console.error('Failed to load column mappings:', err);
+      // Fallback to empty array if settings not configured
+      setColumns([]);
+    } finally {
+      setColumnsLoading(false);
+    }
+  };
 
   // Load auto-sync and auto-create status on mount
   useEffect(() => {
@@ -281,9 +285,20 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
               Select Column
             </FluidText>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-            {columns.map((column) => (
+
+          {columnsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="w-5 h-5 mr-2 animate-spin text-blue-600" />
+              <span className="text-gray-600">Loading columns...</span>
+            </div>
+          ) : columns.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-600 mb-2">No column mappings configured.</p>
+              <p className="text-sm text-gray-500">Please configure your column mappings in Settings → Column Mapping</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+              {columns.map((column) => (
               <div
                 key={column.value}
                 onClick={() => onColumnSelect(column.value)}
@@ -310,9 +325,10 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-          
+              ))}
+            </div>
+          )}
+
           <button
             onClick={onAnalyze}
             disabled={!selectedColumn || loading}

@@ -12,16 +12,18 @@ import (
 
 // UserSettings represents user configuration
 type UserSettings struct {
-	ID                  int                 `json:"id"`
-	UserID              int                 `json:"user_id"`
-	AsanaPAT            string              `json:"asana_pat"`
-	YouTrackBaseURL     string              `json:"youtrack_base_url"`
-	YouTrackToken       string              `json:"youtrack_token"`
-	AsanaProjectID      string              `json:"asana_project_id"`
-	YouTrackProjectID   string              `json:"youtrack_project_id"`
-	CustomFieldMappings CustomFieldMappings `json:"custom_field_mappings"`
-	CreatedAt           time.Time           `json:"created_at"`
-	UpdatedAt           time.Time           `json:"updated_at"`
+	ID                  int                        `json:"id"`
+	UserID              int                        `json:"user_id"`
+	AsanaPAT            string                     `json:"asana_pat"`
+	YouTrackBaseURL     string                     `json:"youtrack_base_url"`
+	YouTrackToken       string                     `json:"youtrack_token"`
+	AsanaProjectID      string                     `json:"asana_project_id"`
+	YouTrackProjectID   string                     `json:"youtrack_project_id"`
+	YouTrackBoardID     string                     `json:"youtrack_board_id"`
+	CustomFieldMappings CustomFieldMappings        `json:"custom_field_mappings"`
+	ColumnMappings      database.ColumnMappings    `json:"column_mappings"`
+	CreatedAt           time.Time                  `json:"created_at"`
+	UpdatedAt           time.Time                  `json:"updated_at"`
 }
 
 // CustomFieldMappings represents custom field mapping configuration
@@ -34,12 +36,14 @@ type CustomFieldMappings struct {
 
 // UpdateSettingsRequest represents a settings update request
 type UpdateSettingsRequest struct {
-	AsanaPAT            string              `json:"asana_pat"`
-	YouTrackBaseURL     string              `json:"youtrack_base_url"`
-	YouTrackToken       string              `json:"youtrack_token"`
-	AsanaProjectID      string              `json:"asana_project_id"`
-	YouTrackProjectID   string              `json:"youtrack_project_id"`
-	CustomFieldMappings CustomFieldMappings `json:"custom_field_mappings"`
+	AsanaPAT            string                   `json:"asana_pat"`
+	YouTrackBaseURL     string                   `json:"youtrack_base_url"`
+	YouTrackToken       string                   `json:"youtrack_token"`
+	AsanaProjectID      string                   `json:"asana_project_id"`
+	YouTrackProjectID   string                   `json:"youtrack_project_id"`
+	YouTrackBoardID     string                   `json:"youtrack_board_id"`
+	CustomFieldMappings CustomFieldMappings      `json:"custom_field_mappings"`
+	ColumnMappings      database.ColumnMappings  `json:"column_mappings"`
 }
 
 // Project represents project information for dropdowns
@@ -88,14 +92,16 @@ func (s *Service) GetSettings(userID int) (*UserSettings, error) {
 		YouTrackToken:     settings.YouTrackToken,
 		AsanaProjectID:    settings.AsanaProjectID,
 		YouTrackProjectID: settings.YouTrackProjectID,
+		YouTrackBoardID:   settings.YouTrackBoardID,
 		CustomFieldMappings: CustomFieldMappings{
 			TagMapping:      settings.CustomFieldMappings.TagMapping,
 			PriorityMapping: settings.CustomFieldMappings.PriorityMapping,
 			StatusMapping:   settings.CustomFieldMappings.StatusMapping,
 			CustomFields:    settings.CustomFieldMappings.CustomFields,
 		},
-		CreatedAt: settings.CreatedAt,
-		UpdatedAt: settings.UpdatedAt,
+		ColumnMappings: settings.ColumnMappings,
+		CreatedAt:      settings.CreatedAt,
+		UpdatedAt:      settings.UpdatedAt,
 	}, nil
 }
 
@@ -122,33 +128,37 @@ func (s *Service) UpdateSettings(userID int, req UpdateSettingsRequest) (*UserSe
 		req.YouTrackToken,
 		req.AsanaProjectID,
 		req.YouTrackProjectID,
+		req.YouTrackBoardID,
 		database.CustomFieldMappings{
 			TagMapping:      req.CustomFieldMappings.TagMapping,
 			PriorityMapping: req.CustomFieldMappings.PriorityMapping,
 			StatusMapping:   req.CustomFieldMappings.StatusMapping,
 			CustomFields:    req.CustomFieldMappings.CustomFields,
 		},
+		req.ColumnMappings,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
 	return &UserSettings{
-		ID:                updatedSettings.ID,
-		UserID:            updatedSettings.UserID,
-		AsanaPAT:          updatedSettings.AsanaPAT,
-		YouTrackBaseURL:   updatedSettings.YouTrackBaseURL,
-		YouTrackToken:     updatedSettings.YouTrackToken,
-		AsanaProjectID:    updatedSettings.AsanaProjectID,
-		YouTrackProjectID: updatedSettings.YouTrackProjectID,
+		ID:                  updatedSettings.ID,
+		UserID:              updatedSettings.UserID,
+		AsanaPAT:            updatedSettings.AsanaPAT,
+		YouTrackBaseURL:     updatedSettings.YouTrackBaseURL,
+		YouTrackToken:       updatedSettings.YouTrackToken,
+		AsanaProjectID:      updatedSettings.AsanaProjectID,
+		YouTrackProjectID:   updatedSettings.YouTrackProjectID,
+		YouTrackBoardID:     updatedSettings.YouTrackBoardID,
 		CustomFieldMappings: CustomFieldMappings{
 			TagMapping:      updatedSettings.CustomFieldMappings.TagMapping,
 			PriorityMapping: updatedSettings.CustomFieldMappings.PriorityMapping,
 			StatusMapping:   updatedSettings.CustomFieldMappings.StatusMapping,
 			CustomFields:    updatedSettings.CustomFieldMappings.CustomFields,
 		},
-		CreatedAt: updatedSettings.CreatedAt,
-		UpdatedAt: updatedSettings.UpdatedAt,
+		ColumnMappings: updatedSettings.ColumnMappings,
+		CreatedAt:      updatedSettings.CreatedAt,
+		UpdatedAt:      updatedSettings.UpdatedAt,
 	}, nil
 }
 
@@ -310,4 +320,168 @@ func (s *Service) TestConnections(userID int) (map[string]bool, error) {
 	results["youtrack"] = err == nil
 
 	return results, nil
+}
+
+// GetAsanaSections fetches Asana sections (columns) for the configured project
+func (s *Service) GetAsanaSections(userID int) ([]database.AsanaSection, error) {
+	settings, err := s.GetSettings(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if settings.AsanaPAT == "" || settings.AsanaProjectID == "" {
+		return nil, fmt.Errorf("asana credentials not configured")
+	}
+
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/sections", settings.AsanaProjectID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("request creation error: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("API request error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("asana API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var response struct {
+		Data []database.AsanaSection `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("JSON decode error: %w", err)
+	}
+
+	return response.Data, nil
+}
+
+// GetYouTrackStates fetches YouTrack workflow states for the configured project
+func (s *Service) GetYouTrackStates(userID int) ([]database.YouTrackState, error) {
+	settings, err := s.GetSettings(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" || settings.YouTrackProjectID == "" {
+		return nil, fmt.Errorf("youtrack credentials not configured")
+	}
+
+	url := fmt.Sprintf("%s/api/admin/projects/%s/customFields?fields=field(name,fieldType(id)),bundle(values(name))",
+		settings.YouTrackBaseURL, settings.YouTrackProjectID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("request creation error: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("API request error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var customFields []map[string]interface{}
+	if err := json.Unmarshal(body, &customFields); err != nil {
+		return nil, fmt.Errorf("JSON unmarshal error: %w", err)
+	}
+
+	// Find the State field and extract its values
+	var states []database.YouTrackState
+	for _, field := range customFields {
+		if fieldInfo, ok := field["field"].(map[string]interface{}); ok {
+			if fieldName, ok := fieldInfo["name"].(string); ok && fieldName == "State" {
+				if bundle, ok := field["bundle"].(map[string]interface{}); ok {
+					if values, ok := bundle["values"].([]interface{}); ok {
+						for _, val := range values {
+							if valMap, ok := val.(map[string]interface{}); ok {
+								if stateName, ok := valMap["name"].(string); ok {
+									states = append(states, database.YouTrackState{
+										Name: stateName,
+									})
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return states, nil
+}
+
+// GetYouTrackBoards fetches all agile boards from YouTrack
+func (s *Service) GetYouTrackBoards(userID int) ([]database.YouTrackBoard, error) {
+	settings, err := s.GetSettings(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" {
+		return nil, fmt.Errorf("youtrack credentials not configured")
+	}
+
+	url := fmt.Sprintf("%s/api/agiles?$top=-1&fields=id,name,sprintsSettings(disableSprints),projects(id)",
+		settings.YouTrackBaseURL)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("request creation error: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("API request error: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var rawBoards []map[string]interface{}
+	if err := json.Unmarshal(body, &rawBoards); err != nil {
+		return nil, fmt.Errorf("JSON unmarshal error: %w", err)
+	}
+
+	var boards []database.YouTrackBoard
+	for _, board := range rawBoards {
+		id, _ := board["id"].(string)
+		name, _ := board["name"].(string)
+		if id != "" && name != "" {
+			boards = append(boards, database.YouTrackBoard{
+				ID:   id,
+				Name: name,
+			})
+		}
+	}
+
+	return boards, nil
 }

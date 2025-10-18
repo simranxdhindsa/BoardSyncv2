@@ -642,11 +642,53 @@ export const auth = {
   clearAuth
 };
 
+export const getAsanaSections = async () => {
+  const response = await fetch(`${API_BASE}/api/settings/columns/asana`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error('Failed to get Asana sections');
+  }
+
+  return response.json();
+};
+
+export const getYouTrackStates = async () => {
+  const response = await fetch(`${API_BASE}/api/settings/columns/youtrack`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error('Failed to get YouTrack states');
+  }
+
+  return response.json();
+};
+
+export const getYouTrackBoards = async () => {
+  const response = await fetch(`${API_BASE}/api/settings/youtrack/boards`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error('Failed to get YouTrack boards');
+  }
+
+  return response.json();
+};
+
 export const settings = {
   getUserSettings,
   updateUserSettings,
   getAsanaProjects,
   getYouTrackProjects,
+  getAsanaSections,
+  getYouTrackStates,
+  getYouTrackBoards,
   testConnections
 };
 
