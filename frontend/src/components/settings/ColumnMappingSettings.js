@@ -251,8 +251,8 @@ const ColumnMappingSettings = ({
                   </select>
 
                   {/* Arrow Icon */}
-                  <div className="flex items-center justify-center">
-                    <ArrowRight className="w-5 h-5 text-gray-400" />
+                  <div className="flex items-center justify-center self-center">
+                    <ArrowRight className="w-7 h-7 text-gray-400" strokeWidth={2.5} />
                   </div>
 
                   {/* YouTrack Status */}
