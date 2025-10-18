@@ -21,10 +21,19 @@ type Handler struct {
 	syncService     *SyncService
 	deleteService   *DeleteService
 	ignoreService   *IgnoreService
+	snapshotService interface {
+		CreatePreSyncSnapshot(userID, operationID int, syncType string) (*database.RollbackSnapshot, error)
+		RecordTicketCreation(operationID int, platform, ticketID string, mappingID int) error
+		RecordTicketUpdate(operationID int, platform, ticketID, oldStatus, newStatus string, originalData map[string]interface{}) error
+	}
 }
 
 // NewHandler creates a new legacy handler with all services
-func NewHandler(db *database.DB, configService *configpkg.Service) *Handler {
+func NewHandler(db *database.DB, configService *configpkg.Service, snapshotService interface {
+	CreatePreSyncSnapshot(userID, operationID int, syncType string) (*database.RollbackSnapshot, error)
+	RecordTicketCreation(operationID int, platform, ticketID string, mappingID int) error
+	RecordTicketUpdate(operationID int, platform, ticketID, oldStatus, newStatus string, originalData map[string]interface{}) error
+}) *Handler {
 	return &Handler{
 		db:              db,
 		configService:   configService,
@@ -32,6 +41,7 @@ func NewHandler(db *database.DB, configService *configpkg.Service) *Handler {
 		syncService:     NewSyncService(db, configService),
 		deleteService:   NewDeleteService(configService),
 		ignoreService:   NewIgnoreService(db, configService),
+		snapshotService: snapshotService,
 	}
 }
 
@@ -272,11 +282,70 @@ func (h *Handler) CreateMissingTickets(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("CREATE: Column filter '%s' mapped to '%s'\n", columnFilter, mappedColumn)
 	}
 
+	// Create sync operation record BEFORE performing the operation
+	columnDisplay := mappedColumn
+	if columnDisplay == "" {
+		columnDisplay = "all columns"
+	}
+
+	operationType := "Ticket Creation"
+	operationData := map[string]interface{}{
+		"action": "create_missing_tickets",
+		"column": columnDisplay,
+	}
+
+	operation, err := h.db.CreateOperation(user.UserID, operationType, operationData)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to create operation record: %v", err))
+		return
+	}
+
+	// Create snapshot BEFORE creating tickets
+	if h.snapshotService != nil {
+		_, err = h.snapshotService.CreatePreSyncSnapshot(user.UserID, operation.ID, "create_tickets")
+		if err != nil {
+			fmt.Printf("WARNING: Failed to create snapshot: %v\n", err)
+		}
+	}
+
 	result, err := h.syncService.CreateMissingTickets(user.UserID, mappedColumn)
 	if err != nil {
+		// Update operation status to failed
+		if operation != nil {
+			errMsg := err.Error()
+			h.db.UpdateOperationStatus(operation.ID, "failed", &errMsg)
+		}
 		utils.SendInternalError(w, fmt.Sprintf("Failed to create tickets: %v", err))
 		return
 	}
+
+	// Extract meaningful data from result
+	createdCount := 0
+	skippedCount := 0
+	failedCount := 0
+
+	if created, ok := result["created"].(int); ok {
+		createdCount = created
+	}
+	if skipped, ok := result["skipped"].(int); ok {
+		skippedCount = skipped
+	}
+	if failed, ok := result["failed"].(int); ok {
+		failedCount = failed
+	}
+
+	// Update operation with detailed information
+	operation.OperationData = map[string]interface{}{
+		"action":  "create_missing_tickets",
+		"column":  columnDisplay,
+		"created": createdCount,
+		"skipped": skippedCount,
+		"failed":  failedCount,
+		"total":   createdCount + skippedCount + failedCount,
+	}
+
+	// Mark as completed
+	h.db.UpdateOperationStatus(operation.ID, "completed", nil)
 
 	utils.SendSuccess(w, result, "Ticket creation completed")
 }
@@ -378,11 +447,66 @@ func (h *Handler) SyncMismatchedTickets(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Create sync operation record BEFORE performing the operation
+	columnDisplay := mappedColumn
+	if columnDisplay == "" {
+		columnDisplay = "all columns"
+	}
+
+	operationType := "Ticket Sync"
+	operationData := map[string]interface{}{
+		"action": "sync_mismatched_tickets",
+		"column": columnDisplay,
+		"total":  len(requests),
+	}
+
+	operation, err := h.db.CreateOperation(user.UserID, operationType, operationData)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to create operation record: %v", err))
+		return
+	}
+
+	// Create snapshot BEFORE syncing tickets
+	if h.snapshotService != nil {
+		_, err = h.snapshotService.CreatePreSyncSnapshot(user.UserID, operation.ID, "sync_tickets")
+		if err != nil {
+			fmt.Printf("WARNING: Failed to create snapshot: %v\n", err)
+		}
+	}
+
 	result, err := h.syncService.SyncMismatchedTickets(user.UserID, requests, mappedColumn)
 	if err != nil {
+		// Update operation status to failed
+		if operation != nil {
+			errMsg := err.Error()
+			h.db.UpdateOperationStatus(operation.ID, "failed", &errMsg)
+		}
 		utils.SendInternalError(w, fmt.Sprintf("Sync failed: %v", err))
 		return
 	}
+
+	// Extract meaningful data from result
+	syncedCount := 0
+	failedCount := 0
+
+	if synced, ok := result["synced"].(int); ok {
+		syncedCount = synced
+	}
+	if failed, ok := result["failed"].(int); ok {
+		failedCount = failed
+	}
+
+	// Update operation with detailed information
+	operation.OperationData = map[string]interface{}{
+		"action": "sync_mismatched_tickets",
+		"column": columnDisplay,
+		"synced": syncedCount,
+		"failed": failedCount,
+		"total":  len(requests),
+	}
+
+	// Mark as completed
+	h.db.UpdateOperationStatus(operation.ID, "completed", nil)
 
 	utils.SendSuccess(w, result, "Sync operation completed")
 }

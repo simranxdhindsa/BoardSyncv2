@@ -63,8 +63,8 @@ func main() {
 	log.Println("✅ Rollback & Audit services initialized (15-snapshot limit, 24h expiration)")
 
 	// Initialize legacy handler with database and user-specific settings
-	legacyHandler = legacy.NewHandler(db, configService)
-	log.Println("✅ Legacy handler initialized with enhanced features")
+	legacyHandler = legacy.NewHandler(db, configService, snapshotService)
+	log.Println("✅ Legacy handler initialized with enhanced features and snapshot support")
 
 	// Initialize legacy services for rollback
 	youtrackService := legacy.NewYouTrackService(configService)
@@ -566,7 +566,11 @@ func handleSyncHistory(rollbackService *sync.RollbackService) http.HandlerFunc {
 			return
 		}
 
-		utils.SendSuccess(w, operations, "Sync history retrieved")
+		// Return operations in a structured format
+		utils.SendSuccess(w, map[string]interface{}{
+			"operations": operations,
+			"count":      len(operations),
+		}, "Sync history retrieved")
 	}
 }
 

@@ -104,6 +104,19 @@ const UserSettings = ({ onBack }) => {
     loadSettings();
   }, []);
 
+  // Auto-load projects when settings are loaded and API tab is active
+  useEffect(() => {
+    if (activeTab === 'api' && settings.asana_pat && asanaProjects.length === 0 && !loadingProjects.asana) {
+      loadAsanaProjects();
+    }
+  }, [activeTab, settings.asana_pat]);
+
+  useEffect(() => {
+    if (activeTab === 'api' && settings.youtrack_base_url && settings.youtrack_token && youtrackProjects.length === 0 && !loadingProjects.youtrack) {
+      loadYoutrackProjects();
+    }
+  }, [activeTab, settings.youtrack_base_url, settings.youtrack_token]);
+
   const loadSettings = async () => {
     setLoading(true);
     setError(null);
@@ -454,12 +467,27 @@ const UserSettings = ({ onBack }) => {
     clearMessages();
   };
 
-  const handleTabChange = (tabId) => {
+  const handleTabChange = async (tabId) => {
     setActiveTab(tabId);
+
     // Reset to list view when switching to ticket mapping tab
     if (tabId === 'ticket_mapping') {
       setShowCreateMappingForm(false);
     }
+
+    // Auto-load projects when API Configuration tab is opened
+    if (tabId === 'api') {
+      // Load Asana projects if PAT exists and projects not loaded
+      if (settings.asana_pat && asanaProjects.length === 0) {
+        await loadAsanaProjects();
+      }
+
+      // Load YouTrack projects if credentials exist and projects not loaded
+      if (settings.youtrack_base_url && settings.youtrack_token && youtrackProjects.length === 0) {
+        await loadYoutrackProjects();
+      }
+    }
+
     clearMessages();
   };
 
