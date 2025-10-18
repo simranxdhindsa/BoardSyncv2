@@ -290,14 +290,6 @@ const ColumnMappingSettings = ({
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-
-                {/* Display Only Badge */}
-                {mapping.display_only && (
-                  <div className="mt-2 mb-3 flex items-center text-xs text-blue-700 bg-blue-50 bg-opacity-50 px-3 py-1 rounded-lg border border-blue-200">
-                    <Eye className="w-3 h-3 mr-1" />
-                    This column will be visible on the dashboard but tickets won't be synced
-                  </div>
-                )}
               </div>
             ))}
           </div>
