@@ -472,7 +472,26 @@ func (s *AnalysisService) GetTicketsByType(userID int, ticketType string, column
 	case "orphaned":
 		return analysis.OrphanedYouTrack, nil
 	default:
-		return nil, fmt.Errorf("invalid ticket type: %s", ticketType)
+		// For display-only columns or any other column type, return all tickets from that column
+		// This includes matched, mismatched, and missing tickets
+		allTickets := []interface{}{}
+
+		// Add matched tickets from this column
+		for _, ticket := range analysis.Matched {
+			allTickets = append(allTickets, ticket)
+		}
+
+		// Add mismatched tickets from this column
+		for _, ticket := range analysis.Mismatched {
+			allTickets = append(allTickets, ticket)
+		}
+
+		// Add missing tickets from this column
+		for _, ticket := range analysis.MissingYouTrack {
+			allTickets = append(allTickets, ticket)
+		}
+
+		return allTickets, nil
 	}
 }
 

@@ -9,7 +9,7 @@ import {
 import {
   getTicketsByType, ignoreTicket, unignoreTicket, deleteTickets,
   getEnhancedAnalysis, getChangedMappings,
-  syncEnhancedTickets, getAutoSyncDetailed
+  syncEnhancedTickets, getAutoSyncDetailed, getUserSettings
 } from '../services/api';
 
 const TicketDetailView = ({
@@ -58,6 +58,33 @@ const TicketDetailView = ({
   // Track initial mount to prevent double-loading
   const isInitialMount = useRef(true);
 
+  // Column mappings state
+  const [columnMappings, setColumnMappings] = useState([]);
+  const [isDisplayOnlyColumn, setIsDisplayOnlyColumn] = useState(false);
+
+  // Load column mappings on mount
+  useEffect(() => {
+    const loadColumnMappings = async () => {
+      try {
+        const response = await getUserSettings();
+        const settings = response.data || response;
+        const mappings = settings.column_mappings?.asana_to_youtrack || [];
+        setColumnMappings(mappings);
+
+        // Check if current column is display-only
+        if (column && column !== 'all_syncable') {
+          const columnKey = column.toLowerCase().replace(/\s+/g, '_');
+          const mapping = mappings.find(m =>
+            m.asana_column.toLowerCase().replace(/\s+/g, '_') === columnKey
+          );
+          setIsDisplayOnlyColumn(mapping?.display_only === true);
+        }
+      } catch (error) {
+        console.error('Failed to load column mappings:', error);
+      }
+    };
+    loadColumnMappings();
+  }, [column]);
 
   const getTypeInfo = useCallback(() => {
     const typeConfig = {
@@ -195,7 +222,7 @@ const TicketDetailView = ({
               <Bug className="w-4 h-4 mr-2" />
               {showDebug ? 'Hide' : 'Show'} Debug
             </button>
-            {type === 'missing' && tickets.length > 0 && onCreateMissing && (
+            {!isDisplayOnlyColumn && type === 'missing' && tickets.length > 0 && onCreateMissing && (
               <button
                 onClick={handleCreateAll}
                 disabled={createAllLoading}
@@ -859,7 +886,7 @@ const TicketDetailView = ({
 
           {!deleteMode && (
             <div className="flex flex-col space-y-2 ml-4">
-              {type === 'mismatched' && (
+              {!isDisplayOnlyColumn && type === 'mismatched' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -879,7 +906,7 @@ const TicketDetailView = ({
                 </button>
               )}
 
-              {type === 'missing' && (
+              {!isDisplayOnlyColumn && type === 'missing' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -900,6 +927,12 @@ const TicketDetailView = ({
                     </>
                   )}
                 </button>
+              )}
+
+              {isDisplayOnlyColumn && (
+                <div className="bg-blue-50 border border-blue-200 text-blue-700 px-3 py-2 rounded text-xs text-center">
+                  Display Only<br/>No Sync
+                </div>
               )}
 
               {type !== 'ignored' && (
