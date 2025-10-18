@@ -145,7 +145,7 @@ func (db *PureGoDB) GetUserSettings(userID int) (*UserSettings, error) {
 	return nil, fmt.Errorf("settings not found")
 }
 
-func (db *PureGoDB) UpdateUserSettings(userID int, asanaPAT, youtrackBaseURL, youtrackToken, asanaProjectID, youtrackProjectID string, mappings CustomFieldMappings) (*UserSettings, error) {
+func (db *PureGoDB) UpdateUserSettings(userID int, asanaPAT, youtrackBaseURL, youtrackToken, asanaProjectID, youtrackProjectID, youtrackBoardID string, mappings CustomFieldMappings, columnMappings ColumnMappings) (*UserSettings, error) {
 	db.mutex.Lock()
 	defer db.mutex.Unlock()
 
@@ -166,7 +166,9 @@ func (db *PureGoDB) UpdateUserSettings(userID int, asanaPAT, youtrackBaseURL, yo
 	settings.YouTrackToken = youtrackToken
 	settings.AsanaProjectID = asanaProjectID
 	settings.YouTrackProjectID = youtrackProjectID
+	settings.YouTrackBoardID = youtrackBoardID
 	settings.CustomFieldMappings = mappings
+	settings.ColumnMappings = columnMappings
 	settings.UpdatedAt = time.Now()
 
 	if err := db.saveData(); err != nil {

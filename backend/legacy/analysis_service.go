@@ -199,7 +199,7 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 			existingIssue, existsInYouTrack := youTrackMap[task.GID]
 
 			if existsInYouTrack {
-				s.processReadyForStageTicket(task, existingIssue, asanaTags, analysis)
+				s.processReadyForStageTicket(userID, task, existingIssue, asanaTags, analysis)
 			} else {
 				analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
 			}
@@ -212,7 +212,7 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 		existingIssue, existsInYouTrack := youTrackMap[task.GID]
 
 		if existsInYouTrack {
-			s.processExistingTicket(task, existingIssue, asanaTags, sectionName, analysis)
+			s.processExistingTicket(userID, task, existingIssue, asanaTags, sectionName, analysis)
 		} else {
 			if s.isSyncableSection(sectionName) {
 				fmt.Printf("ANALYSIS: Task '%s' (GID: %s) missing in YouTrack\n", task.Name, task.GID)
@@ -250,7 +250,7 @@ func (s *AnalysisService) processFindings(task AsanaTask, youTrackMap map[string
 }
 
 // processReadyForStageTicket processes tickets in "Ready for Stage"
-func (s *AnalysisService) processReadyForStageTicket(task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, analysis *TicketAnalysis) {
+func (s *AnalysisService) processReadyForStageTicket(userID int, task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, analysis *TicketAnalysis) {
 	if existingIssue.ID == "" {
 		fmt.Printf("ANALYSIS WARNING: Ready for Stage task '%s' (GID: %s) has empty YouTrack issue ID - treating as missing\n", task.Name, task.GID)
 		analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
@@ -258,7 +258,7 @@ func (s *AnalysisService) processReadyForStageTicket(task AsanaTask, existingIss
 	}
 
 	// Use the mapping function to get the expected YouTrack status for "Ready for Stage"
-	expectedYouTrackStatus := s.asanaService.MapStateToYouTrack(task)
+	expectedYouTrackStatus := s.asanaService.MapStateToYouTrackWithSettings(userID, task)
 	actualYouTrackStatus := s.youtrackService.GetStatus(existingIssue)
 
 	fmt.Printf("ANALYSIS: Processing Ready for Stage ticket '%s' - Expected YT: %s (mapped from Asana), Actual YT: %s\n",
@@ -290,7 +290,7 @@ func (s *AnalysisService) processReadyForStageTicket(task AsanaTask, existingIss
 }
 
 // processExistingTicket processes tickets that exist in both systems
-func (s *AnalysisService) processExistingTicket(task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, sectionName string, analysis *TicketAnalysis) {
+func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, sectionName string, analysis *TicketAnalysis) {
 	if existingIssue.ID == "" {
 		fmt.Printf("ANALYSIS WARNING: Task '%s' (GID: %s) has empty YouTrack issue ID - treating as missing\n", task.Name, task.GID)
 		if s.isSyncableSection(sectionName) {
@@ -299,7 +299,7 @@ func (s *AnalysisService) processExistingTicket(task AsanaTask, existingIssue Yo
 		return
 	}
 
-	asanaStatus := s.asanaService.MapStateToYouTrack(task)
+	asanaStatus := s.asanaService.MapStateToYouTrackWithSettings(userID, task)
 	youtrackStatus := s.youtrackService.GetStatus(existingIssue)
 
 	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s\n", task.Name, asanaStatus, youtrackStatus)
@@ -702,7 +702,7 @@ func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existing
 		return
 	}
 
-	asanaStatus := s.asanaService.MapStateToYouTrack(task)
+	asanaStatus := s.asanaService.MapStateToYouTrackWithSettings(userID, task)
 	youtrackStatus := s.youtrackService.GetStatus(existingIssue)
 
 	// Get enhanced data

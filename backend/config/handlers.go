@@ -36,6 +36,9 @@ func (h *Handler) RegisterRoutes(router *mux.Router, authService *auth.Service) 
 	settings.HandleFunc("", h.UpdateSettings).Methods("PUT", "OPTIONS")
 	settings.HandleFunc("/asana/projects", h.GetAsanaProjects).Methods("GET", "OPTIONS")
 	settings.HandleFunc("/youtrack/projects", h.GetYouTrackProjects).Methods("GET", "OPTIONS")
+	settings.HandleFunc("/columns/asana", h.GetAsanaSections).Methods("GET", "OPTIONS")
+	settings.HandleFunc("/columns/youtrack", h.GetYouTrackStates).Methods("GET", "OPTIONS")
+	settings.HandleFunc("/youtrack/boards", h.GetYouTrackBoards).Methods("GET", "OPTIONS")
 	settings.HandleFunc("/test-connections", h.TestConnections).Methods("POST", "OPTIONS")
 }
 
@@ -211,5 +214,86 @@ func (h *Handler) TestConnections(w http.ResponseWriter, r *http.Request) {
 		"results":       results,
 		"all_connected": allConnected,
 	}, message)
+}
+
+// GetAsanaSections retrieves all sections (columns) from the Asana project
+func (h *Handler) GetAsanaSections(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	sections, err := h.service.GetAsanaSections(user.UserID)
+	if err != nil {
+		if err.Error() == "asana credentials not configured" {
+			utils.SendBadRequest(w, "Asana credentials not configured. Please update your settings first.")
+			return
+		}
+		utils.SendInternalError(w, "Failed to fetch Asana sections: "+err.Error())
+		return
+	}
+
+	utils.SendSuccess(w, sections, "Asana sections retrieved successfully")
+}
+
+// GetYouTrackStates retrieves all workflow states from the YouTrack project
+func (h *Handler) GetYouTrackStates(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	states, err := h.service.GetYouTrackStates(user.UserID)
+	if err != nil {
+		if err.Error() == "youtrack credentials not configured" {
+			utils.SendBadRequest(w, "YouTrack credentials not configured. Please update your settings first.")
+			return
+		}
+		utils.SendInternalError(w, "Failed to fetch YouTrack states: "+err.Error())
+		return
+	}
+
+	utils.SendSuccess(w, states, "YouTrack states retrieved successfully")
+}
+
+// GetYouTrackBoards retrieves all agile boards from YouTrack
+func (h *Handler) GetYouTrackBoards(w http.ResponseWriter, r *http.Request) {
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		h.handleOptions(w, r)
+		return
+	}
+
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	boards, err := h.service.GetYouTrackBoards(user.UserID)
+	if err != nil {
+		if err.Error() == "youtrack credentials not configured" {
+			utils.SendBadRequest(w, "YouTrack credentials not configured. Please update your settings first.")
+			return
+		}
+		utils.SendInternalError(w, "Failed to fetch YouTrack boards: "+err.Error())
+		return
+	}
+
+	utils.SendSuccess(w, boards, "YouTrack boards retrieved successfully")
 }
 

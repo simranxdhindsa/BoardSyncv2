@@ -12,15 +12,16 @@ import {
   deleteAccount
 } from '../../services/api';
 import { CreateMappingForm, MappingsList } from '../mapping/MappingComponents';
-import { 
-  Settings, 
-  Key, 
-  Link, 
+import ColumnMappingSettings from './ColumnMappingSettings';
+import {
+  Settings,
+  Key,
+  Link,
   Link2,
-  TestTube, 
-  Save, 
-  RefreshCw, 
-  CheckCircle, 
+  TestTube,
+  Save,
+  RefreshCw,
+  CheckCircle,
   AlertTriangle,
   LogOut,
   User,
@@ -30,7 +31,8 @@ import {
   Eye,
   EyeOff,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Columns
 } from 'lucide-react';
 import FluidText from '../FluidText';
 import '../../styles/settings-glass-theme.css';
@@ -390,6 +392,7 @@ const UserSettings = ({ onBack }) => {
 
   const tabs = [
     { id: 'api', label: 'API Configuration', icon: Key },
+    { id: 'column_mapping', label: 'Column Mapping', icon: Columns },
     { id: 'mapping', label: 'Field Mapping', icon: Link },
     { id: 'ticket_mapping', label: 'Ticket Mapping', icon: Link2 },
     { id: 'profile', label: 'Profile', icon: User }
@@ -667,6 +670,19 @@ const UserSettings = ({ onBack }) => {
                 )}
               </div>
             </div>
+          )}
+
+          {/* Column Mapping Tab */}
+          {activeTab === 'column_mapping' && (
+            <ColumnMappingSettings
+              settings={settings}
+              onSettingsUpdate={(updatedSettings) => {
+                setSettings(updatedSettings);
+                setInitialSettings(updatedSettings);
+              }}
+              onSuccess={setSuccessMessage}
+              onError={setError}
+            />
           )}
 
           {/* Field Mapping Tab */}
