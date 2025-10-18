@@ -54,11 +54,21 @@ func main() {
 	configService = configpkg.NewService(db)
 	rollbackService := sync.NewRollbackService(db)
 
+	// Initialize rollback & audit services
+	snapshotService := sync.NewSnapshotService(db)
+	auditService := sync.NewAuditService(db)
+	rollbackRestoreService := sync.NewRollbackRestoreService(db, snapshotService, auditService)
+
 	log.Println("✅ Core services initialized")
+	log.Println("✅ Rollback & Audit services initialized (15-snapshot limit, 24h expiration)")
 
 	// Initialize legacy handler with database and user-specific settings
 	legacyHandler = legacy.NewHandler(db, configService)
 	log.Println("✅ Legacy handler initialized with enhanced features")
+
+	// Initialize legacy services for rollback
+	youtrackService := legacy.NewYouTrackService(configService)
+	asanaService := legacy.NewAsanaService(configService)
 
 	// Initialize auto managers (but don't start them - they start on demand)
 	legacy.InitializeAutoManagers(db, configService)
@@ -77,7 +87,7 @@ func main() {
 	router := mux.NewRouter()
 
 	// Register routes
-	registerRoutes(router, authHandler, configHandler, authService, wsManager, rollbackService, cacheManager)
+	registerRoutes(router, authHandler, configHandler, authService, wsManager, rollbackService, cacheManager, rollbackRestoreService, snapshotService, auditService, youtrackService, asanaService)
 
 	// Log configuration status
 	logConfigurationStatus()
@@ -111,6 +121,11 @@ func registerRoutes(
 	wsManager *sync.WebSocketManager,
 	rollbackService *sync.RollbackService,
 	cacheManager *cache.CacheManager,
+	rollbackRestoreService *sync.RollbackRestoreService,
+	snapshotService *sync.SnapshotService,
+	auditService *sync.AuditService,
+	youtrackService *legacy.YouTrackService,
+	asanaService *legacy.AsanaService,
 ) {
 	// Add CORS middleware to all routes
 	router.Use(utils.CORSMiddleware)
@@ -167,10 +182,23 @@ func registerRoutes(
 	syncAPI := router.PathPrefix("/api/sync").Subrouter()
 	syncAPI.Use(authService.Middleware)
 
-	syncAPI.HandleFunc("/start", handleSyncStart(wsManager, rollbackService)).Methods("POST")
-	syncAPI.HandleFunc("/status/{id}", handleSyncStatus(rollbackService)).Methods("GET")
-	syncAPI.HandleFunc("/history", handleSyncHistory(rollbackService)).Methods("GET")
-	syncAPI.HandleFunc("/rollback/{id}", handleSyncRollback(rollbackService, wsManager)).Methods("POST")
+	syncAPI.HandleFunc("/start", handleSyncStart(wsManager, rollbackService)).Methods("POST", "OPTIONS")
+	syncAPI.HandleFunc("/status/{id}", handleSyncStatus(rollbackService)).Methods("GET", "OPTIONS")
+	syncAPI.HandleFunc("/history", handleSyncHistory(rollbackService)).Methods("GET", "OPTIONS")
+	syncAPI.HandleFunc("/rollback/{id}", sync.HandleRollback(rollbackRestoreService, youtrackService, asanaService, wsManager)).Methods("POST", "OPTIONS")
+	syncAPI.HandleFunc("/snapshot/{id}", sync.HandleGetSnapshotSummary(snapshotService)).Methods("GET", "OPTIONS")
+	syncAPI.HandleFunc("/operation/{id}/logs", sync.HandleGetOperationAuditLogs(auditService)).Methods("GET", "OPTIONS")
+
+	// ========================================================================
+	// AUDIT LOG ROUTES (Protected)
+	// ========================================================================
+
+	auditAPI := router.PathPrefix("/api/audit").Subrouter()
+	auditAPI.Use(authService.Middleware)
+
+	auditAPI.HandleFunc("/logs", sync.HandleGetAuditLogs(auditService)).Methods("GET", "OPTIONS")
+	auditAPI.HandleFunc("/logs/export", sync.HandleExportAuditLogs(auditService)).Methods("GET", "OPTIONS")
+	auditAPI.HandleFunc("/ticket/{ticket_id}/history", sync.HandleGetTicketHistory(auditService)).Methods("GET", "OPTIONS")
 
 	// ========================================================================
 	// LEGACY API ROUTES - ENHANCED (Now Protected with Authentication)

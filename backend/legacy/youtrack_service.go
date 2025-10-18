@@ -467,6 +467,30 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 	return s.createOrUpdateIssue(settings, issueID, payload)
 }
 
+// UpdateIssueStatus updates only the status of a YouTrack issue (for rollback)
+func (s *YouTrackService) UpdateIssueStatus(userID int, issueID, status string) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	payload := map[string]interface{}{
+		"$type": "Issue",
+		"customFields": []map[string]interface{}{
+			{
+				"$type": "StateIssueCustomField",
+				"name":  "State",
+				"value": map[string]interface{}{
+					"$type": "StateBundleElement",
+					"name":  status,
+				},
+			},
+		},
+	}
+
+	return s.createOrUpdateIssue(settings, issueID, payload)
+}
+
 // DeleteIssue deletes a YouTrack issue
 func (s *YouTrackService) DeleteIssue(userID int, issueID string) error {
 	settings, err := s.configService.GetSettings(userID)
