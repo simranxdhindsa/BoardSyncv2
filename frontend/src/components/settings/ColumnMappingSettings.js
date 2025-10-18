@@ -231,10 +231,10 @@ const ColumnMappingSettings = ({
             <p className="text-gray-500 text-sm">No column mappings configured. Click "Add Mapping" to create one.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="settings-mapping-container">
             {columnMappings.map((mapping, index) => (
-              <div key={index} className="settings-mapping-container">
-                <div className="settings-form-row">
+              <div key={index}>
+                <div className="settings-form-row" style={{ marginBottom: index < columnMappings.length - 1 ? '12px' : '0' }}>
                   {/* Asana Column */}
                   <select
                     value={mapping.asana_column}
@@ -293,7 +293,7 @@ const ColumnMappingSettings = ({
 
                 {/* Display Only Badge */}
                 {mapping.display_only && (
-                  <div className="mt-2 flex items-center text-xs text-blue-700 bg-blue-50 bg-opacity-50 px-3 py-1 rounded-lg border border-blue-200">
+                  <div className="mt-2 mb-3 flex items-center text-xs text-blue-700 bg-blue-50 bg-opacity-50 px-3 py-1 rounded-lg border border-blue-200">
                     <Eye className="w-3 h-3 mr-1" />
                     This column will be visible on the dashboard but tickets won't be synced
                   </div>
