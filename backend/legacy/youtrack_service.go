@@ -205,10 +205,16 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 	// Sanitize title - replace "/" with "or"
 	sanitizedTitle := utils.SanitizeTitle(task.Name)
 
+	// Convert HTML notes to YouTrack markdown if available, otherwise use plain notes
+	description := task.Notes
+	if task.HTMLNotes != "" {
+		description = utils.ConvertAsanaHTMLToYouTrackMarkdown(task.HTMLNotes)
+	}
+
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": task.Notes,
+		"description": description,
 		"project": map[string]interface{}{
 			"$type":     "Project",
 			"shortName": settings.YouTrackProjectID,
@@ -285,10 +291,16 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 	// Sanitize title - replace "/" with "or"
 	sanitizedTitle := utils.SanitizeTitle(task.Name)
 
+	// Convert HTML notes to YouTrack markdown if available, otherwise use plain notes
+	description := task.Notes
+	if task.HTMLNotes != "" {
+		description = utils.ConvertAsanaHTMLToYouTrackMarkdown(task.HTMLNotes)
+	}
+
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": task.Notes,
+		"description": description,
 		"project": map[string]interface{}{
 			"$type":     "Project",
 			"shortName": settings.YouTrackProjectID,
@@ -421,10 +433,16 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 	// Sanitize title - replace "/" with "or"
 	sanitizedTitle := utils.SanitizeTitle(task.Name)
 
+	// Convert HTML notes to YouTrack markdown if available, otherwise use plain notes
+	description := task.Notes
+	if task.HTMLNotes != "" {
+		description = utils.ConvertAsanaHTMLToYouTrackMarkdown(task.HTMLNotes)
+	}
+
 	payload := map[string]interface{}{
 		"$type":       "Issue",
 		"summary":     sanitizedTitle,
-		"description": task.Notes,
+		"description": description,
 	}
 
 	customFields := []map[string]interface{}{}
