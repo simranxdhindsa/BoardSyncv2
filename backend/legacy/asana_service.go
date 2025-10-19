@@ -37,8 +37,8 @@ func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
 		return nil, fmt.Errorf("asana credentials not configured")
 	}
 
-	// Enhanced fields including assignee, created_at, custom fields
-	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,completed_at,created_at,modified_at,assignee.name,assignee.gid,memberships.section.gid,memberships.section.name,tags.gid,tags.name,custom_fields.name,custom_fields.display_value,custom_fields.text_value,custom_fields.number_value,custom_fields.enum_value.name",
+	// Enhanced fields including assignee, created_at, custom fields, and html_notes for formatting
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,html_notes,completed_at,created_at,modified_at,assignee.name,assignee.gid,memberships.section.gid,memberships.section.name,tags.gid,tags.name,custom_fields.name,custom_fields.display_value,custom_fields.text_value,custom_fields.number_value,custom_fields.enum_value.name",
 		settings.AsanaProjectID)
 
 	req, err := http.NewRequest("GET", url, nil)
