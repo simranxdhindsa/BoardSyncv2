@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff, RotateCcw, History } from 'lucide-react';
 import TicketDetailView from './TicketDetailView';
 import SyncHistory from './SyncHistory';
 import { analyzeTickets, getUserSettings, getSyncHistory, rollbackSync } from '../services/api';
@@ -72,6 +72,27 @@ const AnalysisResults = ({
     };
     loadColumnMappings();
   }, []);
+
+  // Set navbar slots for Sync History button
+  useEffect(() => {
+    if (setNavBarSlots && !detailView) {
+      setNavBarSlots(
+        null, // left slot
+        <button
+          onClick={() => setShowSyncHistory(!showSyncHistory)}
+          className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
+          title="Sync History"
+        >
+          <History className="w-5 h-5" />
+        </button>
+      );
+    }
+    return () => {
+      if (setNavBarSlots && !detailView) {
+        setNavBarSlots(null, null);
+      }
+    };
+  }, [setNavBarSlots, showSyncHistory, detailView]);
 
   // Data extraction
   let analysis = null;
@@ -562,17 +583,6 @@ const AnalysisResults = ({
               )}
             </button>
           </div>
-        </div>
-
-        {/* Sync History Tab Toggle */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowSyncHistory(!showSyncHistory)}
-            className="view-details-button"
-          >
-            <Clock className="w-4 h-4 mr-2" />
-            {showSyncHistory ? 'Hide' : 'Show'} Sync History
-          </button>
         </div>
 
         {/* Sync History Panel */}
