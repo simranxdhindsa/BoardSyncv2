@@ -8,6 +8,7 @@ type AsanaTask struct {
 	GID         string `json:"gid"`
 	Name        string `json:"name"`
 	Notes       string `json:"notes"`
+	HTMLNotes   string `json:"html_notes"`
 	CompletedAt string `json:"completed_at"`
 	CreatedAt   string `json:"created_at"`
 	ModifiedAt  string `json:"modified_at"`

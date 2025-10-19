@@ -7,9 +7,11 @@ import NavBar from './components/NavBar';
 import LuxuryBackground from './components/Background';
 import LoginForm from './components/auth/LoginForm';
 import UserSettings from './components/settings/UserSettings';
+import SyncHistory from './components/SyncHistory';
+import AuditLogs from './components/AuditLogs';
 import { analyzeTickets, syncSingleTicket, createSingleTicket, createMissingTickets } from './services/api';
 import './styles/glass-theme.css';
-import { Settings, } from 'lucide-react';
+import { Settings, History, FileText } from 'lucide-react';
 
 
 // Main App Component (wrapped in AuthProvider)
@@ -190,12 +192,36 @@ function AppContent() {
       };
     }
 
+    if (currentView === 'sync-history') {
+      return {
+        left: (
+          <div className="flex items-center">
+            <History className="w-8 h-8 text-purple-600 mr-3" />
+            <div className="text-xl font-semibold text-gray-900">Sync History</div>
+          </div>
+        ),
+        right: null
+      };
+    }
+
+    if (currentView === 'audit-logs') {
+      return {
+        left: (
+          <div className="flex items-center">
+            <FileText className="w-8 h-8 text-green-600 mr-3" />
+            <div className="text-xl font-semibold text-gray-900">Audit Logs</div>
+          </div>
+        ),
+        right: null
+      };
+    }
+
     return {
       left: navLeft ?? (currentView === 'dashboard' ? (
         <div className="flex items-center">
-          <img 
-            src="https://apyhub.com/logo.svg" 
-            alt="ApyHub" 
+          <img
+            src="https://apyhub.com/logo.svg"
+            alt="ApyHub"
             className="h-8 w-8 apyhub-logo"
           />
           <div className="ml-3 text-xl font-semibold text-gray-900">Asana-YouTrack Sync</div>
@@ -213,6 +239,20 @@ function AppContent() {
               <div className="text-xs text-gray-500">Enhanced Dashboard</div>
             </div>
             <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentView('sync-history')}
+                className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
+                title="Sync History"
+              >
+                <History className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setCurrentView('audit-logs')}
+                className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
+                title="Audit Logs"
+              >
+                <FileText className="w-5 h-5" />
+              </button>
               <button
                 onClick={() => setCurrentView('settings')}
                 className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
@@ -269,10 +309,12 @@ function AppContent() {
         }}
       >
         <NavBar
-          title={currentView === 'dashboard' ? 'Dashboard' : 
-                 currentView === 'settings' ? 'Settings' : 'Analysis Results'}
+          title={currentView === 'dashboard' ? 'Dashboard' :
+                 currentView === 'settings' ? 'Settings' :
+                 currentView === 'sync-history' ? 'Sync History' :
+                 currentView === 'audit-logs' ? 'Audit Logs' : 'Analysis Results'}
           showBack={currentView !== 'dashboard'}
-          onBack={currentView === 'settings' ? () => setCurrentView('dashboard') : handleBackToDashboard}
+          onBack={currentView === 'settings' || currentView === 'sync-history' || currentView === 'audit-logs' ? () => setCurrentView('dashboard') : handleBackToDashboard}
           leftContent={navContent.left}
           rightContent={navContent.right}
         >
@@ -299,6 +341,10 @@ function AppContent() {
             <UserSettings
               onBack={() => setCurrentView('dashboard')}
             />
+          ) : currentView === 'sync-history' ? (
+            <SyncHistory />
+          ) : currentView === 'audit-logs' ? (
+            <AuditLogs />
           ) : null}
         </NavBar>
       </div>

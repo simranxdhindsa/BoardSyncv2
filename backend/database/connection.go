@@ -10,18 +10,22 @@ import (
 )
 
 type DB struct {
-	dataDir          string
-	mutex            sync.RWMutex
-	users            map[int]*User
-	settings         map[int]*UserSettings
-	operations       map[int]*SyncOperation
-	ignoredTickets   map[int]*IgnoredTicket
-	ticketMappings   map[int]*TicketMapping
-	nextUserID       int
-	nextSettingsID   int
-	nextOperationID  int
-	nextIgnoredID    int
-	nextMappingID    int
+	dataDir           string
+	mutex             sync.RWMutex
+	users             map[int]*User
+	settings          map[int]*UserSettings
+	operations        map[int]*SyncOperation
+	ignoredTickets    map[int]*IgnoredTicket
+	ticketMappings    map[int]*TicketMapping
+	rollbackSnapshots map[int]*RollbackSnapshot
+	auditLogs         map[int]*AuditLogEntry
+	nextUserID        int
+	nextSettingsID    int
+	nextOperationID   int
+	nextIgnoredID     int
+	nextMappingID     int
+	nextSnapshotID    int
+	nextAuditLogID    int
 }
 
 var database *DB
@@ -35,17 +39,21 @@ func InitDB(dbPath string) (*DB, error) {
 	}
 
 	database = &DB{
-		dataDir:         dataDir,
-		users:           make(map[int]*User),
-		settings:        make(map[int]*UserSettings),
-		operations:      make(map[int]*SyncOperation),
-		ignoredTickets:  make(map[int]*IgnoredTicket),
-		ticketMappings:  make(map[int]*TicketMapping),
-		nextUserID:      1,
-		nextSettingsID:  1,
-		nextOperationID: 1,
-		nextIgnoredID:   1,
-		nextMappingID:   1,
+		dataDir:           dataDir,
+		users:             make(map[int]*User),
+		settings:          make(map[int]*UserSettings),
+		operations:        make(map[int]*SyncOperation),
+		ignoredTickets:    make(map[int]*IgnoredTicket),
+		ticketMappings:    make(map[int]*TicketMapping),
+		rollbackSnapshots: make(map[int]*RollbackSnapshot),
+		auditLogs:         make(map[int]*AuditLogEntry),
+		nextUserID:        1,
+		nextSettingsID:    1,
+		nextOperationID:   1,
+		nextIgnoredID:     1,
+		nextMappingID:     1,
+		nextSnapshotID:    1,
+		nextAuditLogID:    1,
 	}
 
 	// Load existing data
@@ -617,27 +625,35 @@ func (db *DB) GetUserDataSummary(userID int) (map[string]int, error) {
 // Data persistence
 func (db *DB) saveData() error {
 	data := struct {
-		Users           map[int]*User          `json:"users"`
-		Settings        map[int]*UserSettings  `json:"settings"`
-		Operations      map[int]*SyncOperation `json:"operations"`
-		IgnoredTickets  map[int]*IgnoredTicket `json:"ignored_tickets"`
-		TicketMappings  map[int]*TicketMapping `json:"ticket_mappings"`
-		NextUserID      int                    `json:"next_user_id"`
-		NextSettingsID  int                    `json:"next_settings_id"`
-		NextOperationID int                    `json:"next_operation_id"`
-		NextIgnoredID   int                    `json:"next_ignored_id"`
-		NextMappingID   int                    `json:"next_mapping_id"`
+		Users             map[int]*User              `json:"users"`
+		Settings          map[int]*UserSettings      `json:"settings"`
+		Operations        map[int]*SyncOperation     `json:"operations"`
+		IgnoredTickets    map[int]*IgnoredTicket     `json:"ignored_tickets"`
+		TicketMappings    map[int]*TicketMapping     `json:"ticket_mappings"`
+		RollbackSnapshots map[int]*RollbackSnapshot  `json:"rollback_snapshots"`
+		AuditLogs         map[int]*AuditLogEntry     `json:"audit_logs"`
+		NextUserID        int                        `json:"next_user_id"`
+		NextSettingsID    int                        `json:"next_settings_id"`
+		NextOperationID   int                        `json:"next_operation_id"`
+		NextIgnoredID     int                        `json:"next_ignored_id"`
+		NextMappingID     int                        `json:"next_mapping_id"`
+		NextSnapshotID    int                        `json:"next_snapshot_id"`
+		NextAuditLogID    int                        `json:"next_audit_log_id"`
 	}{
-		Users:           db.users,
-		Settings:        db.settings,
-		Operations:      db.operations,
-		IgnoredTickets:  db.ignoredTickets,
-		TicketMappings:  db.ticketMappings,
-		NextUserID:      db.nextUserID,
-		NextSettingsID:  db.nextSettingsID,
-		NextOperationID: db.nextOperationID,
-		NextIgnoredID:   db.nextIgnoredID,
-		NextMappingID:   db.nextMappingID,
+		Users:             db.users,
+		Settings:          db.settings,
+		Operations:        db.operations,
+		IgnoredTickets:    db.ignoredTickets,
+		TicketMappings:    db.ticketMappings,
+		RollbackSnapshots: db.rollbackSnapshots,
+		AuditLogs:         db.auditLogs,
+		NextUserID:        db.nextUserID,
+		NextSettingsID:    db.nextSettingsID,
+		NextOperationID:   db.nextOperationID,
+		NextIgnoredID:     db.nextIgnoredID,
+		NextMappingID:     db.nextMappingID,
+		NextSnapshotID:    db.nextSnapshotID,
+		NextAuditLogID:    db.nextAuditLogID,
 	}
 
 	filePath := db.dataDir + "/data.json"
@@ -689,16 +705,20 @@ func (db *DB) loadData() error {
 	defer file.Close()
 
 	var data struct {
-		Users           map[int]*User          `json:"users"`
-		Settings        map[int]*UserSettings  `json:"settings"`
-		Operations      map[int]*SyncOperation `json:"operations"`
-		IgnoredTickets  map[int]*IgnoredTicket `json:"ignored_tickets"`
-		TicketMappings  map[int]*TicketMapping `json:"ticket_mappings"`
-		NextUserID      int                    `json:"next_user_id"`
-		NextSettingsID  int                    `json:"next_settings_id"`
-		NextOperationID int                    `json:"next_operation_id"`
-		NextIgnoredID   int                    `json:"next_ignored_id"`
-		NextMappingID   int                    `json:"next_mapping_id"`
+		Users             map[int]*User              `json:"users"`
+		Settings          map[int]*UserSettings      `json:"settings"`
+		Operations        map[int]*SyncOperation     `json:"operations"`
+		IgnoredTickets    map[int]*IgnoredTicket     `json:"ignored_tickets"`
+		TicketMappings    map[int]*TicketMapping     `json:"ticket_mappings"`
+		RollbackSnapshots map[int]*RollbackSnapshot  `json:"rollback_snapshots"`
+		AuditLogs         map[int]*AuditLogEntry     `json:"audit_logs"`
+		NextUserID        int                        `json:"next_user_id"`
+		NextSettingsID    int                        `json:"next_settings_id"`
+		NextOperationID   int                        `json:"next_operation_id"`
+		NextIgnoredID     int                        `json:"next_ignored_id"`
+		NextMappingID     int                        `json:"next_mapping_id"`
+		NextSnapshotID    int                        `json:"next_snapshot_id"`
+		NextAuditLogID    int                        `json:"next_audit_log_id"`
 	}
 
 	if err := json.NewDecoder(file).Decode(&data); err != nil {
@@ -726,12 +746,22 @@ func (db *DB) loadData() error {
 		db.ticketMappings = data.TicketMappings
 		log.Printf("DB: Loaded %d ticket mappings\n", len(data.TicketMappings))
 	}
+	if data.RollbackSnapshots != nil {
+		db.rollbackSnapshots = data.RollbackSnapshots
+		log.Printf("DB: Loaded %d rollback snapshots\n", len(data.RollbackSnapshots))
+	}
+	if data.AuditLogs != nil {
+		db.auditLogs = data.AuditLogs
+		log.Printf("DB: Loaded %d audit log entries\n", len(data.AuditLogs))
+	}
 
 	db.nextUserID = data.NextUserID
 	db.nextSettingsID = data.NextSettingsID
 	db.nextOperationID = data.NextOperationID
 	db.nextIgnoredID = data.NextIgnoredID
 	db.nextMappingID = data.NextMappingID
+	db.nextSnapshotID = data.NextSnapshotID
+	db.nextAuditLogID = data.NextAuditLogID
 
 	log.Printf("DB: Data loaded successfully from %s\n", filePath)
 	return nil

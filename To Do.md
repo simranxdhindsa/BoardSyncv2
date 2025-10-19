@@ -25,3 +25,12 @@ Handle attachment deletions
 
 1. now we have hardcoded columns mapping like DEV to DEV, Ready for Stage to DEV, backlgo to backlog, right? noe that should also be ccustomised by user preference and should have an option to map these in settings menu
 
+
+
+
+
+
+
+
+1. continue -- auto load project names 
+2. Add loading animation in front of the website i mean when going from login page to dashboard

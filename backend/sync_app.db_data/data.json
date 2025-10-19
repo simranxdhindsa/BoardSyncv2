@@ -63,7 +63,7 @@
           {
             "asana_column": "Backlog",
             "youtrack_status": "Backlog",
-            "display_only": true
+            "display_only": false
           },
           {
             "asana_column": "In Progress",
@@ -94,10 +94,66 @@
         "youtrack_to_asana": []
       },
       "created_at": "2025-10-07T22:13:50.5484788+05:30",
-      "updated_at": "2025-10-18T16:24:24.1670058+05:30"
+      "updated_at": "2025-10-20T02:18:58.4521002+05:30"
     }
   },
-  "operations": {},
+  "operations": {
+    "1": {
+      "id": 1,
+      "user_id": 2,
+      "operation_type": "sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "",
+        "ticket_count": 1
+      },
+      "status": "completed",
+      "created_at": "2025-10-19T03:13:50.1631639+05:30",
+      "completed_at": "2025-10-19T03:13:51.5242018+05:30"
+    },
+    "2": {
+      "id": 2,
+      "user_id": 2,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "all columns",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2025-10-19T03:28:02.7611006+05:30",
+      "completed_at": "2025-10-19T03:28:02.7677622+05:30"
+    },
+    "3": {
+      "id": 3,
+      "user_id": 2,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "all columns",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "rolled_back",
+      "created_at": "2025-10-19T03:39:03.5926541+05:30",
+      "completed_at": "2025-10-19T03:49:17.5911901+05:30"
+    },
+    "4": {
+      "id": 4,
+      "user_id": 2,
+      "operation_type": "rollback",
+      "operation_data": {
+        "rollback_started": "2025-10-19T03:49:17.5706885+05:30",
+        "target_operation_id": 3
+      },
+      "status": "completed",
+      "created_at": "2025-10-19T03:49:17.5706885+05:30",
+      "completed_at": "2025-10-19T03:49:17.6005957+05:30"
+    }
+  },
   "ignored_tickets": {
     "1": {
       "id": 1,
@@ -838,6 +894,86 @@
       "youtrack_issue_id": "3-1234",
       "created_at": "2025-10-13T22:35:53.8701832+05:30",
       "updated_at": "2025-10-13T22:35:53.8701832+05:30"
+    },
+    "100": {
+      "id": 100,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211598707438362",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-630",
+      "created_at": "2025-10-19T03:05:12.0943267+05:30",
+      "updated_at": "2025-10-19T03:05:12.0943267+05:30"
+    },
+    "101": {
+      "id": 101,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211605883406050",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-631",
+      "created_at": "2025-10-19T03:10:13.370752+05:30",
+      "updated_at": "2025-10-19T03:10:13.370752+05:30"
+    },
+    "102": {
+      "id": 102,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211598707438356",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-632",
+      "created_at": "2025-10-19T03:17:04.4088934+05:30",
+      "updated_at": "2025-10-19T03:17:04.4088934+05:30"
+    },
+    "103": {
+      "id": 103,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211598707438358",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-633",
+      "created_at": "2025-10-19T03:17:07.8930242+05:30",
+      "updated_at": "2025-10-19T03:17:07.8930242+05:30"
+    },
+    "104": {
+      "id": 104,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211598709715959",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-634",
+      "created_at": "2025-10-19T03:17:09.150288+05:30",
+      "updated_at": "2025-10-19T03:17:09.150288+05:30"
+    },
+    "105": {
+      "id": 105,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211598707438364",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-635",
+      "created_at": "2025-10-19T03:17:10.9055807+05:30",
+      "updated_at": "2025-10-19T03:17:10.9055807+05:30"
+    },
+    "106": {
+      "id": 106,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211598707438352",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-636",
+      "created_at": "2025-10-20T02:19:08.145564+05:30",
+      "updated_at": "2025-10-20T02:19:08.145564+05:30"
+    },
+    "107": {
+      "id": 107,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211598707438352",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-637",
+      "created_at": "2025-10-20T02:29:04.5754882+05:30",
+      "updated_at": "2025-10-20T02:29:04.5754882+05:30"
     },
     "11": {
       "id": 11,
@@ -1688,11 +1824,96 @@
       "youtrack_issue_id": "3-627",
       "created_at": "2025-10-18T16:17:29.8660456+05:30",
       "updated_at": "2025-10-18T16:17:29.8660456+05:30"
+    },
+    "98": {
+      "id": 98,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211598707438368",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-628",
+      "created_at": "2025-10-19T00:17:33.62395+05:30",
+      "updated_at": "2025-10-19T00:17:33.62395+05:30"
+    },
+    "99": {
+      "id": 99,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211598707438360",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-629",
+      "created_at": "2025-10-19T03:04:15.9455917+05:30",
+      "updated_at": "2025-10-19T03:04:15.9455917+05:30"
+    }
+  },
+  "rollback_snapshots": {
+    "0": {
+      "id": 0,
+      "operation_id": 3,
+      "user_id": 2,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "display_only": true,
+              "youtrack_status": "Backlog"
+            },
+            {
+              "asana_column": "In Progress",
+              "display_only": false,
+              "youtrack_status": "In Progress"
+            },
+            {
+              "asana_column": "DEV",
+              "display_only": false,
+              "youtrack_status": "DEV"
+            },
+            {
+              "asana_column": "Ready For Stage",
+              "display_only": false,
+              "youtrack_status": "DEV"
+            },
+            {
+              "asana_column": "STAGE",
+              "display_only": false,
+              "youtrack_status": "STAGE"
+            },
+            {
+              "asana_column": "Findings",
+              "display_only": true,
+              "youtrack_status": ""
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2025-10-19T03:39:03.6020353+05:30",
+      "expires_at": "2025-10-20T03:39:03.6020353+05:30"
+    }
+  },
+  "audit_logs": {
+    "0": {
+      "id": 0,
+      "operation_id": 4,
+      "ticket_id": "operation_4",
+      "platform": "system",
+      "action_type": "rolled_back",
+      "user_email": "test@gmail.com",
+      "new_value": "Deleted: 0, Restored: 0, Mappings: 0, Ignores: 0, Errors: 0",
+      "field_name": "rollback",
+      "timestamp": "2025-10-19T03:49:17.6090907+05:30"
     }
   },
   "next_user_id": 3,
   "next_settings_id": 3,
-  "next_operation_id": 1,
+  "next_operation_id": 5,
   "next_ignored_id": 92,
-  "next_mapping_id": 98
+  "next_mapping_id": 108,
+  "next_snapshot_id": 1,
+  "next_audit_log_id": 1
 }

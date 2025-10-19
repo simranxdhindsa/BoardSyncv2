@@ -115,6 +115,29 @@ export const getCurrentUser = async () => {
   return response.json();
 };
 
+export const changePassword = async (oldPassword, newPassword) => {
+  if (!authToken) {
+    throw new Error('Not authenticated');
+  }
+
+  const response = await fetch(`${API_BASE}/api/auth/change-password`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      old_password: oldPassword,
+      new_password: newPassword
+    }),
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    const error = await response.json().catch(() => ({ message: 'Password change failed' }));
+    throw new Error(error.message || 'Password change failed');
+  }
+
+  return response.json();
+};
+
 export const deleteAccount = async (deleteData) => {
   if (!authToken) {
     throw new Error('Not authenticated');
@@ -318,33 +341,6 @@ export const getSyncStatus = async (operationId) => {
   if (!response.ok) {
     handleAuthError(response);
     throw new Error('Failed to get sync status');
-  }
-
-  return response.json();
-};
-
-export const getSyncHistory = async (limit = 50) => {
-  const response = await fetch(`${API_BASE}/api/sync/history?limit=${limit}`, {
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    handleAuthError(response);
-    throw new Error('Failed to get sync history');
-  }
-
-  return response.json();
-};
-
-export const rollbackSync = async (operationId) => {
-  const response = await fetch(`${API_BASE}/api/sync/rollback/${operationId}`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    handleAuthError(response);
-    throw new Error('Failed to rollback sync');
   }
 
   return response.json();
@@ -636,6 +632,7 @@ export const auth = {
   login,
   logout,
   getCurrentUser,
+  changePassword,
   deleteAccount,
   isAuthenticated,
   getToken,
@@ -703,8 +700,6 @@ export const mapping = {
 export const sync = {
   startSync,
   getSyncStatus,
-  getSyncHistory,
-  rollbackSync,
   syncTickets,
   syncSingleTicket
 };
@@ -817,11 +812,132 @@ export const getAutoSyncDetailed = async () => {
   const response = await fetch(`${API_BASE}/auto-sync/detailed`, {
     headers: getAuthHeaders()
   });
-  
+
   if (!response.ok) {
     handleAuthError(response);
     throw new Error(`Failed to get auto-sync details: ${response.status}`);
   }
-  
+
+  return response.json();
+};
+
+// ============================================================================
+// ROLLBACK & AUDIT LOG ENDPOINTS
+// ============================================================================
+
+// Get sync history (last 15 operations)
+export const getSyncHistory = async (limit = 15) => {
+  const response = await fetch(`${API_BASE}/api/sync/history?limit=${limit}`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to get sync history: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// Rollback a sync operation
+export const rollbackSync = async (operationId) => {
+  const response = await fetch(`${API_BASE}/api/sync/rollback/${operationId}`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    const error = await response.json().catch(() => ({ error: 'Rollback failed' }));
+    throw new Error(error.error || `Rollback failed: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// Get snapshot summary for an operation
+export const getSnapshotSummary = async (operationId) => {
+  const response = await fetch(`${API_BASE}/api/sync/snapshot/${operationId}`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to get snapshot summary: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// Get operation audit logs
+export const getOperationAuditLogs = async (operationId) => {
+  const response = await fetch(`${API_BASE}/api/sync/operation/${operationId}/logs`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to get operation logs: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// Get audit logs with filtering
+export const getAuditLogs = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.userEmail) params.append('user_email', filters.userEmail);
+  if (filters.ticketId) params.append('ticket_id', filters.ticketId);
+  if (filters.platform) params.append('platform', filters.platform);
+  if (filters.actionType) params.append('action_type', filters.actionType);
+  if (filters.startDate) params.append('start_date', filters.startDate);
+  if (filters.endDate) params.append('end_date', filters.endDate);
+  if (filters.limit) params.append('limit', filters.limit);
+
+  const response = await fetch(`${API_BASE}/api/audit/logs?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to get audit logs: ${response.status}`);
+  }
+
+  return response.json();
+};
+
+// Export audit logs as CSV
+export const exportAuditLogsCSV = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.platform) params.append('platform', filters.platform);
+  if (filters.actionType) params.append('action_type', filters.actionType);
+  if (filters.startDate) params.append('start_date', filters.startDate);
+  if (filters.endDate) params.append('end_date', filters.endDate);
+
+  const response = await fetch(`${API_BASE}/api/audit/logs/export?${params.toString()}`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to export audit logs: ${response.status}`);
+  }
+
+  // Return blob for CSV download
+  const blob = await response.blob();
+  return blob;
+};
+
+// Get ticket history
+export const getTicketHistory = async (ticketId) => {
+  const response = await fetch(`${API_BASE}/api/audit/ticket/${ticketId}/history`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to get ticket history: ${response.status}`);
+  }
+
   return response.json();
 };
