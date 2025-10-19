@@ -4,7 +4,8 @@
       "Bash(robocopy \"frontend\\build\" \"frontend\" /E /IS /IT)",
       "Bash(copy /Y buildindex.html .)",
       "Bash(copy /Y buildstaticjs*.js staticjs )",
-      "Bash(copy /Y buildstaticcss*.css staticcss)"
+      "Bash(copy /Y buildstaticcss*.css staticcss)",
+      "Bash(robocopy \"frontend\\build\" \"frontend\" /E)"
     ],
     "deny": [],
     "ask": []

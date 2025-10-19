@@ -12,6 +12,7 @@ import {
   syncEnhancedTickets, getAutoSyncDetailed, getUserSettings
 } from '../services/api';
 import TicketAuditTrail from './TicketAuditTrail';
+import SyncHistory from './SyncHistory';
 import '../styles/sync-history-glass.css';
 
 const TicketDetailView = ({
@@ -55,6 +56,9 @@ const TicketDetailView = ({
   const [changedMappings, setChangedMappings] = useState([]);
   const [showChangesModal, setShowChangesModal] = useState(false);
   const [syncingChanges, setSyncingChanges] = useState(false);
+
+  // Sync History state
+  const [showSyncHistory, setShowSyncHistory] = useState(false);
 
   // Track initial mount to prevent double-loading
   const isInitialMount = useRef(true);
@@ -256,6 +260,13 @@ const TicketDetailView = ({
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
+            <button
+              onClick={() => setShowSyncHistory(!showSyncHistory)}
+              className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
+              title="Sync History"
+            >
+              <History className="w-5 h-5" />
+            </button>
           </>
         )}
       </div>
@@ -271,7 +282,7 @@ const TicketDetailView = ({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, column, deleteMode, selectedTickets, tickets.length, loading, createAllLoading, changedMappings, sortConfig, getTypeInfo]);
+  }, [type, column, deleteMode, selectedTickets, tickets.length, loading, createAllLoading, changedMappings, sortConfig, getTypeInfo, showSyncHistory]);
 
   useEffect(() => {
     if (!deleteMode) {
@@ -1437,6 +1448,16 @@ const TicketDetailView = ({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {getSortedTickets().map((ticket, index) => renderTicketCard(ticket, index))}
+          </div>
+        )}
+
+        {/* Sync History Panel */}
+        {showSyncHistory && (
+          <div className="mb-8">
+            <SyncHistory
+              onSuccess={(msg) => alert(msg)}
+              onError={(msg) => alert(msg)}
+            />
           </div>
         )}
 
