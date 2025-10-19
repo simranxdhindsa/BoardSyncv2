@@ -3,12 +3,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  getUserSettings, 
-  updateUserSettings, 
-  getAsanaProjects, 
+import {
+  getUserSettings,
+  updateUserSettings,
+  getAsanaProjects,
   getYouTrackProjects,
   testConnections,
+  changePassword,
   deleteAccount
 } from '../../services/api';
 import { CreateMappingForm, MappingsList } from '../mapping/MappingComponents';
@@ -86,6 +87,14 @@ const UserSettings = ({ onBack }) => {
   });
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
   const [mappingRefreshKey, setMappingRefreshKey] = useState(0);
   const [showCreateMappingForm, setShowCreateMappingForm] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -94,6 +103,19 @@ const UserSettings = ({ onBack }) => {
   useEffect(() => {
     loadSettings();
   }, []);
+
+  // Auto-load projects when settings are loaded and API tab is active
+  useEffect(() => {
+    if (activeTab === 'api' && settings.asana_pat && asanaProjects.length === 0 && !loadingProjects.asana) {
+      loadAsanaProjects();
+    }
+  }, [activeTab, settings.asana_pat]);
+
+  useEffect(() => {
+    if (activeTab === 'api' && settings.youtrack_base_url && settings.youtrack_token && youtrackProjects.length === 0 && !loadingProjects.youtrack) {
+      loadYoutrackProjects();
+    }
+  }, [activeTab, settings.youtrack_base_url, settings.youtrack_token]);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -375,6 +397,60 @@ const UserSettings = ({ onBack }) => {
     setError(null);
   };
 
+  const handleShowChangePasswordModal = () => {
+    setError(null);
+    setSuccessMessage('');
+    setShowChangePasswordModal(true);
+  };
+
+  const handleChangePassword = async () => {
+    // Validation
+    if (!passwordData.oldPassword) {
+      setError('Please enter your current password');
+      return;
+    }
+
+    if (!passwordData.newPassword) {
+      setError('Please enter a new password');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setError('New password must be at least 6 characters long');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setError(null);
+
+    try {
+      await changePassword(passwordData.oldPassword, passwordData.newPassword);
+
+      setSuccessMessage('Password changed successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      closeChangePasswordModal();
+    } catch (err) {
+      setError('Failed to change password: ' + err.message);
+      setIsChangingPassword(false);
+    }
+  };
+
+  const closeChangePasswordModal = () => {
+    setShowChangePasswordModal(false);
+    setPasswordData({
+      oldPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setError(null);
+    setIsChangingPassword(false);
+  };
+
   const handleMappingCreated = () => {
     setMappingRefreshKey(prev => prev + 1);
     setSuccessMessage('Ticket mapping created successfully!');
@@ -391,12 +467,27 @@ const UserSettings = ({ onBack }) => {
     clearMessages();
   };
 
-  const handleTabChange = (tabId) => {
+  const handleTabChange = async (tabId) => {
     setActiveTab(tabId);
+
     // Reset to list view when switching to ticket mapping tab
     if (tabId === 'ticket_mapping') {
       setShowCreateMappingForm(false);
     }
+
+    // Auto-load projects when API Configuration tab is opened
+    if (tabId === 'api') {
+      // Load Asana projects if PAT exists and projects not loaded
+      if (settings.asana_pat && asanaProjects.length === 0) {
+        await loadAsanaProjects();
+      }
+
+      // Load YouTrack projects if credentials exist and projects not loaded
+      if (settings.youtrack_base_url && settings.youtrack_token && youtrackProjects.length === 0) {
+        await loadYoutrackProjects();
+      }
+    }
+
     clearMessages();
   };
 
@@ -876,9 +967,9 @@ const UserSettings = ({ onBack }) => {
                   <Shield className="w-5 h-5 mr-2" />
                   Security
                 </h4>
-                
+
                 <button
-                  onClick={() => alert('Change password feature coming soon!')}
+                  onClick={handleShowChangePasswordModal}
                   className="settings-button-secondary"
                 >
                   <Key className="w-4 h-4 mr-2" />
@@ -915,6 +1006,156 @@ const UserSettings = ({ onBack }) => {
           )}
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={closeChangePasswordModal}
+          style={{ backdropFilter: 'blur(8px)' }}
+        >
+          <div
+            className="glass-panel max-w-md w-full mx-4"
+            style={{
+              borderRadius: '20px',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              className="p-6"
+              style={{
+                background: 'rgba(255, 255, 255, 0.3)',
+                backdropFilter: 'blur(20px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.3)'
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="settings-profile-avatar" style={{ width: '3rem', height: '3rem' }}>
+                    <Key className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Change Password
+                  </h2>
+                </div>
+                <button
+                  onClick={closeChangePasswordModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.3)',
+                    borderRadius: '8px',
+                    padding: '0.5rem',
+                    border: '1px solid rgba(255, 255, 255, 0.4)'
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="settings-label">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.oldPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
+                  placeholder="Enter current password"
+                  className="settings-input"
+                  disabled={isChangingPassword}
+                />
+              </div>
+
+              <div>
+                <label className="settings-label">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                  placeholder="Enter new password (min 6 characters)"
+                  className="settings-input"
+                  disabled={isChangingPassword}
+                />
+              </div>
+
+              <div>
+                <label className="settings-label">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  placeholder="Re-enter new password"
+                  className="settings-input"
+                  disabled={isChangingPassword}
+                />
+              </div>
+
+              {error && (
+                <div className="error-box">
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="success-box">
+                  <p className="text-sm text-green-800">{successMessage}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="p-6 flex justify-end space-x-3"
+              style={{
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(16px) saturate(150%)',
+                WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+                borderTop: '1px solid rgba(255, 255, 255, 0.3)'
+              }}
+            >
+              <button
+                onClick={closeChangePasswordModal}
+                disabled={isChangingPassword}
+                className="settings-button-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleChangePassword}
+                disabled={
+                  isChangingPassword ||
+                  !passwordData.oldPassword ||
+                  !passwordData.newPassword ||
+                  !passwordData.confirmPassword
+                }
+                className="settings-button"
+              >
+                {isChangingPassword ? (
+                  <>
+                    <RefreshCw className="settings-spinner" />
+                    Changing Password...
+                  </>
+                ) : (
+                  <>
+                    <Key className="w-4 h-4 mr-2" />
+                    Change Password
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Modal */}
       {showDeleteModal && (

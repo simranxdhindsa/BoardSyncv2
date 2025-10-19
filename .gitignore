@@ -3,3 +3,9 @@
 */backup/
 */boardsync.exe
 */nul
+# Ignore build output
+build/
+dist/
+*/build/
+**/build/
+frontend/build/

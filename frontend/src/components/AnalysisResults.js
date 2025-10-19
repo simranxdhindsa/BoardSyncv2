@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff, RotateCcw, History } from 'lucide-react';
 import TicketDetailView from './TicketDetailView';
-import { analyzeTickets, getUserSettings } from '../services/api';
+import SyncHistory from './SyncHistory';
+import { analyzeTickets, getUserSettings, getSyncHistory, rollbackSync } from '../services/api';
+import '../styles/sync-history-glass.css';
 
 const AnalysisResults = ({ 
   analysisData, 
@@ -31,10 +33,31 @@ const AnalysisResults = ({
   // Column mappings state
   const [columnMappings, setColumnMappings] = useState([]);
 
+  // Rollback state
+  const [showSyncHistory, setShowSyncHistory] = useState(false);
+  const [lastOperationId, setLastOperationId] = useState(null);
+  const [undoingSync, setUndoingSync] = useState(false);
+
   // Update local data when prop changes
   useEffect(() => {
     setLocalAnalysisData(analysisData);
   }, [analysisData]);
+
+  // Load last operation on mount
+  useEffect(() => {
+    const loadLastOperation = async () => {
+      try {
+        const response = await getSyncHistory(1);
+        const operations = response.operations || response.data || [];
+        if (operations.length > 0 && operations[0].status === 'completed') {
+          setLastOperationId(operations[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to load last operation:', error);
+      }
+    };
+    loadLastOperation();
+  }, []);
 
   // Load column mappings on mount
   useEffect(() => {
@@ -49,6 +72,27 @@ const AnalysisResults = ({
     };
     loadColumnMappings();
   }, []);
+
+  // Set navbar slots for Sync History button
+  useEffect(() => {
+    if (setNavBarSlots && !detailView) {
+      setNavBarSlots(
+        null, // left slot
+        <button
+          onClick={() => setShowSyncHistory(!showSyncHistory)}
+          className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
+          title="Sync History"
+        >
+          <History className="w-5 h-5" />
+        </button>
+      );
+    }
+    return () => {
+      if (setNavBarSlots && !detailView) {
+        setNavBarSlots(null, null);
+      }
+    };
+  }, [setNavBarSlots, showSyncHistory, detailView]);
 
   // Data extraction
   let analysis = null;
@@ -180,6 +224,35 @@ const AnalysisResults = ({
 
   const handleBackFromDetail = () => {
     setDetailView(null);
+  };
+
+  const handleUndoLastSync = async () => {
+    if (!lastOperationId) {
+      alert('No recent sync operation to undo');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to undo the last sync? This will reverse all changes made during the sync.')) {
+      return;
+    }
+
+    setUndoingSync(true);
+    try {
+      const response = await rollbackSync(lastOperationId);
+
+      if (response.success) {
+        alert('Sync undone successfully! Reloading analysis...');
+        setLastOperationId(null);
+        // Reload the analysis
+        window.location.reload();
+      } else {
+        alert('Rollback completed with errors: ' + (response.result?.errors?.join(', ') || 'Unknown error'));
+      }
+    } catch (error) {
+      alert('Failed to undo sync: ' + error.message);
+    } finally {
+      setUndoingSync(false);
+    }
   };
 
   if (detailView) {
@@ -470,25 +543,57 @@ const AnalysisResults = ({
             </h1>
             <p className="text-gray-600">Review mismatches, sync tickets, and manage tags. Click on any summary card to see detailed views.</p>
           </div>
-          
-          <button
-            onClick={handleReAnalyze}
-            disabled={reAnalyzeLoading}
-            className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
-          >
-            {reAnalyzeLoading ? (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                Re-analyzing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Re-analyze 
-              </>
+
+          <div className="flex items-center space-x-3">
+            {lastOperationId && (
+              <button
+                onClick={handleUndoLastSync}
+                disabled={undoingSync}
+                className="undo-sync-button"
+              >
+                {undoingSync ? (
+                  <>
+                    <div className="sync-loading-spinner inline-block mr-2"></div>
+                    Undoing...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Undo Last Sync
+                  </>
+                )}
+              </button>
             )}
-          </button>
+
+            <button
+              onClick={handleReAnalyze}
+              disabled={reAnalyzeLoading}
+              className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+            >
+              {reAnalyzeLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Re-analyzing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Re-analyze
+                </>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Sync History Panel */}
+        {showSyncHistory && (
+          <div className="mb-8">
+            <SyncHistory
+              onSuccess={(msg) => alert(msg)}
+              onError={(msg) => alert(msg)}
+            />
+          </div>
+        )}
 
         {/* High Priority Alerts */}
         {summaryData.findings_alerts > 0 && (

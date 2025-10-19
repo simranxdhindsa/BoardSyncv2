@@ -2,15 +2,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowLeft, RefreshCw, Tag, EyeOff, Eye, Plus, CheckCircle, Clock,
-  AlertTriangle, Trash2, X, Bug, Copy, ExternalLink, Search,
+  AlertTriangle, Trash2, X, Copy, ExternalLink, Search,
   ChevronDown, ChevronUp, Calendar, User, Zap, FileText, RotateCw,
-  AlertCircle, TrendingUp
+  AlertCircle, TrendingUp, History
 } from 'lucide-react';
 import {
   getTicketsByType, ignoreTicket, unignoreTicket, deleteTickets,
   getEnhancedAnalysis, getChangedMappings,
   syncEnhancedTickets, getAutoSyncDetailed, getUserSettings
 } from '../services/api';
+import TicketAuditTrail from './TicketAuditTrail';
+import SyncHistory from './SyncHistory';
+import '../styles/sync-history-glass.css';
 
 const TicketDetailView = ({
   type,
@@ -40,8 +43,7 @@ const TicketDetailView = ({
   // Create all loading state
   const [createAllLoading, setCreateAllLoading] = useState(false);
 
-  // Debug state
-  const [showDebug, setShowDebug] = useState(false);
+  // Copy state
   const [copiedId, setCopiedId] = useState(null);
 
   // Sort state
@@ -55,12 +57,19 @@ const TicketDetailView = ({
   const [showChangesModal, setShowChangesModal] = useState(false);
   const [syncingChanges, setSyncingChanges] = useState(false);
 
+  // Sync History state
+  const [showSyncHistory, setShowSyncHistory] = useState(false);
+
   // Track initial mount to prevent double-loading
   const isInitialMount = useRef(true);
 
   // Column mappings state
   const [columnMappings, setColumnMappings] = useState([]);
   const [isDisplayOnlyColumn, setIsDisplayOnlyColumn] = useState(false);
+
+  // Ticket history modal state
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedTicketForHistory, setSelectedTicketForHistory] = useState(null);
 
   // Load column mappings on mount
   useEffect(() => {
@@ -215,13 +224,6 @@ const TicketDetailView = ({
               </button>
             )}
 
-            <button
-              onClick={() => setShowDebug(!showDebug)}
-              className="flex items-center bg-purple-100 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-200 transition-colors font-medium"
-            >
-              <Bug className="w-4 h-4 mr-2" />
-              {showDebug ? 'Hide' : 'Show'} Debug
-            </button>
             {!isDisplayOnlyColumn && type === 'missing' && tickets.length > 0 && onCreateMissing && (
               <button
                 onClick={handleCreateAll}
@@ -258,6 +260,13 @@ const TicketDetailView = ({
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
+            <button
+              onClick={() => setShowSyncHistory(!showSyncHistory)}
+              className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
+              title="Sync History"
+            >
+              <History className="w-5 h-5" />
+            </button>
           </>
         )}
       </div>
@@ -273,7 +282,7 @@ const TicketDetailView = ({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, column, deleteMode, selectedTickets, tickets.length, loading, createAllLoading, showDebug, changedMappings, sortConfig, getTypeInfo]);
+  }, [type, column, deleteMode, selectedTickets, tickets.length, loading, createAllLoading, changedMappings, sortConfig, getTypeInfo, showSyncHistory]);
 
   useEffect(() => {
     if (!deleteMode) {
@@ -994,6 +1003,17 @@ const TicketDetailView = ({
                 >
                   <ExternalLink className="w-3 h-3 text-blue-600" />
                 </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedTicketForHistory(ticketId);
+                    setShowHistoryModal(true);
+                  }}
+                  className="p-1 rounded hover:bg-gray-200 transition-colors"
+                  title="View ticket history"
+                >
+                  <History className="w-3 h-3 text-purple-600" />
+                </button>
               </div>
             </div>
           )}
@@ -1125,91 +1145,6 @@ const TicketDetailView = ({
             </div>
           </div>
         </div>
-
-        {/* Debug Panel */}
-        {showDebug && tickets.length > 0 && (
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-6">
-            <div className="flex items-center mb-4">
-              <Bug className="w-5 h-5 text-purple-600 mr-2" />
-              <h3 className="text-lg font-semibold text-purple-900">
-                Debug View - Ticket Titles ({tickets.length})
-              </h3>
-            </div>
-
-            <div className="max-h-96 overflow-y-auto bg-white rounded-lg p-4 space-y-2">
-              {tickets.map((ticket, index) => {
-                const ticketId = ticket.gid ||
-                                ticket.asana_task?.gid ||
-                                ticket.youtrack_issue?.id ||
-                                ticket.id ||
-                                ticket;
-
-                const ticketName = ticket.name ||
-                                  ticket.asana_task?.name ||
-                                  ticket.youtrack_issue?.summary ||
-                                  ticket.summary ||
-                                  ticketId;
-
-                const isCopied = copiedId === ticketId;
-
-                return (
-                  <div
-                    key={ticketId}
-                    className="flex items-center justify-between p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors border border-purple-200"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-purple-900">
-                          {index + 1}.
-                        </span>
-                        <span className="text-sm text-gray-900 truncate">
-                          {ticketName}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        ID: {ticketId}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 ml-4">
-                      <button
-                        onClick={() => handleCopyTicketTitle(ticketName, ticketId)}
-                        className={`p-2 rounded-lg transition-colors ${
-                          isCopied
-                            ? 'bg-green-500 text-white'
-                            : 'bg-purple-200 text-purple-700 hover:bg-purple-300'
-                        }`}
-                        title={isCopied ? 'Copied!' : 'Copy ticket title'}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => handleOpenYouTrackSearch(ticketName)}
-                        className="p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                        title="Search in YouTrack"
-                      >
-                        <Search className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => handleOpenAsanaLink(ticketId)}
-                        className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                        title="Open in Asana"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 text-sm text-purple-700">
-              💡 Click copy icon to copy ticket title • Click search to find in YouTrack • Click external link to open in Asana
-            </div>
-          </div>
-        )}
 
         {/* Delete Panel */}
         {deleteMode && selectedTickets.size > 0 && (
@@ -1513,6 +1448,50 @@ const TicketDetailView = ({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {getSortedTickets().map((ticket, index) => renderTicketCard(ticket, index))}
+          </div>
+        )}
+
+        {/* Sync History Panel */}
+        {showSyncHistory && (
+          <div className="mb-8">
+            <SyncHistory
+              onSuccess={(msg) => alert(msg)}
+              onError={(msg) => alert(msg)}
+            />
+          </div>
+        )}
+
+        {/* Ticket History Modal */}
+        {showHistoryModal && selectedTicketForHistory && (
+          <div className="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-50">
+            <div className="modal-content max-w-3xl w-full max-h-[80vh] overflow-y-auto p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <History className="w-6 h-6 mr-2" />
+                  Ticket History
+                </h2>
+                <button
+                  onClick={() => setShowHistoryModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-4 p-3 bg-white bg-opacity-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-700">
+                  Ticket ID: <span className="font-mono">{selectedTicketForHistory}</span>
+                </p>
+              </div>
+
+              <TicketAuditTrail
+                ticketId={selectedTicketForHistory}
+                onError={(msg) => {
+                  setError(msg);
+                  console.error(msg);
+                }}
+              />
+            </div>
           </div>
         )}
       </div>
