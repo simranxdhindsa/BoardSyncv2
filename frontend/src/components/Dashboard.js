@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Zap, Activity, Play, Square, Clock, Inbox, Loader, Code, Package, AlertCircle, CheckCircle, Search, Layers } from 'lucide-react';
+import { RefreshCw, Zap, Activity, Play, Square, Clock, Inbox, Loader, Code, Package, AlertCircle, CheckCircle, Search, Layers, Edit } from 'lucide-react';
 import FluidText from './FluidText';
+import '../styles/dashboard-glass.css';
 import {
   getAutoSyncStatus,
   startAutoSync,
@@ -16,8 +17,9 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   const [autoCreateRunning, setAutoCreateRunning] = useState(false);
   const [autoSyncInterval, setAutoSyncInterval] = useState(15);
   const [autoCreateInterval, setAutoCreateInterval] = useState(15);
-  const [autoSyncCount, setAutoSyncCount] = useState(0);
-  const [autoCreateCount, setAutoCreateCount] = useState(0);
+  const [showIntervalModal, setShowIntervalModal] = useState(null); // 'sync' or 'create'
+  const [tempIntervalValue, setTempIntervalValue] = useState(15);
+  const [tempIntervalUnit, setTempIntervalUnit] = useState('seconds'); // 'seconds', 'minutes', 'hours'
   const [autoSyncLastInfo, setAutoSyncLastInfo] = useState('');
   const [autoCreateLastInfo, setAutoCreateLastInfo] = useState('');
   const [toggleLoading, setToggleLoading] = useState({ sync: false, create: false });
@@ -114,14 +116,12 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
       if (syncStatus.auto_sync) {
         setAutoSyncRunning(syncStatus.auto_sync.running);
         setAutoSyncInterval(syncStatus.auto_sync.interval);
-        setAutoSyncCount(syncStatus.auto_sync.count || 0);
         setAutoSyncLastInfo(syncStatus.auto_sync.last_info || '');
       }
       
       if (createStatus.auto_create) {
         setAutoCreateRunning(createStatus.auto_create.running);
         setAutoCreateInterval(createStatus.auto_create.interval);
-        setAutoCreateCount(createStatus.auto_create.count || 0);
         setAutoCreateLastInfo(createStatus.auto_create.last_info || '');
       }
     } catch (error) {
@@ -174,6 +174,67 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
     }
   };
 
+
+  // Interval editing handlers
+  const handleOpenIntervalModal = (type) => {
+    const currentInterval = type === 'sync' ? autoSyncInterval : autoCreateInterval;
+    setShowIntervalModal(type);
+    setTempIntervalValue(currentInterval);
+    setTempIntervalUnit('seconds');
+  };
+
+  const handleCloseIntervalModal = () => {
+    setShowIntervalModal(null);
+    setTempIntervalValue(15);
+    setTempIntervalUnit('seconds');
+  };
+
+  const handleSaveInterval = async () => {
+    let intervalInSeconds = tempIntervalValue;
+    if (tempIntervalUnit === 'minutes') {
+      intervalInSeconds = tempIntervalValue * 60;
+    } else if (tempIntervalUnit === 'hours') {
+      intervalInSeconds = tempIntervalValue * 3600;
+    }
+
+    if (intervalInSeconds < 15) {
+      return;
+    }
+
+    if (showIntervalModal === 'sync') {
+      setAutoSyncInterval(intervalInSeconds);
+      if (autoSyncRunning) {
+        try {
+          await stopAutoSync();
+          await startAutoSync(intervalInSeconds);
+        } catch (error) {
+          console.error('Failed to update sync interval:', error);
+        }
+      }
+    } else if (showIntervalModal === 'create') {
+      setAutoCreateInterval(intervalInSeconds);
+      if (autoCreateRunning) {
+        try {
+          await stopAutoCreate();
+          await startAutoCreate(intervalInSeconds);
+        } catch (error) {
+          console.error('Failed to update create interval:', error);
+        }
+      }
+    }
+
+    handleCloseIntervalModal();
+  };
+
+  const formatInterval = (seconds) => {
+    if (seconds < 60) {
+      return seconds + ' seconds';
+    } else if (seconds < 3600) {
+      return Math.floor(seconds / 60) + ' minutes';
+    } else {
+      return Math.floor(seconds / 3600) + ' hours';
+    }
+  };
   return (
     <div>
       {/* Main Content */}
@@ -223,11 +284,17 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-2" />
-                <span>Every {autoSyncInterval} seconds</span>
+                <span>Every {formatInterval(autoSyncInterval)}</span>
+                <button
+                  onClick={() => handleOpenIntervalModal('sync')}
+                  className="interval-edit-button"
+                  title="Edit interval"
+                >
+                  <Edit className="interval-edit-icon" />
+                </button>
               </div>
               {autoSyncRunning && (
                 <>
-                  <div>Cycles completed: {autoSyncCount}</div>
                   {autoSyncLastInfo && (
                     <div className="text-xs bg-gray-50 rounded p-2 mt-2">
                       Last run: {autoSyncLastInfo}
@@ -277,11 +344,17 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-2" />
-                <span>Every {autoCreateInterval} seconds</span>
+                <span>Every {formatInterval(autoCreateInterval)}</span>
+                <button
+                  onClick={() => handleOpenIntervalModal('create')}
+                  className="interval-edit-button"
+                  title="Edit interval"
+                >
+                  <Edit className="interval-edit-icon" />
+                </button>
               </div>
               {autoCreateRunning && (
                 <>
-                  <div>Cycles completed: {autoCreateCount}</div>
                   {autoCreateLastInfo && (
                     <div className="text-xs bg-gray-50 rounded p-2 mt-2">
                       Last run: {autoCreateLastInfo}
@@ -392,6 +465,81 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
           </FluidText>
         </div>
       </div>
+n      {/* Interval Edit Modal */}
+      {showIntervalModal && (
+        <div className="modal-overlay" onClick={handleCloseIntervalModal}>
+          <div className="glass-panel interval-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="interval-modal-title">
+              Edit {showIntervalModal === 'sync' ? 'Auto-Sync' : 'Auto-Create'} Interval
+            </h3>
+
+            <div className="interval-modal-content">
+              <div className="interval-input-group">
+                <label className="interval-label">Interval Value (minimum 15 seconds)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={tempIntervalValue}
+                  onChange={(e) => setTempIntervalValue(Number(e.target.value))}
+                  className="interval-input"
+                />
+              </div>
+
+              <div className="interval-input-group">
+                <label className="interval-label">Time Unit</label>
+                <select
+                  value={tempIntervalUnit}
+                  onChange={(e) => setTempIntervalUnit(e.target.value)}
+                  className="interval-select"
+                >
+                  <option value="seconds">Seconds</option>
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                </select>
+              </div>
+
+              <div className="interval-preview">
+                {(() => {
+                  let totalSeconds = tempIntervalValue;
+                  if (tempIntervalUnit === 'minutes') {
+                    totalSeconds = tempIntervalValue * 60;
+                  } else if (tempIntervalUnit === 'hours') {
+                    totalSeconds = tempIntervalValue * 3600;
+                  }
+
+                  if (totalSeconds < 15) {
+                    return (
+                      <span style={{ color: '#dc2626' }}>
+                        ⚠ Minimum interval is 15 seconds
+                      </span>
+                    );
+                  }
+
+                  return `Will run every ${tempIntervalValue} ${tempIntervalUnit}`;
+                })()}
+              </div>
+            </div>
+
+            <div className="interval-modal-actions">
+              <button
+                onClick={handleCloseIntervalModal}
+                className="interval-modal-button cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveInterval}
+                disabled={(tempIntervalUnit === 'seconds' && tempIntervalValue < 15)}
+                className={`interval-modal-button save ${
+                  (tempIntervalUnit === 'seconds' && tempIntervalValue < 15) ? 'disabled' : ''
+                }`}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
