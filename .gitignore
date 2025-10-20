@@ -25,3 +25,6 @@ To Do.md
 
 # Ignore misc file
 d
+
+# Ignore Electron README
+frontend/ELECTRON_README.md
