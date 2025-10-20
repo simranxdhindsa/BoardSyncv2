@@ -9,3 +9,19 @@ dist/
 */build/
 **/build/
 frontend/build/
+# Ignore frontend build files
+frontend/build/*
+
+# Ignore Claude configuration
+.claude/
+.claude/*
+
+# Ignore executable files
+*.exe
+**/*.exe
+
+# Ignore TODO file
+To Do.md
+
+# Ignore misc file
+d
