@@ -9,3 +9,9 @@ dist/
 */build/
 **/build/
 frontend/build/
+# Ignore frontend build files
+frontend/build/*
+
+# Ignore Claude configuration
+.claude/
+.claude/*
