@@ -679,13 +679,23 @@ const TicketDetailView = ({
 
   const handleOpenAsanaLink = (ticketId) => {
     const asanaUrl = `https://app.asana.com/0/0/${ticketId}`;
-    window.open(asanaUrl, '_blank');
+    const newWindow = window.open(asanaUrl, '_blank', 'noopener,noreferrer');
+    // Keep focus on current tab (like middle-click behavior)
+    if (newWindow) {
+      newWindow.blur();
+      window.focus();
+    }
   };
 
   const handleOpenYouTrackSearch = (ticketName) => {
     const encodedQuery = encodeURIComponent(ticketName);
     const youtrackUrl = `https://loop.youtrack.cloud/agiles/183-4/current?query=${encodedQuery}`;
-    window.open(youtrackUrl, '_blank');
+    const newWindow = window.open(youtrackUrl, '_blank', 'noopener,noreferrer');
+    // Keep focus on current tab (like middle-click behavior)
+    if (newWindow) {
+      newWindow.blur();
+      window.focus();
+    }
   };
 
   // Format date
