@@ -84,7 +84,8 @@ const ColumnMappingSettings = ({
     setLoading(prev => ({ ...prev, states: true }));
     try {
       const response = await getYouTrackStates();
-      setYoutrackStates(response.data || response);
+      const states = response.data || response;
+      setYoutrackStates(Array.isArray(states) ? states : []);
       if (showMessages) {
         onSuccess?.('YouTrack states loaded successfully!');
       }
@@ -93,6 +94,7 @@ const ColumnMappingSettings = ({
         onError?.('Failed to load YouTrack states: ' + err.message);
       }
       console.error('Failed to load YouTrack states:', err);
+      setYoutrackStates([]);
     } finally {
       setLoading(prev => ({ ...prev, states: false }));
     }

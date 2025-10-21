@@ -34,11 +34,17 @@
         "custom_fields": {}
       },
       "column_mappings": {
-        "asana_to_youtrack": null,
-        "youtrack_to_asana": null
+        "asana_to_youtrack": [
+          {
+            "asana_column": "Backlog",
+            "youtrack_status": "Backlog",
+            "display_only": false
+          }
+        ],
+        "youtrack_to_asana": []
       },
       "created_at": "2025-10-03T22:28:50.0268461+05:30",
-      "updated_at": "2025-10-13T22:00:50.1213483+05:30"
+      "updated_at": "2025-10-21T21:24:20.5095901+05:30"
     },
     "2": {
       "id": 2,
@@ -94,7 +100,7 @@
         "youtrack_to_asana": []
       },
       "created_at": "2025-10-07T22:13:50.5484788+05:30",
-      "updated_at": "2025-10-20T02:18:58.4521002+05:30"
+      "updated_at": "2025-10-21T21:18:17.846858+05:30"
     }
   },
   "operations": {
