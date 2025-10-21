@@ -42,13 +42,13 @@ const ColumnMappingSettings = ({
 
     // Auto-load columns when component mounts (without showing success messages)
     const loadColumnsAutomatically = async () => {
-      // Load Asana sections if credentials are configured
-      if (settings?.asana_pat && settings?.asana_project_id) {
+      // Load Asana sections if credentials are configured and not already loaded
+      if (settings?.asana_pat && settings?.asana_project_id && asanaSections.length === 0) {
         await loadAsanaSections(false);
       }
 
-      // Load YouTrack states if credentials are configured
-      if (settings?.youtrack_base_url && settings?.youtrack_token && settings?.youtrack_project_id) {
+      // Load YouTrack states if credentials are configured and not already loaded
+      if (settings?.youtrack_base_url && settings?.youtrack_token && settings?.youtrack_project_id && youtrackStates.length === 0) {
         await loadYouTrackStates(false);
       }
     };
@@ -84,7 +84,8 @@ const ColumnMappingSettings = ({
     setLoading(prev => ({ ...prev, states: true }));
     try {
       const response = await getYouTrackStates();
-      setYoutrackStates(response.data || response);
+      const states = response.data || response;
+      setYoutrackStates(Array.isArray(states) ? states : []);
       if (showMessages) {
         onSuccess?.('YouTrack states loaded successfully!');
       }
@@ -93,6 +94,7 @@ const ColumnMappingSettings = ({
         onError?.('Failed to load YouTrack states: ' + err.message);
       }
       console.error('Failed to load YouTrack states:', err);
+      setYoutrackStates([]);
     } finally {
       setLoading(prev => ({ ...prev, states: false }));
     }
@@ -172,12 +174,6 @@ const ColumnMappingSettings = ({
       };
 
       await updateUserSettings(updatedSettings);
-
-      // Reload columns after successful save
-      await Promise.all([
-        loadAsanaSections(false),
-        loadYouTrackStates(false)
-      ]);
 
       // Update the initial state to match current (disable save button)
       setInitialColumnMappings(JSON.parse(JSON.stringify(columnMappings)));
