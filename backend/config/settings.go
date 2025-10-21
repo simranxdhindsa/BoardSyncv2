@@ -428,6 +428,58 @@ func (s *Service) GetYouTrackStates(userID int) ([]database.YouTrackState, error
 		}
 	}
 
+	// If no states found from custom fields, try board columns API
+	if len(states) == 0 && settings.YouTrackBoardID != "" {
+		boardURL := fmt.Sprintf("%s/api/agiles/%s?fields=columnSettings(columns(fieldValues(name,presentation)))",
+			settings.YouTrackBaseURL, settings.YouTrackBoardID)
+
+		boardReq, err := http.NewRequest("GET", boardURL, nil)
+		if err == nil {
+			boardReq.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+			boardReq.Header.Set("Accept", "application/json")
+
+			boardResp, err := client.Do(boardReq)
+			if err == nil {
+				defer boardResp.Body.Close()
+				boardBody, _ := io.ReadAll(boardResp.Body)
+
+				if boardResp.StatusCode == http.StatusOK {
+					var agileBoard map[string]interface{}
+					if json.Unmarshal(boardBody, &agileBoard) == nil {
+						if columnSettings, ok := agileBoard["columnSettings"].(map[string]interface{}); ok {
+							if columns, ok := columnSettings["columns"].([]interface{}); ok {
+								seenStates := make(map[string]bool)
+								for _, col := range columns {
+									if column, ok := col.(map[string]interface{}); ok {
+										if fieldValues, ok := column["fieldValues"].([]interface{}); ok {
+											for _, fv := range fieldValues {
+												if fieldValue, ok := fv.(map[string]interface{}); ok {
+													stateName := ""
+													if name, ok := fieldValue["name"].(string); ok {
+														stateName = name
+													} else if presentation, ok := fieldValue["presentation"].(string); ok {
+														stateName = presentation
+													}
+													if stateName != "" && !seenStates[stateName] {
+														seenStates[stateName] = true
+														states = append(states, database.YouTrackState{
+															Name: stateName,
+														})
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	fmt.Printf("[DEBUG] GetYouTrackStates: Returning %d states\n", len(states))
 	return states, nil
 }
 
