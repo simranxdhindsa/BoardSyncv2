@@ -8,6 +8,7 @@ import {
   updateUserSettings,
   getAsanaProjects,
   getYouTrackProjects,
+  getYouTrackBoards,
   testConnections,
   changePassword,
   deleteAccount
@@ -68,7 +69,8 @@ const UserSettings = ({ onBack }) => {
   
   const [asanaProjects, setAsanaProjects] = useState([]);
   const [youtrackProjects, setYoutrackProjects] = useState([]);
-  const [loadingProjects, setLoadingProjects] = useState({ asana: false, youtrack: false });
+  const [youtrackBoards, setYoutrackBoards] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState({ asana: false, youtrack: false, youtrackBoards: false });
   
   const [connectionStatus, setConnectionStatus] = useState({ asana: null, youtrack: null });
   
@@ -238,6 +240,30 @@ const UserSettings = ({ onBack }) => {
       setError('Failed to load YouTrack projects: ' + err.message);
     } finally {
       setLoadingProjects(prev => ({ ...prev, youtrack: false }));
+    }
+  };
+
+  const loadYoutrackBoards = async () => {
+    if (!settings.youtrack_base_url || !settings.youtrack_token) {
+      setError('Please enter your YouTrack URL and token first');
+      return;
+    }
+
+    setLoadingProjects(prev => ({ ...prev, youtrackBoards: true }));
+    clearMessages();
+
+    try {
+      await updateUserSettings(settings);
+      setInitialSettings(settings);
+      setHasUnsavedChanges(false);
+      const response = await getYouTrackBoards();
+      setYoutrackBoards(response.data || response);
+      setSuccessMessage('YouTrack boards loaded successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError('Failed to load YouTrack boards: ' + err.message);
+    } finally {
+      setLoadingProjects(prev => ({ ...prev, youtrackBoards: false }));
     }
   };
 
@@ -704,6 +730,38 @@ const UserSettings = ({ onBack }) => {
                     className="settings-button-secondary"
                   >
                     {loadingProjects.youtrack ? (
+                      <RefreshCw className="settings-spinner" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+
+                <div className="settings-form-row">
+                  <div className="flex-1">
+                    <label className="settings-label">
+                      Agile Board
+                    </label>
+                    <select
+                      value={settings.youtrack_board_id}
+                      onChange={handleInputChange('youtrack_board_id')}
+                      className="settings-select"
+                      disabled={youtrackBoards.length === 0}
+                    >
+                      <option value="">Select YouTrack Board</option>
+                      {youtrackBoards.map(board => (
+                        <option key={board.id} value={board.id}>
+                          {board.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={loadYoutrackBoards}
+                    disabled={loadingProjects.youtrackBoards || !settings.youtrack_base_url || !settings.youtrack_token}
+                    className="settings-button-secondary"
+                  >
+                    {loadingProjects.youtrackBoards ? (
                       <RefreshCw className="settings-spinner" />
                     ) : (
                       <RefreshCw className="w-4 h-4" />
