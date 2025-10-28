@@ -1,5 +1,5 @@
 */node_modules/
-*/ignored_tickets.json
+# */ignored_tickets.json
 */backup/
 */boardsync.exe
 */nul
@@ -26,5 +26,5 @@ To Do.md
 # Ignore misc file
 d
 
-# Ignore Electron README
+
 frontend/ELECTRON_README.md
