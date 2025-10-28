@@ -37,8 +37,8 @@ func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
 		return nil, fmt.Errorf("asana credentials not configured")
 	}
 
-	// Enhanced fields including assignee, created_at, custom fields, and html_notes for formatting
-	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,html_notes,completed_at,created_at,modified_at,assignee.name,assignee.gid,memberships.section.gid,memberships.section.name,tags.gid,tags.name,custom_fields.name,custom_fields.display_value,custom_fields.text_value,custom_fields.number_value,custom_fields.enum_value.name",
+	// Enhanced fields including assignee, created_at, custom fields, html_notes, and attachments
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,html_notes,completed_at,created_at,modified_at,assignee.name,assignee.gid,memberships.section.gid,memberships.section.name,tags.gid,tags.name,custom_fields.name,custom_fields.display_value,custom_fields.text_value,custom_fields.number_value,custom_fields.enum_value.name,attachments.gid,attachments.name,attachments.download_url,attachments.view_url,attachments.resource_type,attachments.host,attachments.size",
 		settings.AsanaProjectID)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -400,4 +400,84 @@ func (s *AsanaService) GetSections(userID int) ([]database.AsanaSection, error) 
 
 	fmt.Printf("Retrieved %d Asana sections for user %d\n", len(response.Data), userID)
 	return response.Data, nil
+}
+
+// DownloadAttachment downloads an attachment from Asana and returns the file data
+// Note: Asana's download_url in the API might not be directly usable
+// We need to get the actual download URL through the attachment GID
+func (s *AsanaService) DownloadAttachment(userID int, attachmentGID string) ([]byte, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.AsanaPAT == "" {
+		return nil, fmt.Errorf("asana PAT not configured")
+	}
+
+	// First, get the attachment details to get the proper download URL
+	attachmentURL := fmt.Sprintf("https://app.asana.com/api/1.0/attachments/%s", attachmentGID)
+
+	req, err := http.NewRequest("GET", attachmentURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create attachment info request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get attachment info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get attachment info: status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var attachmentInfo struct {
+		Data struct {
+			DownloadURL string `json:"download_url"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&attachmentInfo); err != nil {
+		return nil, fmt.Errorf("failed to parse attachment info: %w", err)
+	}
+
+	downloadURL := attachmentInfo.Data.DownloadURL
+	if downloadURL == "" {
+		return nil, fmt.Errorf("no download URL available for attachment")
+	}
+
+	fmt.Printf("Got download URL for attachment %s\n", attachmentGID)
+
+	// Now download the actual file (download_url is a signed URL, no auth needed)
+	req, err = http.NewRequest("GET", downloadURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create download request: %w", err)
+	}
+
+	resp, err = client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("download failed: status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	// Read the file data
+	fileData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file data: %w", err)
+	}
+
+	fmt.Printf("Successfully downloaded attachment: %d bytes\n", len(fileData))
+	return fileData, nil
 }

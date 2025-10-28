@@ -37,6 +37,15 @@ type AsanaTask struct {
 			Name string `json:"name"`
 		} `json:"enum_value"`
 	} `json:"custom_fields"`
+	Attachments []struct {
+		GID          string `json:"gid"`
+		Name         string `json:"name"`
+		DownloadURL  string `json:"download_url"`
+		ViewURL      string `json:"view_url"`
+		ResourceType string `json:"resource_type"` // "image", "pdf", "document", etc.
+		Host         string `json:"host"`          // "asana", "dropbox", "google", etc.
+		Size         int64  `json:"size"`          // File size in bytes
+	} `json:"attachments"`
 }
 
 type AsanaResponse struct {
