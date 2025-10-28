@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -258,7 +259,24 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 		payload["customFields"] = customFields
 	}
 
-	return s.createOrUpdateIssue(settings, "", payload)
+	// Create the issue and get the ID
+	issueID, err := s.createIssueAndGetID(settings, payload)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
+
+	// Process attachments - download from Asana and upload to YouTrack
+	if len(task.Attachments) > 0 {
+		asanaService := NewAsanaService(s.configService)
+		if err := s.ProcessAttachments(userID, issueID, task, asanaService); err != nil {
+			fmt.Printf("Warning: Failed to process attachments: %v\n", err)
+			// Don't fail the whole operation if attachment processing fails
+		}
+	}
+
+	return nil
 }
 
 // CreateIssueWithReturn creates a new YouTrack issue and returns the issue ID
@@ -351,6 +369,16 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 	}
 
 	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
+
+	// Process attachments - download from Asana and upload to YouTrack
+	if len(task.Attachments) > 0 {
+		asanaService := NewAsanaService(s.configService)
+		if err := s.ProcessAttachments(userID, issueID, task, asanaService); err != nil {
+			fmt.Printf("Warning: Failed to process attachments: %v\n", err)
+			// Don't fail the whole operation if attachment processing fails
+		}
+	}
+
 	return issueID, nil
 }
 
@@ -887,4 +915,114 @@ func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error
 	}
 
 	return boards, nil
+}
+
+// UploadAttachment uploads an attachment to a YouTrack issue
+func (s *YouTrackService) UploadAttachment(userID int, issueID string, filename string, fileData []byte) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" {
+		return fmt.Errorf("youtrack credentials not configured")
+	}
+
+	// Create multipart form data
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// Add the file
+	part, err := writer.CreateFormFile("attachment", filename)
+	if err != nil {
+		return fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	_, err = part.Write(fileData)
+	if err != nil {
+		return fmt.Errorf("failed to write file data: %w", err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close writer: %w", err)
+	}
+
+	// Upload to YouTrack
+	url := fmt.Sprintf("%s/api/issues/%s/attachments?fields=id,name,size", settings.YouTrackBaseURL, issueID)
+
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 120 * time.Second} // Longer timeout for uploads
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("upload request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("youtrack upload error: %d - %s", resp.StatusCode, string(respBody))
+	}
+
+	fmt.Printf("Successfully uploaded attachment '%s' to YouTrack issue %s\n", filename, issueID)
+	return nil
+}
+
+// ProcessAttachments downloads attachments from Asana and uploads them to YouTrack
+func (s *YouTrackService) ProcessAttachments(userID int, issueID string, task AsanaTask, asanaService *AsanaService) error {
+	if len(task.Attachments) == 0 {
+		return nil
+	}
+
+	fmt.Printf("Processing %d attachments for issue %s\n", len(task.Attachments), issueID)
+
+	successCount := 0
+	failCount := 0
+
+	for _, attachment := range task.Attachments {
+		// Skip if no GID
+		if attachment.GID == "" {
+			fmt.Printf("Skipping attachment '%s' - no GID\n", attachment.Name)
+			continue
+		}
+
+		// Skip very large files (> 50MB)
+		if attachment.Size > 50*1024*1024 {
+			fmt.Printf("Skipping attachment '%s' - file too large (%d bytes)\n", attachment.Name, attachment.Size)
+			failCount++
+			continue
+		}
+
+		// Download from Asana
+		fmt.Printf("Downloading attachment '%s' from Asana...\n", attachment.Name)
+		fileData, err := asanaService.DownloadAttachment(userID, attachment.GID)
+		if err != nil {
+			fmt.Printf("Warning: Failed to download attachment '%s': %v\n", attachment.Name, err)
+			failCount++
+			continue
+		}
+
+		// Upload to YouTrack
+		fmt.Printf("Uploading attachment '%s' to YouTrack...\n", attachment.Name)
+		err = s.UploadAttachment(userID, issueID, attachment.Name, fileData)
+		if err != nil {
+			fmt.Printf("Warning: Failed to upload attachment '%s': %v\n", attachment.Name, err)
+			failCount++
+			continue
+		}
+
+		successCount++
+	}
+
+	fmt.Printf("Attachment processing complete: %d succeeded, %d failed\n", successCount, failCount)
+	return nil
 }

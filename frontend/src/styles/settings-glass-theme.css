@@ -216,6 +216,7 @@
 .settings-label {
   display: block;
   margin-bottom: 0.5rem;
+  margin-top: 1rem;
   font-weight: 600;
   color: #374151;
   font-size: 0.875rem;
@@ -469,7 +470,7 @@
 /* Settings Divider */
 .settings-divider {
   border-top: 1px solid rgba(255, 255, 255, 0.3);
-  margin: 1.5rem 0;
+  /* margin: 1.5rem 0; */
 }
 
 /* Settings Actions */
