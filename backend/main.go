@@ -254,6 +254,13 @@ func registerRoutes(
 	legacyAPI.HandleFunc("/auto-sync/detailed", handleAutoSyncDetailed).Methods("GET", "OPTIONS")
 
 	// ========================================================================
+	// REVERSE SYNC ROUTES (YouTrack → Asana)
+	// ========================================================================
+	legacyAPI.HandleFunc("/reverse-sync/users", handleGetYouTrackUsers).Methods("GET", "OPTIONS")
+	legacyAPI.HandleFunc("/reverse-sync/analyze", handleReverseAnalysis).Methods("POST", "OPTIONS")
+	legacyAPI.HandleFunc("/reverse-sync/create", handleReverseCreateTickets).Methods("POST", "OPTIONS")
+
+	// ========================================================================
 	// STATIC FILE SERVING
 	// ========================================================================
 
@@ -636,6 +643,103 @@ func performSync(operation *sync.SyncOperation, wsManager *sync.WebSocketManager
 		"synced_items": 0,
 		"message":      "Sync completed successfully",
 	})
+}
+
+// ============================================================================
+// REVERSE SYNC HANDLERS (YouTrack → Asana)
+// ============================================================================
+
+func handleGetYouTrackUsers(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	// Initialize reverse sync service
+	youtrackService := legacy.NewYouTrackService(configService)
+	asanaService := legacy.NewAsanaService(configService)
+	reverseSyncService := legacy.NewReverseSyncService(db, youtrackService, asanaService, configService)
+
+	users, err := reverseSyncService.GetYouTrackUsers(user.UserID)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to fetch YouTrack users: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, users, "YouTrack users retrieved successfully")
+}
+
+func handleReverseAnalysis(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	var req legacy.ReverseAnalysisRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendBadRequest(w, "Invalid request body")
+		return
+	}
+
+	// Initialize reverse sync service
+	youtrackService := legacy.NewYouTrackService(configService)
+	asanaService := legacy.NewAsanaService(configService)
+	reverseSyncService := legacy.NewReverseSyncService(db, youtrackService, asanaService, configService)
+
+	analysis, err := reverseSyncService.PerformReverseAnalysis(user.UserID, req.CreatorFilter)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to perform reverse analysis: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, analysis, "Reverse analysis completed successfully")
+}
+
+func handleReverseCreateTickets(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	var req legacy.ReverseCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendBadRequest(w, "Invalid request body")
+		return
+	}
+
+	// Initialize reverse sync service
+	youtrackService := legacy.NewYouTrackService(configService)
+	asanaService := legacy.NewAsanaService(configService)
+	reverseSyncService := legacy.NewReverseSyncService(db, youtrackService, asanaService, configService)
+
+	// First, get the analysis to have the full context
+	// We need to extract the creator filter from the request or use "All"
+	// For now, we'll re-analyze with "All" to get the full list
+	analysis, err := reverseSyncService.PerformReverseAnalysis(user.UserID, "All")
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to get analysis: %v", err))
+		return
+	}
+
+	var result *legacy.ReverseSyncResult
+
+	// If no specific IDs provided, create all missing tickets
+	if len(req.SelectedIssueIDs) == 0 {
+		result, err = reverseSyncService.CreateMissingAsanaTickets(user.UserID, analysis)
+	} else {
+		// Create only selected tickets
+		result, err = reverseSyncService.CreateSelectedAsanaTickets(user.UserID, req.SelectedIssueIDs, analysis)
+	}
+
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to create tickets: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, result, fmt.Sprintf("Successfully created %d/%d tickets", result.SuccessCount, result.TotalTickets))
 }
 
 // ============================================================================

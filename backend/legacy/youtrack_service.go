@@ -1026,3 +1026,224 @@ func (s *YouTrackService) ProcessAttachments(userID int, issueID string, task As
 	fmt.Printf("Attachment processing complete: %d succeeded, %d failed\n", successCount, failCount)
 	return nil
 }
+
+// GetAllUsers fetches all users from YouTrack for the creator dropdown
+func (s *YouTrackService) GetAllUsers(userID int) ([]YouTrackUser, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" {
+		return nil, fmt.Errorf("youtrack credentials not configured")
+	}
+
+	url := fmt.Sprintf("%s/api/users?fields=id,login,fullName,email", settings.YouTrackBaseURL)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var users []YouTrackUser
+	if err := json.NewDecoder(resp.Body).Decode(&users); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return users, nil
+}
+
+// GetIssuesByCreator fetches YouTrack issues filtered by creator
+func (s *YouTrackService) GetIssuesByCreator(userID int, creatorFilter string) ([]YouTrackIssue, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" || settings.YouTrackProjectID == "" {
+		return nil, fmt.Errorf("youtrack credentials not configured")
+	}
+
+	// Build query with creator filter
+	var query string
+	if creatorFilter == "All" || creatorFilter == "" {
+		query = fmt.Sprintf("project: {%s}", settings.YouTrackProjectID)
+	} else {
+		query = fmt.Sprintf("project: {%s} created by: {%s}", settings.YouTrackProjectID, creatorFilter)
+	}
+
+	// Include all necessary fields including attachments and created by
+	fields := "id,idReadable,summary,description,created,updated," +
+		"customFields(name,value(name,id))," +
+		"attachments(id,name,size,mimeType,url,extension)," +
+		"reporter(fullName,login)," +
+		"project(shortName)"
+
+	encodedQuery := strings.ReplaceAll(query, " ", "%20")
+	encodedQuery = strings.ReplaceAll(encodedQuery, "{", "%7B")
+	encodedQuery = strings.ReplaceAll(encodedQuery, "}", "%7D")
+	encodedQuery = strings.ReplaceAll(encodedQuery, ":", "%3A")
+
+	url := fmt.Sprintf("%s/api/issues?fields=%s&query=%s&$top=500",
+		settings.YouTrackBaseURL, fields, encodedQuery)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var rawResponse []map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&rawResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Parse the response into YouTrackIssue structs
+	issues := make([]YouTrackIssue, 0, len(rawResponse))
+	for _, rawIssue := range rawResponse {
+		// Use idReadable (e.g., "ARD-123") if available, otherwise fall back to id
+		issueID := getString(rawIssue, "idReadable")
+		if issueID == "" {
+			issueID = getString(rawIssue, "id")
+		}
+
+		issue := YouTrackIssue{
+			ID:          issueID,
+			Summary:     getString(rawIssue, "summary"),
+			Description: getString(rawIssue, "description"),
+			Created:     getInt64(rawIssue, "created"),
+			Updated:     getInt64(rawIssue, "updated"),
+		}
+
+		// Extract State and Subsystem from customFields
+		if customFields, ok := rawIssue["customFields"].([]interface{}); ok {
+			for _, field := range customFields {
+				if fieldMap, ok := field.(map[string]interface{}); ok {
+					fieldName := getString(fieldMap, "name")
+
+					if fieldName == "State" {
+						if value, ok := fieldMap["value"].(map[string]interface{}); ok {
+							issue.State = getString(value, "name")
+						}
+					} else if fieldName == "Subsystem" {
+						if value, ok := fieldMap["value"].(map[string]interface{}); ok {
+							issue.Subsystem = getString(value, "name")
+						}
+					}
+				}
+			}
+		}
+
+		// Extract creator name from reporter
+		if reporter, ok := rawIssue["reporter"].(map[string]interface{}); ok {
+			issue.CreatedBy = getString(reporter, "fullName")
+			if issue.CreatedBy == "" {
+				issue.CreatedBy = getString(reporter, "login")
+			}
+		}
+
+		// Extract attachments
+		if attachments, ok := rawIssue["attachments"].([]interface{}); ok {
+			issue.Attachments = make([]YouTrackAttachment, 0, len(attachments))
+			for _, att := range attachments {
+				if attMap, ok := att.(map[string]interface{}); ok {
+					attachment := YouTrackAttachment{
+						ID:        getString(attMap, "id"),
+						Name:      getString(attMap, "name"),
+						Size:      getInt64(attMap, "size"),
+						MimeType:  getString(attMap, "mimeType"),
+						URL:       getString(attMap, "url"),
+						Extension: getString(attMap, "extension"),
+					}
+					issue.Attachments = append(issue.Attachments, attachment)
+				}
+			}
+		}
+
+		issues = append(issues, issue)
+	}
+
+	return issues, nil
+}
+
+// DownloadAttachment downloads an attachment from a YouTrack issue
+func (s *YouTrackService) DownloadAttachment(userID int, issueID, attachmentID string) ([]byte, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/issues/%s/attachments/%s", settings.YouTrackBaseURL, issueID, attachmentID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download failed with status: %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return data, nil
+}
+
+// Helper functions for extracting values from interface{} maps
+func getString(m map[string]interface{}, key string) string {
+	if val, ok := m[key].(string); ok {
+		return val
+	}
+	return ""
+}
+
+func getInt64(m map[string]interface{}, key string) int64 {
+	if val, ok := m[key].(float64); ok {
+		return int64(val)
+	}
+	if val, ok := m[key].(int64); ok {
+		return val
+	}
+	return 0
+}

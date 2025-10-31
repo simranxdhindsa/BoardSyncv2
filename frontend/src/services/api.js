@@ -941,3 +941,60 @@ export const getTicketHistory = async (ticketId) => {
 
   return response.json();
 };
+
+// ============================================================================
+// REVERSE SYNC ENDPOINTS (YouTrack → Asana)
+// ============================================================================
+
+// Get YouTrack users for creator dropdown
+export const getYouTrackUsers = async () => {
+  const response = await fetch(`${API_BASE}/reverse-sync/users`, {
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to get YouTrack users: ${response.status}`);
+  }
+
+  const result = await response.json();
+  return result.data || result;
+};
+
+// Perform reverse analysis (YouTrack → Asana)
+export const reverseAnalyzeTickets = async (creatorFilter) => {
+  const response = await fetch(`${API_BASE}/reverse-sync/analyze`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      creator_filter: creatorFilter
+    })
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Reverse analysis failed: ${response.status}`);
+  }
+
+  const result = await response.json();
+  return result.data || result;
+};
+
+// Create tickets from YouTrack to Asana
+export const reverseCreateTickets = async (selectedIssueIDs = []) => {
+  const response = await fetch(`${API_BASE}/reverse-sync/create`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      selected_issue_ids: selectedIssueIDs
+    })
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    const error = await response.json().catch(() => ({ message: 'Create failed' }));
+    throw new Error(error.message || 'Failed to create tickets');
+  }
+
+  return response.json();
+};
