@@ -267,7 +267,7 @@ const ColumnMappingSettings = ({
                   </select>
 
                   {/* Display Only Toggle */}
-                  <label className="flex items-center space-x-2 px-3 py-2 bg-white bg-opacity-30 rounded-lg cursor-pointer border border-white border-opacity-40">
+                  <label className="flex items-center space-x-2 px-3 py-2 glass-panel bg-opacity-30 rounded-lg cursor-pointer border border-white border-opacity-40">
                     <input
                       type="checkbox"
                       checked={mapping.display_only}

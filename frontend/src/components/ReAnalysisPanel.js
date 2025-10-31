@@ -107,7 +107,7 @@ const ReAnalysisPanel = ({
   const hasError = error || localError;
 
   return (
-    <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 mb-6">
+    <div className="glass-panel border border-gray-200 rounded-lg p-6 mb-6">
       {/* Success/Error Message */}
       <div className="flex items-center mb-6">
         <div className="flex items-center mr-4">
@@ -263,7 +263,7 @@ const ReAnalysisPanel = ({
 
       {/* Loading Overlay */}
       {isLoading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
+        <div className="absolute inset-0 glass-panel bg-opacity-75 flex items-center justify-center rounded-lg">
           <div className="flex items-center">
             <RefreshCw className="w-6 h-6 animate-spin text-blue-600 mr-3" />
             <span className="text-blue-800 font-medium">Processing analysis...</span>
