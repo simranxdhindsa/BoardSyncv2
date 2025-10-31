@@ -1,7 +1,11 @@
 // backend/legacy/types.go - ENHANCED VERSION
 package legacy
 
-import "time"
+import (
+	"time"
+
+	"asana-youtrack-sync/database"
+)
 
 // Asana data structures
 type AsanaTask struct {
@@ -54,11 +58,15 @@ type AsanaResponse struct {
 
 // YouTrack data structures
 type YouTrackIssue struct {
-	ID           string `json:"id"`
-	Summary      string `json:"summary"`
-	Description  string `json:"description"`
-	Created      int64  `json:"created"`
-	Updated      int64  `json:"updated"`
+	ID           string                 `json:"id"`
+	Summary      string                 `json:"summary"`
+	Description  string                 `json:"description"`
+	Created      int64                  `json:"created"`
+	Updated      int64                  `json:"updated"`
+	State        string                 `json:"state"`
+	Subsystem    string                 `json:"subsystem"`
+	CreatedBy    string                 `json:"created_by"`
+	Attachments  []YouTrackAttachment   `json:"attachments"`
 	CustomFields []struct {
 		Name  string      `json:"name"`
 		Value interface{} `json:"value"`
@@ -66,6 +74,22 @@ type YouTrackIssue struct {
 	Project struct {
 		ShortName string `json:"shortName"`
 	} `json:"project"`
+}
+
+type YouTrackAttachment struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Size      int64  `json:"size"`
+	MimeType  string `json:"mimeType"`
+	URL       string `json:"url"`
+	Extension string `json:"extension"`
+}
+
+type YouTrackUser struct {
+	ID       string `json:"id"`
+	Login    string `json:"login"`
+	FullName string `json:"fullName"`
+	Email    string `json:"email"`
 }
 
 // Analysis result structures
@@ -265,4 +289,37 @@ func IsActiveYouTrackStatus(status string) bool {
 		}
 	}
 	return false
+}
+
+// Reverse Sync (YouTrack -> Asana) data structures
+type ReverseTicketAnalysis struct {
+	Matched      []ReverseMatchedTicket `json:"matched"`
+	MissingAsana []YouTrackIssue        `json:"missing_asana"`
+}
+
+type ReverseMatchedTicket struct {
+	YouTrackIssue YouTrackIssue `json:"youtrack_issue"`
+	AsanaTaskID   string        `json:"asana_task_id"`
+}
+
+type ReverseSyncResult struct {
+	TotalTickets    int                        `json:"total_tickets"`
+	SuccessCount    int                        `json:"success_count"`
+	FailedCount     int                        `json:"failed_count"`
+	FailedTickets   []FailedTicket             `json:"failed_tickets"`
+	CreatedMappings []*database.TicketMapping `json:"created_mappings"`
+}
+
+type FailedTicket struct {
+	IssueID string `json:"issue_id"`
+	Title   string `json:"title"`
+	Error   string `json:"error"`
+}
+
+type ReverseAnalysisRequest struct{
+	CreatorFilter string `json:"creator_filter"` // "All" or specific user name
+}
+
+type ReverseCreateRequest struct {
+	SelectedIssueIDs []string `json:"selected_issue_ids"` // Empty array means create all
 }

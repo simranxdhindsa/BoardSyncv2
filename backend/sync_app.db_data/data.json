@@ -44,7 +44,7 @@
         "youtrack_to_asana": []
       },
       "created_at": "2025-10-03T22:28:50.0268461+05:30",
-      "updated_at": "2025-10-28T15:13:57.2556938+05:30"
+      "updated_at": "2025-10-31T12:20:54.4009353+05:30"
     },
     "2": {
       "id": 2,
@@ -100,7 +100,7 @@
         "youtrack_to_asana": []
       },
       "created_at": "2025-10-07T22:13:50.5484788+05:30",
-      "updated_at": "2025-10-21T21:18:17.846858+05:30"
+      "updated_at": "2025-10-31T12:03:03.4836676+05:30"
     }
   },
   "operations": {
@@ -158,6 +158,21 @@
       "status": "completed",
       "created_at": "2025-10-19T03:49:17.5706885+05:30",
       "completed_at": "2025-10-19T03:49:17.6005957+05:30"
+    },
+    "5": {
+      "id": 5,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "all columns",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2025-10-31T12:41:09.0403369+05:30",
+      "completed_at": "2025-10-31T12:41:17.5906842+05:30"
     }
   },
   "ignored_tickets": {
@@ -1900,6 +1915,29 @@
       },
       "created_at": "2025-10-19T03:39:03.6020353+05:30",
       "expires_at": "2025-10-20T03:39:03.6020353+05:30"
+    },
+    "1": {
+      "id": 1,
+      "operation_id": 5,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "youtrack_status": "Backlog",
+              "display_only": false
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2025-10-31T12:41:09.0442847+05:30",
+      "expires_at": "2025-11-01T12:41:09.0442847+05:30"
     }
   },
   "audit_logs": {
@@ -1917,9 +1955,9 @@
   },
   "next_user_id": 3,
   "next_settings_id": 3,
-  "next_operation_id": 5,
+  "next_operation_id": 6,
   "next_ignored_id": 92,
   "next_mapping_id": 108,
-  "next_snapshot_id": 1,
+  "next_snapshot_id": 2,
   "next_audit_log_id": 1
 }
