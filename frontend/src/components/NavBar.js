@@ -7,7 +7,7 @@ const NavBar = ({ title, showBack, onBack, leftContent, rightContent, children }
   return (
     <div>
       <nav
-        className="glass-panel border-b border-gray-200 bg-white px-6 py-4 fixed top-0 left-0 right-0 z-50"
+        className="glass-panel border-b border-gray-200 px-6 py-4 fixed top-0 left-0 right-0 z-50"
         style={{ borderRadius: '0', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1001 }}
       >
         <div className="flex items-center justify-between">
