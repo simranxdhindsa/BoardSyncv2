@@ -117,3 +117,134 @@ func ConvertAsanaHTMLToYouTrackMarkdown(htmlText string) string {
 
 	return strings.TrimSpace(text)
 }
+
+// ConvertYouTrackMarkdownToAsanaHTML converts YouTrack markdown to Asana HTML formatting
+func ConvertYouTrackMarkdownToAsanaHTML(markdown string) string {
+	if markdown == "" {
+		return ""
+	}
+
+	text := markdown
+
+	// Convert headings
+	// # text -> <h1>text</h1>
+	text = regexp.MustCompile(`(?m)^######\s+(.*?)$`).ReplaceAllString(text, "<h6>$1</h6>")
+	text = regexp.MustCompile(`(?m)^#####\s+(.*?)$`).ReplaceAllString(text, "<h5>$1</h5>")
+	text = regexp.MustCompile(`(?m)^####\s+(.*?)$`).ReplaceAllString(text, "<h4>$1</h4>")
+	text = regexp.MustCompile(`(?m)^###\s+(.*?)$`).ReplaceAllString(text, "<h3>$1</h3>")
+	text = regexp.MustCompile(`(?m)^##\s+(.*?)$`).ReplaceAllString(text, "<h2>$1</h2>")
+	text = regexp.MustCompile(`(?m)^#\s+(.*?)$`).ReplaceAllString(text, "<h1>$1</h1>")
+
+	// Convert horizontal rules
+	text = regexp.MustCompile(`(?m)^---+$`).ReplaceAllString(text, "<hr>")
+	text = regexp.MustCompile(`(?m)^\*\*\*+$`).ReplaceAllString(text, "<hr>")
+
+	// Convert code blocks
+	// ```code``` -> <pre>code</pre>
+	text = regexp.MustCompile("```([\\s\\S]*?)```").ReplaceAllString(text, "<pre>$1</pre>")
+
+	// Convert inline code
+	// `text` -> <code>text</code>
+	text = regexp.MustCompile("`([^`]+)`").ReplaceAllString(text, "<code>$1</code>")
+
+	// Convert bold formatting
+	// **text** or *text* -> <strong>text</strong>
+	text = regexp.MustCompile(`\*\*([^\*]+)\*\*`).ReplaceAllString(text, "<strong>$1</strong>")
+	text = regexp.MustCompile(`\*([^\*\n]+)\*`).ReplaceAllString(text, "<strong>$1</strong>")
+
+	// Convert italic formatting
+	// _text_ -> <em>text</em>
+	text = regexp.MustCompile(`_([^_\n]+)_`).ReplaceAllString(text, "<em>$1</em>")
+
+	// Convert strikethrough
+	// ~~text~~ -> <s>text</s>
+	text = regexp.MustCompile(`~~([^~]+)~~`).ReplaceAllString(text, "<s>$1</s>")
+
+	// Convert links
+	// [text](url) -> <a href="url">text</a>
+	text = regexp.MustCompile(`\[([^\]]+)\]\(([^\)]+)\)`).ReplaceAllString(text, `<a href="$2">$1</a>`)
+
+	// Convert unordered lists
+	// * item or - item -> <ul><li>item</li></ul>
+	lines := strings.Split(text, "\n")
+	var result []string
+	inList := false
+	listType := ""
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Check for unordered list item
+		if regexp.MustCompile(`^[\*\-]\s+`).MatchString(trimmed) {
+			item := regexp.MustCompile(`^[\*\-]\s+`).ReplaceAllString(trimmed, "")
+			if !inList || listType != "ul" {
+				if inList && listType == "ol" {
+					result = append(result, "</ol>")
+				}
+				result = append(result, "<ul>")
+				inList = true
+				listType = "ul"
+			}
+			result = append(result, "<li>"+item+"</li>")
+		} else if regexp.MustCompile(`^\d+\.\s+`).MatchString(trimmed) {
+			// Ordered list item
+			item := regexp.MustCompile(`^\d+\.\s+`).ReplaceAllString(trimmed, "")
+			if !inList || listType != "ol" {
+				if inList && listType == "ul" {
+					result = append(result, "</ul>")
+				}
+				result = append(result, "<ol>")
+				inList = true
+				listType = "ol"
+			}
+			result = append(result, "<li>"+item+"</li>")
+		} else {
+			// Not a list item
+			if inList {
+				if listType == "ul" {
+					result = append(result, "</ul>")
+				} else {
+					result = append(result, "</ol>")
+				}
+				inList = false
+				listType = ""
+			}
+
+			// Convert blockquotes
+			// > text -> <blockquote>text</blockquote>
+			if strings.HasPrefix(trimmed, ">") {
+				quoted := strings.TrimSpace(strings.TrimPrefix(trimmed, ">"))
+				result = append(result, "<blockquote>"+quoted+"</blockquote>")
+			} else if trimmed != "" {
+				result = append(result, "<p>"+line+"</p>")
+			} else {
+				// Empty line
+				if i > 0 && i < len(lines)-1 {
+					result = append(result, "<br>")
+				}
+			}
+		}
+	}
+
+	// Close any open lists
+	if inList {
+		if listType == "ul" {
+			result = append(result, "</ul>")
+		} else {
+			result = append(result, "</ol>")
+		}
+	}
+
+	text = strings.Join(result, "\n")
+
+	// Encode HTML entities
+	text = strings.ReplaceAll(text, "&", "&amp;")
+	// Note: Avoid double-encoding if already encoded
+	text = strings.ReplaceAll(text, "&amp;nbsp;", "&nbsp;")
+	text = strings.ReplaceAll(text, "&amp;lt;", "&lt;")
+	text = strings.ReplaceAll(text, "&amp;gt;", "&gt;")
+	text = strings.ReplaceAll(text, "&amp;amp;", "&amp;")
+	text = strings.ReplaceAll(text, "&amp;quot;", "&quot;")
+
+	return strings.TrimSpace(text)
+}

@@ -465,7 +465,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
           </FluidText>
         </div>
       </div>
-n      {/* Interval Edit Modal */}
+      {/* Interval Edit Modal */}
       {showIntervalModal && (
         <div className="modal-overlay" onClick={handleCloseIntervalModal}>
           <div className="glass-panel interval-modal" onClick={(e) => e.stopPropagation()}>
