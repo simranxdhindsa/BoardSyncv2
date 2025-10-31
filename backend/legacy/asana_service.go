@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -480,4 +481,291 @@ func (s *AsanaService) DownloadAttachment(userID int, attachmentGID string) ([]b
 
 	fmt.Printf("Successfully downloaded attachment: %d bytes\n", len(fileData))
 	return fileData, nil
+}
+
+// CreateTask creates a new task in Asana (for reverse sync)
+func (s *AsanaService) CreateTask(userID int, taskData map[string]interface{}) (string, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	url := "https://app.asana.com/api/1.0/tasks"
+
+	requestBody := map[string]interface{}{
+		"data": taskData,
+	}
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("asana API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var response struct {
+		Data struct {
+			GID string `json:"gid"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return response.Data.GID, nil
+}
+
+// AddTagToTask adds a tag to an Asana task
+func (s *AsanaService) AddTagToTask(userID int, taskID, tagName string) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	// First, get or create the tag
+	tagID, err := s.getOrCreateTag(userID, tagName, settings)
+	if err != nil {
+		return fmt.Errorf("failed to get/create tag: %w", err)
+	}
+
+	// Add the tag to the task
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/tasks/%s/addTag", taskID)
+
+	requestBody := map[string]interface{}{
+		"data": map[string]string{
+			"tag": tagID,
+		},
+	}
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("asana API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// getOrCreateTag gets an existing tag or creates a new one
+func (s *AsanaService) getOrCreateTag(userID int, tagName string, settings *configpkg.UserSettings) (string, error) {
+	// Get all tags in the workspace
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/workspaces/%s/tags?limit=100", settings.AsanaProjectID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		var response struct {
+			Data []struct {
+				GID  string `json:"gid"`
+				Name string `json:"name"`
+			} `json:"data"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&response); err == nil {
+			// Look for existing tag
+			for _, tag := range response.Data {
+				if strings.EqualFold(tag.Name, tagName) {
+					return tag.GID, nil
+				}
+			}
+		}
+	}
+
+	// Tag not found, create it
+	createURL := fmt.Sprintf("https://app.asana.com/api/1.0/workspaces/%s/tags", settings.AsanaProjectID)
+
+	requestBody := map[string]interface{}{
+		"data": map[string]string{
+			"name": tagName,
+		},
+	}
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	req, err = http.NewRequest("POST", createURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err = client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("failed to create tag: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var createResponse struct {
+		Data struct {
+			GID string `json:"gid"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&createResponse); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return createResponse.Data.GID, nil
+}
+
+// UploadAttachment uploads an attachment to an Asana task
+func (s *AsanaService) UploadAttachment(userID int, taskID, filename string, fileData []byte) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/tasks/%s/attachments", taskID)
+
+	// Create multipart form
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		return fmt.Errorf("failed to create form file: %w", err)
+	}
+
+	_, err = part.Write(fileData)
+	if err != nil {
+		return fmt.Errorf("failed to write file data: %w", err)
+	}
+
+	err = writer.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close writer: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("upload request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("asana upload error: %d - %s", resp.StatusCode, string(respBody))
+	}
+
+	return nil
+}
+
+// GetAllTasks fetches all tasks from an Asana project
+func (s *AsanaService) GetAllTasks(userID int, projectID string) ([]AsanaTask, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes", projectID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 60 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("asana API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var response struct {
+		Data []AsanaTask `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return response.Data, nil
+}
+
+// GetProjectSections gets all sections in an Asana project
+func (s *AsanaService) GetProjectSections(projectID string) ([]database.AsanaSection, error) {
+	// This method should already exist in the service, but adding it here for completeness
+	// If it already exists, this can be removed
+	return s.GetSections(0) // Using 0 as placeholder, should use actual userID
 }

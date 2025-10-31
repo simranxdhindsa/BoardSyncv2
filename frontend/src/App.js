@@ -9,9 +9,10 @@ import LoginForm from './components/auth/LoginForm';
 import UserSettings from './components/settings/UserSettings';
 import SyncHistory from './components/SyncHistory';
 import AuditLogs from './components/AuditLogs';
+import ReverseSyncPage from './components/ReverseSync/ReverseSyncPage';
 import { analyzeTickets, syncSingleTicket, createSingleTicket, createMissingTickets } from './services/api';
 import './styles/glass-theme.css';
-import { Settings, History, FileText } from 'lucide-react';
+import { Settings, History, FileText, RefreshCw } from 'lucide-react';
 
 
 // Main App Component (wrapped in AuthProvider)
@@ -216,6 +217,18 @@ function AppContent() {
       };
     }
 
+    if (currentView === 'reverse-sync') {
+      return {
+        left: (
+          <div className="flex items-center">
+            <RefreshCw className="w-8 h-8 text-blue-600 mr-3" />
+            <div className="text-xl font-semibold text-gray-900">Reverse Sync</div>
+          </div>
+        ),
+        right: null
+      };
+    }
+
     return {
       left: navLeft ?? (currentView === 'dashboard' ? (
         <div className="flex items-center">
@@ -239,6 +252,13 @@ function AppContent() {
               <div className="text-xs text-gray-500">Enhanced Dashboard</div>
             </div>
             <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentView('reverse-sync')}
+                className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
+                title="Reverse Sync (YouTrack → Asana)"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
               <button
                 onClick={() => setCurrentView('sync-history')}
                 className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
@@ -312,9 +332,10 @@ function AppContent() {
           title={currentView === 'dashboard' ? 'Dashboard' :
                  currentView === 'settings' ? 'Settings' :
                  currentView === 'sync-history' ? 'Sync History' :
-                 currentView === 'audit-logs' ? 'Audit Logs' : 'Analysis Results'}
+                 currentView === 'audit-logs' ? 'Audit Logs' :
+                 currentView === 'reverse-sync' ? 'Reverse Sync' : 'Analysis Results'}
           showBack={currentView !== 'dashboard'}
-          onBack={currentView === 'settings' || currentView === 'sync-history' || currentView === 'audit-logs' ? () => setCurrentView('dashboard') : handleBackToDashboard}
+          onBack={currentView === 'settings' || currentView === 'sync-history' || currentView === 'audit-logs' || currentView === 'reverse-sync' ? () => setCurrentView('dashboard') : handleBackToDashboard}
           leftContent={navContent.left}
           rightContent={navContent.right}
         >
@@ -345,6 +366,10 @@ function AppContent() {
             <SyncHistory />
           ) : currentView === 'audit-logs' ? (
             <AuditLogs />
+          ) : currentView === 'reverse-sync' ? (
+            <ReverseSyncPage
+              onBack={() => setCurrentView('dashboard')}
+            />
           ) : null}
         </NavBar>
       </div>
