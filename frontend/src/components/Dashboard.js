@@ -249,7 +249,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
         {/* NEW: Auto Controls Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Auto-Sync Control */}
-          <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
+          <div className="glass-panel border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <RefreshCw className={`w-5 h-5 mr-2 ${autoSyncRunning ? 'text-green-600 animate-spin' : 'text-gray-600'}`} />
@@ -309,7 +309,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
           </div>
 
           {/* Auto-Create Control */}
-          <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
+          <div className="glass-panel border border-gray-200 rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <Zap className={`w-5 h-5 mr-2 ${autoCreateRunning ? 'text-blue-600' : 'text-gray-600'}`} />
@@ -370,7 +370,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
         </div>
 
         {/* Column Selection with Glass Theme */}
-        <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 interactive-element">
+        <div className="glass-panel border border-gray-200 rounded-lg p-6 interactive-element">
           <div className="flex items-center mb-6">
             <Activity className="w-5 h-5 text-blue-600 mr-2" />
             <FluidText className="text-lg font-semibold text-gray-900" sensitivity={1.2}>

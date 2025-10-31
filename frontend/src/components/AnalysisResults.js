@@ -697,7 +697,7 @@ const AnalysisResults = ({
 
         {/* Mismatched Tickets Preview - Only show if NOT display-only column */}
         {!isCurrentColumnDisplayOnly && syncableMismatched.length > 0 && (
-          <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 mb-6">
+          <div className="glass-panel border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
                 Mismatched Tickets ({syncableMismatched.length})
@@ -822,7 +822,7 @@ const AnalysisResults = ({
 
         {/* Missing Tickets Preview - Only show if NOT display-only column */}
         {!isCurrentColumnDisplayOnly && syncableMissing.length > 0 && (
-          <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6 mb-6">
+          <div className="glass-panel border border-gray-200 rounded-lg p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
                 Missing in YouTrack ({syncableMissing.length})
@@ -919,7 +919,7 @@ const AnalysisResults = ({
 
         {/* Display Only Sections - Dynamic - Only show if IS display-only column */}
         {isCurrentColumnDisplayOnly && displayOnlyColumns.length > 0 && (
-          <div className="glass-panel bg-white border border-gray-200 rounded-lg p-6">
+          <div className="glass-panel border border-gray-200 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Display Only Sections</h2>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
