@@ -764,8 +764,6 @@ func (s *AsanaService) GetAllTasks(userID int, projectID string) ([]AsanaTask, e
 }
 
 // GetProjectSections gets all sections in an Asana project
-func (s *AsanaService) GetProjectSections(projectID string) ([]database.AsanaSection, error) {
-	// This method should already exist in the service, but adding it here for completeness
-	// If it already exists, this can be removed
-	return s.GetSections(0) // Using 0 as placeholder, should use actual userID
+func (s *AsanaService) GetProjectSections(userID int, projectID string) ([]database.AsanaSection, error) {
+	return s.GetSections(userID)
 }

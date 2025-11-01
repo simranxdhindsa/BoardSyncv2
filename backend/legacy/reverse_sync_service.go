@@ -8,7 +8,7 @@ import (
 
 	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/database"
-	"asana-youtrack-sync/utils"
+	// "asana-youtrack-sync/utils" // Will re-enable once HTML formatting is working
 )
 
 type ReverseSyncService struct {
@@ -99,7 +99,7 @@ func (s *ReverseSyncService) CreateMissingAsanaTickets(userID int, analysis *Rev
 // CreateSingleAsanaTicket creates a single ticket in Asana from YouTrack issue
 func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrackIssue, settings *configpkg.UserSettings) (string, error) {
 	// 1. Get the Asana section (column) based on YouTrack state
-	asanaSection, err := s.mapYouTrackStateToAsanaSection(ytIssue.State, settings)
+	asanaSection, err := s.mapYouTrackStateToAsanaSection(userID, ytIssue.State, settings)
 	if err != nil {
 		return "", fmt.Errorf("failed to map state: %w", err)
 	}
@@ -108,7 +108,9 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 	taskTitle := fmt.Sprintf("%s %s", ytIssue.ID, ytIssue.Summary)
 
 	// 3. Convert YouTrack markdown description to Asana HTML
-	htmlDescription := utils.ConvertYouTrackMarkdownToAsanaHTML(ytIssue.Description)
+	// Note: Using plain text for now as Asana's HTML requirements are very strict
+	// We can revisit HTML formatting once basic sync is working
+	// htmlDescription := utils.ConvertYouTrackMarkdownToAsanaHTML(ytIssue.Description)
 
 	// 4. Map YouTrack subsystem to Asana tags
 	asanaTags, err := s.mapSubsystemToAsanaTags(userID, ytIssue.Subsystem, settings)
@@ -117,12 +119,11 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 		asanaTags = []string{} // Skip tags if mapping fails
 	}
 
-	// 5. Create the task in Asana
+	// 5. Create the task in Asana with plain text description
 	taskData := map[string]interface{}{
-		"name":       taskTitle,
-		"notes":      ytIssue.Description,
-		"html_notes": htmlDescription,
-		"projects":   []string{settings.AsanaProjectID},
+		"name":     taskTitle,
+		"notes":    ytIssue.Description,
+		"projects": []string{settings.AsanaProjectID},
 	}
 
 	// Add section/column
@@ -161,12 +162,12 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 }
 
 // mapYouTrackStateToAsanaSection maps YouTrack state to Asana section using reverse column mappings
-func (s *ReverseSyncService) mapYouTrackStateToAsanaSection(ytState string, settings *configpkg.UserSettings) (string, error) {
+func (s *ReverseSyncService) mapYouTrackStateToAsanaSection(userID int, ytState string, settings *configpkg.UserSettings) (string, error) {
 	// Use the existing asana_to_youtrack mappings in reverse
 	for _, mapping := range settings.ColumnMappings.AsanaToYouTrack {
 		if strings.EqualFold(mapping.YouTrackStatus, ytState) {
 			// Find the Asana section ID by name
-			sections, err := s.asanaService.GetProjectSections(settings.AsanaProjectID)
+			sections, err := s.asanaService.GetProjectSections(userID, settings.AsanaProjectID)
 			if err != nil {
 				return "", fmt.Errorf("failed to get Asana sections: %w", err)
 			}
@@ -209,8 +210,8 @@ func (s *ReverseSyncService) syncAttachmentsToAsana(userID int, ytIssueID, asana
 	for i, attachment := range attachments {
 		log.Printf("[Reverse Sync] Processing attachment %d/%d: %s", i+1, len(attachments), attachment.Name)
 
-		// Download from YouTrack
-		fileData, err := s.youtrackService.DownloadAttachment(userID, ytIssueID, attachment.ID)
+		// Download from YouTrack using the URL from the API response
+		fileData, err := s.youtrackService.DownloadAttachment(userID, ytIssueID, attachment.URL)
 		if err != nil {
 			log.Printf("[Reverse Sync] Failed to download attachment %s: %v", attachment.Name, err)
 			continue

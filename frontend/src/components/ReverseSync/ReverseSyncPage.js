@@ -55,8 +55,8 @@ const ReverseSyncPage = ({ onBack }) => {
       setError(null);
       const result = await reverseCreateTickets(selectedIssueIDs);
 
-      // Show success message
-      alert(`Successfully created ${result.data.success_count}/${result.data.total_tickets} tickets!`);
+      // Log success message to console
+      console.log(`Successfully created ${result.data.success_count}/${result.data.total_tickets} tickets!`);
 
       // Re-analyze to refresh data
       const data = await reverseAnalyzeTickets(selectedCreator);
@@ -192,7 +192,8 @@ const ReverseSyncPage = ({ onBack }) => {
           selectedCreator={selectedCreator}
           onBack={handleBackToCreatorSelection}
           onCreateTickets={handleCreateTickets}
-          loading={creatingTickets}
+          onReanalyze={handleAnalyze}
+          loading={creatingTickets || loading}
         />
       )}
     </div>

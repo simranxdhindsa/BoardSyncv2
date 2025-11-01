@@ -126,46 +126,7 @@ func ConvertYouTrackMarkdownToAsanaHTML(markdown string) string {
 
 	text := markdown
 
-	// Convert headings
-	// # text -> <h1>text</h1>
-	text = regexp.MustCompile(`(?m)^######\s+(.*?)$`).ReplaceAllString(text, "<h6>$1</h6>")
-	text = regexp.MustCompile(`(?m)^#####\s+(.*?)$`).ReplaceAllString(text, "<h5>$1</h5>")
-	text = regexp.MustCompile(`(?m)^####\s+(.*?)$`).ReplaceAllString(text, "<h4>$1</h4>")
-	text = regexp.MustCompile(`(?m)^###\s+(.*?)$`).ReplaceAllString(text, "<h3>$1</h3>")
-	text = regexp.MustCompile(`(?m)^##\s+(.*?)$`).ReplaceAllString(text, "<h2>$1</h2>")
-	text = regexp.MustCompile(`(?m)^#\s+(.*?)$`).ReplaceAllString(text, "<h1>$1</h1>")
-
-	// Convert horizontal rules
-	text = regexp.MustCompile(`(?m)^---+$`).ReplaceAllString(text, "<hr>")
-	text = regexp.MustCompile(`(?m)^\*\*\*+$`).ReplaceAllString(text, "<hr>")
-
-	// Convert code blocks
-	// ```code``` -> <pre>code</pre>
-	text = regexp.MustCompile("```([\\s\\S]*?)```").ReplaceAllString(text, "<pre>$1</pre>")
-
-	// Convert inline code
-	// `text` -> <code>text</code>
-	text = regexp.MustCompile("`([^`]+)`").ReplaceAllString(text, "<code>$1</code>")
-
-	// Convert bold formatting
-	// **text** or *text* -> <strong>text</strong>
-	text = regexp.MustCompile(`\*\*([^\*]+)\*\*`).ReplaceAllString(text, "<strong>$1</strong>")
-	text = regexp.MustCompile(`\*([^\*\n]+)\*`).ReplaceAllString(text, "<strong>$1</strong>")
-
-	// Convert italic formatting
-	// _text_ -> <em>text</em>
-	text = regexp.MustCompile(`_([^_\n]+)_`).ReplaceAllString(text, "<em>$1</em>")
-
-	// Convert strikethrough
-	// ~~text~~ -> <s>text</s>
-	text = regexp.MustCompile(`~~([^~]+)~~`).ReplaceAllString(text, "<s>$1</s>")
-
-	// Convert links
-	// [text](url) -> <a href="url">text</a>
-	text = regexp.MustCompile(`\[([^\]]+)\]\(([^\)]+)\)`).ReplaceAllString(text, `<a href="$2">$1</a>`)
-
-	// Convert unordered lists
-	// * item or - item -> <ul><li>item</li></ul>
+	// Step 1: Process line by line to handle structure (lists, blockquotes, paragraphs)
 	lines := strings.Split(text, "\n")
 	var result []string
 	inList := false
@@ -173,6 +134,37 @@ func ConvertYouTrackMarkdownToAsanaHTML(markdown string) string {
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
+
+		// Check for heading markers first
+		if regexp.MustCompile(`^#{1,6}\s+`).MatchString(trimmed) {
+			// Close any open list
+			if inList {
+				if listType == "ul" {
+					result = append(result, "</ul>")
+				} else {
+					result = append(result, "</ol>")
+				}
+				inList = false
+				listType = ""
+			}
+			result = append(result, line) // Keep as-is for now
+			continue
+		}
+
+		// Check for horizontal rule
+		if regexp.MustCompile(`^(---+|\*\*\*+)$`).MatchString(trimmed) {
+			if inList {
+				if listType == "ul" {
+					result = append(result, "</ul>")
+				} else {
+					result = append(result, "</ol>")
+				}
+				inList = false
+				listType = ""
+			}
+			result = append(result, line)
+			continue
+		}
 
 		// Check for unordered list item
 		if regexp.MustCompile(`^[\*\-]\s+`).MatchString(trimmed) {
@@ -199,7 +191,7 @@ func ConvertYouTrackMarkdownToAsanaHTML(markdown string) string {
 			}
 			result = append(result, "<li>"+item+"</li>")
 		} else {
-			// Not a list item
+			// Not a list item - close list if open
 			if inList {
 				if listType == "ul" {
 					result = append(result, "</ul>")
@@ -210,12 +202,12 @@ func ConvertYouTrackMarkdownToAsanaHTML(markdown string) string {
 				listType = ""
 			}
 
-			// Convert blockquotes
-			// > text -> <blockquote>text</blockquote>
+			// Check for blockquote
 			if strings.HasPrefix(trimmed, ">") {
 				quoted := strings.TrimSpace(strings.TrimPrefix(trimmed, ">"))
 				result = append(result, "<blockquote>"+quoted+"</blockquote>")
 			} else if trimmed != "" {
+				// Regular paragraph
 				result = append(result, "<p>"+line+"</p>")
 			} else {
 				// Empty line
@@ -237,14 +229,42 @@ func ConvertYouTrackMarkdownToAsanaHTML(markdown string) string {
 
 	text = strings.Join(result, "\n")
 
-	// Encode HTML entities
-	text = strings.ReplaceAll(text, "&", "&amp;")
-	// Note: Avoid double-encoding if already encoded
-	text = strings.ReplaceAll(text, "&amp;nbsp;", "&nbsp;")
-	text = strings.ReplaceAll(text, "&amp;lt;", "&lt;")
-	text = strings.ReplaceAll(text, "&amp;gt;", "&gt;")
-	text = strings.ReplaceAll(text, "&amp;amp;", "&amp;")
-	text = strings.ReplaceAll(text, "&amp;quot;", "&quot;")
+	// Step 2: Convert headings
+	text = regexp.MustCompile(`(?m)^######\s+(.*?)$`).ReplaceAllString(text, "<h6>$1</h6>")
+	text = regexp.MustCompile(`(?m)^#####\s+(.*?)$`).ReplaceAllString(text, "<h5>$1</h5>")
+	text = regexp.MustCompile(`(?m)^####\s+(.*?)$`).ReplaceAllString(text, "<h4>$1</h4>")
+	text = regexp.MustCompile(`(?m)^###\s+(.*?)$`).ReplaceAllString(text, "<h3>$1</h3>")
+	text = regexp.MustCompile(`(?m)^##\s+(.*?)$`).ReplaceAllString(text, "<h2>$1</h2>")
+	text = regexp.MustCompile(`(?m)^#\s+(.*?)$`).ReplaceAllString(text, "<h1>$1</h1>")
 
-	return strings.TrimSpace(text)
+	// Step 3: Convert horizontal rules
+	text = regexp.MustCompile(`(?m)^---+$`).ReplaceAllString(text, "<hr>")
+	text = regexp.MustCompile(`(?m)^\*\*\*+$`).ReplaceAllString(text, "<hr>")
+
+	// Step 4: Convert code blocks (must be before inline code)
+	text = regexp.MustCompile("```([\\s\\S]*?)```").ReplaceAllString(text, "<pre>$1</pre>")
+
+	// Step 5: Convert inline code
+	text = regexp.MustCompile("`([^`]+)`").ReplaceAllString(text, "<code>$1</code>")
+
+	// Step 6: Convert bold formatting (must be before single asterisk)
+	text = regexp.MustCompile(`\*\*([^\*]+)\*\*`).ReplaceAllString(text, "<strong>$1</strong>")
+	text = regexp.MustCompile(`\*([^\*\n]+)\*`).ReplaceAllString(text, "<strong>$1</strong>")
+
+	// Step 7: Convert italic formatting
+	text = regexp.MustCompile(`_([^_\n]+)_`).ReplaceAllString(text, "<em>$1</em>")
+
+	// Step 8: Convert strikethrough
+	text = regexp.MustCompile(`~~([^~]+)~~`).ReplaceAllString(text, "<s>$1</s>")
+
+	// Step 9: Convert links
+	text = regexp.MustCompile(`\[([^\]]+)\]\(([^\)]+)\)`).ReplaceAllString(text, `<a href="$2">$1</a>`)
+
+	// Wrap in <body> tag as required by Asana API
+	text = strings.TrimSpace(text)
+	if text != "" {
+		text = "<body>" + text + "</body>"
+	}
+
+	return text
 }

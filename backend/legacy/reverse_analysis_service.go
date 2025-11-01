@@ -93,18 +93,32 @@ func (s *ReverseAnalysisService) PerformReverseAnalysis(userID int, creatorFilte
 	}
 
 	// 4. Categorize each YouTrack issue
+	// Priority order (as per user requirement):
+	// 1. Check if YouTrack ID (like "ARD-123") exists in Asana task title
+	// 2. Check database mappings
+	// 3. Check title fuzzy matching
+
 	for _, ytIssue := range ytIssues {
 		asanaTaskID := ""
 		matchReason := ""
 
-		// Priority 1: Check database mappings
-		if mappedTaskID, hasMapping := ytToAsanaMap[ytIssue.ID]; hasMapping && asanaTaskSet[mappedTaskID] {
-			asanaTaskID = mappedTaskID
-			matchReason = "database mapping"
-		} else if taskID, foundInTitle := asanaTaskByYTID[ytIssue.ID]; foundInTitle {
-			// Priority 2: Check if YouTrack ID exists in Asana task title
+		// Priority 1: Check if YouTrack ID exists in Asana task title (e.g., "ARD-123" in title)
+		if taskID, foundInTitle := asanaTaskByYTID[ytIssue.ID]; foundInTitle {
 			asanaTaskID = taskID
 			matchReason = "title contains ID"
+		} else if mappedTaskID, hasMapping := ytToAsanaMap[ytIssue.ID]; hasMapping && asanaTaskSet[mappedTaskID] {
+			// Priority 2: Check database mappings
+			asanaTaskID = mappedTaskID
+			matchReason = "database mapping"
+		} else {
+			// Priority 3: Check title fuzzy matching
+			for _, task := range asanaTasks {
+				if titlesMatch(task.Name, ytIssue.Summary) {
+					asanaTaskID = task.GID
+					matchReason = "title fuzzy match"
+					break
+				}
+			}
 		}
 
 		if asanaTaskID != "" {

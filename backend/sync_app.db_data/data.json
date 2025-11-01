@@ -996,6 +996,26 @@
       "created_at": "2025-10-20T02:29:04.5754882+05:30",
       "updated_at": "2025-10-28T13:43:47.5097378+05:30"
     },
+    "108": {
+      "id": 108,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211809480841859",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-612",
+      "created_at": "2025-11-01T02:56:57.0116685+05:30",
+      "updated_at": "2025-11-01T02:56:57.0116685+05:30"
+    },
+    "109": {
+      "id": 109,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211809372941200",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-612",
+      "created_at": "2025-11-01T03:02:30.4135116+05:30",
+      "updated_at": "2025-11-01T03:02:30.4135116+05:30"
+    },
     "11": {
       "id": 11,
       "user_id": 1,
@@ -1005,6 +1025,26 @@
       "youtrack_issue_id": "3-1235",
       "created_at": "2025-10-13T22:36:19.9894832+05:30",
       "updated_at": "2025-10-13T22:36:19.9894832+05:30"
+    },
+    "110": {
+      "id": 110,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211811704417397",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-612",
+      "created_at": "2025-11-01T19:29:18.2571255+05:30",
+      "updated_at": "2025-11-01T19:29:18.2571255+05:30"
+    },
+    "111": {
+      "id": 111,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211811695759923",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-612",
+      "created_at": "2025-11-01T19:30:53.0216726+05:30",
+      "updated_at": "2025-11-01T19:30:53.0216726+05:30"
     },
     "12": {
       "id": 12,
@@ -1929,8 +1969,8 @@
           "asana_to_youtrack": [
             {
               "asana_column": "Backlog",
-              "youtrack_status": "Backlog",
-              "display_only": false
+              "display_only": false,
+              "youtrack_status": "Backlog"
             }
           ],
           "youtrack_to_asana": []
@@ -1957,7 +1997,7 @@
   "next_settings_id": 3,
   "next_operation_id": 6,
   "next_ignored_id": 92,
-  "next_mapping_id": 108,
+  "next_mapping_id": 112,
   "next_snapshot_id": 2,
   "next_audit_log_id": 1
 }
