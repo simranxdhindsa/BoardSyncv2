@@ -1137,11 +1137,12 @@ func (s *YouTrackService) GetIssuesByCreator(userID int, creatorFilter string) (
 		}
 
 		issue := YouTrackIssue{
-			ID:          issueID,
-			Summary:     getString(rawIssue, "summary"),
-			Description: getString(rawIssue, "description"),
-			Created:     getInt64(rawIssue, "created"),
-			Updated:     getInt64(rawIssue, "updated"),
+			ID:                  issueID,
+			Summary:             getString(rawIssue, "summary"),
+			Description:         getString(rawIssue, "description"),
+			WikifiedDescription: getString(rawIssue, "wikifiedDescription"),
+			Created:             getInt64(rawIssue, "created"),
+			Updated:             getInt64(rawIssue, "updated"),
 		}
 
 		// Extract State and Subsystem from customFields

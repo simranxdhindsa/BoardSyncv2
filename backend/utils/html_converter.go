@@ -118,6 +118,46 @@ func ConvertAsanaHTMLToYouTrackMarkdown(htmlText string) string {
 	return strings.TrimSpace(text)
 }
 
+// ConvertYouTrackWikifiedToAsanaHTML converts YouTrack's wikified HTML to Asana HTML
+func ConvertYouTrackWikifiedToAsanaHTML(wikified string) string {
+	if wikified == "" {
+		return ""
+	}
+
+	// YouTrack returns HTML wrapped in: <div class="wiki text common-markdown">...</div>
+	// Extract the inner HTML content
+	text := wikified
+
+	// Remove the outer wrapper div
+	text = regexp.MustCompile(`<div[^>]*class="[^"]*wiki[^"]*"[^>]*>`).ReplaceAllString(text, "")
+	text = strings.Replace(text, "</div>", "", 1)
+
+	// Remove newline literals (\n) that YouTrack adds
+	text = strings.ReplaceAll(text, `\n`, "")
+	text = strings.ReplaceAll(text, "\n", "")
+
+	// Remove inline/embedded images from the description
+	// YouTrack embeds images as <img> tags with data-attachment-id
+	// Asana doesn't support inline images, but we sync them as file attachments separately
+	text = regexp.MustCompile(`<img[^>]*>`).ReplaceAllString(text, "")
+
+	// Remove inline image markdown syntax like ![](images.png){width=70%}
+	// These are image references that appear in the plain text description
+	text = regexp.MustCompile(`!\[.*?\]\([^)]+\)(?:\{[^}]+\})?`).ReplaceAllString(text, "")
+
+	// Clean up empty paragraphs and extra line breaks left after removing images
+	text = regexp.MustCompile(`<p>\s*</p>`).ReplaceAllString(text, "")
+	text = regexp.MustCompile(`<br\s*/?>(\s*<br\s*/?>)+`).ReplaceAllString(text, "<br/>")
+
+	// Wrap in <body> tag as required by Asana API
+	text = strings.TrimSpace(text)
+	if text != "" {
+		text = "<body>" + text + "</body>"
+	}
+
+	return text
+}
+
 // ConvertYouTrackMarkdownToAsanaHTML converts YouTrack markdown to Asana HTML formatting
 func ConvertYouTrackMarkdownToAsanaHTML(markdown string) string {
 	if markdown == "" {

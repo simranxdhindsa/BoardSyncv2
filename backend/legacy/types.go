@@ -59,14 +59,15 @@ type AsanaResponse struct {
 // YouTrack data structures
 type YouTrackIssue struct {
 	ID           string                 `json:"id"`
-	Summary      string                 `json:"summary"`
-	Description  string                 `json:"description"`
-	Created      int64                  `json:"created"`
-	Updated      int64                  `json:"updated"`
-	State        string                 `json:"state"`
-	Subsystem    string                 `json:"subsystem"`
-	CreatedBy    string                 `json:"created_by"`
-	Attachments  []YouTrackAttachment   `json:"attachments"`
+	Summary              string                 `json:"summary"`
+	Description          string                 `json:"description"`
+	WikifiedDescription  string                 `json:"wikifiedDescription"`
+	Created              int64                  `json:"created"`
+	Updated              int64                  `json:"updated"`
+	State                string                 `json:"state"`
+	Subsystem            string                 `json:"subsystem"`
+	CreatedBy            string                 `json:"created_by"`
+	Attachments          []YouTrackAttachment   `json:"attachments"`
 	CustomFields []struct {
 		Name  string      `json:"name"`
 		Value interface{} `json:"value"`

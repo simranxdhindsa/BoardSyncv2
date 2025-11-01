@@ -8,7 +8,7 @@ import (
 
 	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/database"
-	// "asana-youtrack-sync/utils" // Will re-enable once HTML formatting is working
+	"asana-youtrack-sync/utils"
 )
 
 type ReverseSyncService struct {
@@ -107,10 +107,17 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 	// 2. Keep the YouTrack title format with ID prefix (e.g., "ARD-123 Fix bug")
 	taskTitle := fmt.Sprintf("%s %s", ytIssue.ID, ytIssue.Summary)
 
-	// 3. Convert YouTrack markdown description to Asana HTML
-	// Note: Using plain text for now as Asana's HTML requirements are very strict
-	// We can revisit HTML formatting once basic sync is working
-	// htmlDescription := utils.ConvertYouTrackMarkdownToAsanaHTML(ytIssue.Description)
+	// 3. Convert YouTrack wikified HTML description to Asana HTML
+	// Use wikifiedDescription if available (it has proper HTML formatting)
+	// Otherwise fall back to plain text description
+	htmlDescription := ""
+	if ytIssue.WikifiedDescription != "" {
+		log.Printf("[Reverse Sync] Original wikified HTML for %s: %s", ytIssue.ID, ytIssue.WikifiedDescription)
+		htmlDescription = utils.ConvertYouTrackWikifiedToAsanaHTML(ytIssue.WikifiedDescription)
+		log.Printf("[Reverse Sync] Converted HTML for %s: %s", ytIssue.ID, htmlDescription)
+	} else {
+		log.Printf("[Reverse Sync] No wikified description for %s, using plain text", ytIssue.ID)
+	}
 
 	// 4. Map YouTrack subsystem to Asana tags
 	asanaTags, err := s.mapSubsystemToAsanaTags(userID, ytIssue.Subsystem, settings)
@@ -119,11 +126,17 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 		asanaTags = []string{} // Skip tags if mapping fails
 	}
 
-	// 5. Create the task in Asana with plain text description
+	// 5. Create the task in Asana with HTML description
 	taskData := map[string]interface{}{
 		"name":     taskTitle,
-		"notes":    ytIssue.Description,
 		"projects": []string{settings.AsanaProjectID},
+	}
+
+	// Add description - use HTML if available, otherwise plain text
+	if htmlDescription != "" {
+		taskData["html_notes"] = htmlDescription
+	} else {
+		taskData["notes"] = ytIssue.Description
 	}
 
 	// Add section/column
