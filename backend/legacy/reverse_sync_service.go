@@ -3,12 +3,12 @@ package legacy
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
 	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/database"
-	"asana-youtrack-sync/utils"
 )
 
 type ReverseSyncService struct {
@@ -107,17 +107,55 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 	// 2. Keep the YouTrack title format with ID prefix (e.g., "ARD-123 Fix bug")
 	taskTitle := fmt.Sprintf("%s %s", ytIssue.ID, ytIssue.Summary)
 
-	// 3. Convert YouTrack wikified HTML description to Asana HTML
-	// Use wikifiedDescription if available (it has proper HTML formatting)
-	// Otherwise fall back to plain text description
-	htmlDescription := ""
-	if ytIssue.WikifiedDescription != "" {
-		log.Printf("[Reverse Sync] Original wikified HTML for %s: %s", ytIssue.ID, ytIssue.WikifiedDescription)
-		htmlDescription = utils.ConvertYouTrackWikifiedToAsanaHTML(ytIssue.WikifiedDescription)
-		log.Printf("[Reverse Sync] Converted HTML for %s: %s", ytIssue.ID, htmlDescription)
-	} else {
-		log.Printf("[Reverse Sync] No wikified description for %s, using plain text", ytIssue.ID)
-	}
+	// 3. Clean up description - remove ALL markdown formatting
+	plainDescription := ytIssue.Description
+
+	// Remove inline image markdown patterns:
+	// ![alt text](image.png)
+	// ![alt text](image.png){width=70%}
+	// ![](image.png){width=70%}
+	plainDescription = regexp.MustCompile(`!\[[^\]]*\]\([^)]+\)(?:\{[^}]*\})?`).ReplaceAllString(plainDescription, "")
+
+	// Also remove any leftover patterns like ".png){width=70%}" that might remain
+	plainDescription = regexp.MustCompile(`\.[a-zA-Z]{3,4}\)\{[^}]+\}`).ReplaceAllString(plainDescription, "")
+
+	// Remove code blocks: ```code``` -> code
+	plainDescription = regexp.MustCompile("```[\\s\\S]*?```").ReplaceAllStringFunc(plainDescription, func(match string) string {
+		// Extract content between ``` markers
+		content := strings.TrimPrefix(match, "```")
+		content = strings.TrimSuffix(content, "```")
+		// Remove language identifier if present (e.g., ```javascript)
+		lines := strings.Split(content, "\n")
+		if len(lines) > 0 && !strings.Contains(lines[0], " ") {
+			lines = lines[1:] // Skip first line if it's a language identifier
+		}
+		return strings.TrimSpace(strings.Join(lines, "\n"))
+	})
+
+	// Remove inline code: `code` -> code
+	plainDescription = regexp.MustCompile("`([^`]+)`").ReplaceAllString(plainDescription, "$1")
+
+	// Remove blockquotes: > quote -> quote
+	plainDescription = regexp.MustCompile(`(?m)^>\s*(.*)$`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove bold formatting: **text** -> text
+	plainDescription = regexp.MustCompile(`\*\*([^\*]+)\*\*`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove italic formatting: *text* -> text
+	plainDescription = regexp.MustCompile(`\*([^\*\n]+)\*`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove strikethrough: ~~text~~ -> text
+	plainDescription = regexp.MustCompile(`~~([^~]+)~~`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove underline: _text_ -> text
+	plainDescription = regexp.MustCompile(`_([^_\n]+)_`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove links but keep the text: [text](url) -> text
+	plainDescription = regexp.MustCompile(`\[([^\]]+)\]\([^\)]+\)`).ReplaceAllString(plainDescription, "$1")
+
+	plainDescription = strings.TrimSpace(plainDescription)
+
+	log.Printf("[Reverse Sync] Using plain description for %s: %s", ytIssue.ID, plainDescription)
 
 	// 4. Map YouTrack subsystem to Asana tags
 	asanaTags, err := s.mapSubsystemToAsanaTags(userID, ytIssue.Subsystem, settings)
@@ -126,17 +164,11 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 		asanaTags = []string{} // Skip tags if mapping fails
 	}
 
-	// 5. Create the task in Asana with HTML description
+	// 5. Create the task in Asana with plain text (HTML doesn't work with Asana API)
 	taskData := map[string]interface{}{
 		"name":     taskTitle,
+		"notes":    plainDescription,
 		"projects": []string{settings.AsanaProjectID},
-	}
-
-	// Add description - use HTML if available, otherwise plain text
-	if htmlDescription != "" {
-		taskData["html_notes"] = htmlDescription
-	} else {
-		taskData["notes"] = ytIssue.Description
 	}
 
 	// Add section/column

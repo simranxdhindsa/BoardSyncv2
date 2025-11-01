@@ -118,44 +118,93 @@ func ConvertAsanaHTMLToYouTrackMarkdown(htmlText string) string {
 	return strings.TrimSpace(text)
 }
 
-// ConvertYouTrackWikifiedToAsanaHTML converts YouTrack's wikified HTML to Asana HTML
-func ConvertYouTrackWikifiedToAsanaHTML(wikified string) string {
+// VERSION 1: Clean HTML with <body> wrapper
+func ConvertYouTrackWikifiedToAsanaHTML_V1(wikified string) string {
 	if wikified == "" {
 		return ""
 	}
-
-	// YouTrack returns HTML wrapped in: <div class="wiki text common-markdown">...</div>
-	// Extract the inner HTML content
 	text := wikified
-
-	// Remove the outer wrapper div
 	text = regexp.MustCompile(`<div[^>]*class="[^"]*wiki[^"]*"[^>]*>`).ReplaceAllString(text, "")
 	text = strings.Replace(text, "</div>", "", 1)
-
-	// Remove newline literals (\n) that YouTrack adds
 	text = strings.ReplaceAll(text, `\n`, "")
 	text = strings.ReplaceAll(text, "\n", "")
-
-	// Remove inline/embedded images from the description
-	// YouTrack embeds images as <img> tags with data-attachment-id
-	// Asana doesn't support inline images, but we sync them as file attachments separately
 	text = regexp.MustCompile(`<img[^>]*>`).ReplaceAllString(text, "")
-
-	// Remove inline image markdown syntax like ![](images.png){width=70%}
-	// These are image references that appear in the plain text description
 	text = regexp.MustCompile(`!\[.*?\]\([^)]+\)(?:\{[^}]+\})?`).ReplaceAllString(text, "")
-
-	// Clean up empty paragraphs and extra line breaks left after removing images
 	text = regexp.MustCompile(`<p>\s*</p>`).ReplaceAllString(text, "")
 	text = regexp.MustCompile(`<br\s*/?>(\s*<br\s*/?>)+`).ReplaceAllString(text, "<br/>")
-
-	// Wrap in <body> tag as required by Asana API
 	text = strings.TrimSpace(text)
 	if text != "" {
 		text = "<body>" + text + "</body>"
 	}
-
 	return text
+}
+
+// VERSION 2: Clean HTML WITHOUT <body> wrapper
+func ConvertYouTrackWikifiedToAsanaHTML_V2(wikified string) string {
+	if wikified == "" {
+		return ""
+	}
+	text := wikified
+	text = regexp.MustCompile(`<div[^>]*class="[^"]*wiki[^"]*"[^>]*>`).ReplaceAllString(text, "")
+	text = strings.Replace(text, "</div>", "", 1)
+	text = strings.ReplaceAll(text, `\n`, "")
+	text = strings.ReplaceAll(text, "\n", "")
+	text = regexp.MustCompile(`<img[^>]*>`).ReplaceAllString(text, "")
+	text = regexp.MustCompile(`!\[.*?\]\([^)]+\)(?:\{[^}]+\})?`).ReplaceAllString(text, "")
+	text = regexp.MustCompile(`<p>\s*</p>`).ReplaceAllString(text, "")
+	text = regexp.MustCompile(`<br\s*/?>(\s*<br\s*/?>)+`).ReplaceAllString(text, "<br/>")
+	return strings.TrimSpace(text)
+}
+
+// VERSION 3: Keep images, add <body>
+func ConvertYouTrackWikifiedToAsanaHTML_V3(wikified string) string {
+	if wikified == "" {
+		return ""
+	}
+	text := wikified
+	text = regexp.MustCompile(`<div[^>]*class="[^"]*wiki[^"]*"[^>]*>`).ReplaceAllString(text, "")
+	text = strings.Replace(text, "</div>", "", 1)
+	text = strings.ReplaceAll(text, `\n`, "")
+	text = strings.ReplaceAll(text, "\n", "")
+	// Keep images
+	text = regexp.MustCompile(`!\[.*?\]\([^)]+\)(?:\{[^}]+\})?`).ReplaceAllString(text, "")
+	text = strings.TrimSpace(text)
+	if text != "" {
+		text = "<body>" + text + "</body>"
+	}
+	return text
+}
+
+// VERSION 4: Minimal processing with <body>
+func ConvertYouTrackWikifiedToAsanaHTML_V4(wikified string) string {
+	if wikified == "" {
+		return ""
+	}
+	text := wikified
+	text = regexp.MustCompile(`<div[^>]*>`).ReplaceAllString(text, "")
+	text = strings.ReplaceAll(text, "</div>", "")
+	text = strings.ReplaceAll(text, `\n`, "")
+	text = strings.TrimSpace(text)
+	if text != "" {
+		text = "<body>" + text + "</body>"
+	}
+	return text
+}
+
+// VERSION 5: Strip all HTML, keep text only
+func ConvertYouTrackWikifiedToAsanaHTML_V5(wikified string) string {
+	if wikified == "" {
+		return ""
+	}
+	// Extract text content only
+	text := regexp.MustCompile(`<[^>]*>`).ReplaceAllString(wikified, "")
+	text = strings.ReplaceAll(text, `\n`, "\n")
+	return strings.TrimSpace(text)
+}
+
+// Main function that tries all versions
+func ConvertYouTrackWikifiedToAsanaHTML(wikified string) string {
+	return ConvertYouTrackWikifiedToAsanaHTML_V2(wikified)
 }
 
 // ConvertYouTrackMarkdownToAsanaHTML converts YouTrack markdown to Asana HTML formatting

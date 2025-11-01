@@ -1086,6 +1086,46 @@
       "created_at": "2025-11-01T19:42:06.5363834+05:30",
       "updated_at": "2025-11-01T19:42:06.5363834+05:30"
     },
+    "116": {
+      "id": 116,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211811722605448",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-612",
+      "created_at": "2025-11-01T19:49:59.3519894+05:30",
+      "updated_at": "2025-11-01T19:49:59.3519894+05:30"
+    },
+    "117": {
+      "id": 117,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211811725931975",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-612",
+      "created_at": "2025-11-01T19:53:57.0641147+05:30",
+      "updated_at": "2025-11-01T19:53:57.0641147+05:30"
+    },
+    "118": {
+      "id": 118,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211811795376307",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-612",
+      "created_at": "2025-11-01T19:57:53.2325864+05:30",
+      "updated_at": "2025-11-01T19:57:53.2325864+05:30"
+    },
+    "119": {
+      "id": 119,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211811798807882",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-612",
+      "created_at": "2025-11-01T20:02:38.083797+05:30",
+      "updated_at": "2025-11-01T20:02:38.083797+05:30"
+    },
     "12": {
       "id": 12,
       "user_id": 1,
@@ -1095,6 +1135,16 @@
       "youtrack_issue_id": "3-1236",
       "created_at": "2025-10-13T22:36:40.6506677+05:30",
       "updated_at": "2025-10-13T22:36:40.6506677+05:30"
+    },
+    "120": {
+      "id": 120,
+      "user_id": 2,
+      "asana_project_id": "1211341745333034",
+      "asana_task_id": "1211811799971057",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-612",
+      "created_at": "2025-11-01T20:03:51.3433166+05:30",
+      "updated_at": "2025-11-01T20:03:51.3433166+05:30"
     },
     "13": {
       "id": 13,
@@ -2037,7 +2087,7 @@
   "next_settings_id": 3,
   "next_operation_id": 6,
   "next_ignored_id": 92,
-  "next_mapping_id": 116,
+  "next_mapping_id": 121,
   "next_snapshot_id": 2,
   "next_audit_log_id": 1
 }
