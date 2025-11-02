@@ -1,7 +1,7 @@
 // frontend/src/components/ReverseSync/ReverseTicketDetailView.js
 import React, { useState } from 'react';
 import {
-  ArrowLeft, CheckCircle, AlertCircle, PlusCircle, Loader2,
+  ArrowLeft, CheckCircle, AlertCircle, Plus, RefreshCw,
   Calendar, User, Tag, FileText, ExternalLink
 } from 'lucide-react';
 
@@ -13,37 +13,24 @@ const ReverseTicketDetailView = ({
   onCreateTickets,
   loading
 }) => {
-  const [selectedIssues, setSelectedIssues] = useState([]);
   const [expandedTicket, setExpandedTicket] = useState(null);
+  const [createAllLoading, setCreateAllLoading] = useState(false);
 
-  const { matched = [], missing_asana = [] } = analysisData;
+  const { matched = [], missing_asana = [] } = analysisData || {};
 
   // Get tickets based on type
   const tickets = type === 'matched' ? matched : missing_asana;
 
-  const toggleIssueSelection = (issueId) => {
-    setSelectedIssues(prev =>
-      prev.includes(issueId)
-        ? prev.filter(id => id !== issueId)
-        : [...prev, issueId]
-    );
-  };
+  const handleCreateAll = async () => {
+    setCreateAllLoading(true);
 
-  const toggleSelectAll = () => {
-    if (type === 'missing') {
-      if (selectedIssues.length === missing_asana.length) {
-        setSelectedIssues([]);
-      } else {
-        setSelectedIssues(missing_asana.map(issue => issue.id));
-      }
-    }
-  };
-
-  const handleCreate = () => {
-    if (selectedIssues.length === 0 && missing_asana.length > 0) {
-      onCreateTickets([]);
-    } else {
-      onCreateTickets(selectedIssues);
+    try {
+      const ticketIds = missing_asana.map(t => t.id);
+      await onCreateTickets(ticketIds);
+    } catch (error) {
+      console.error('Failed to create tickets:', error);
+    } finally {
+      setCreateAllLoading(false);
     }
   };
 
@@ -114,39 +101,25 @@ const ReverseTicketDetailView = ({
               </div>
 
               {type === 'missing' && missing_asana.length > 0 && (
-                <div className="flex space-x-2">
-                  <button
-                    onClick={toggleSelectAll}
-                    className="glass-panel bg-white text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200"
-                  >
-                    {selectedIssues.length === missing_asana.length ? 'Deselect All' : 'Select All'}
-                  </button>
-                  <button
-                    onClick={handleCreate}
-                    disabled={loading}
-                    className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-2 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center shadow-lg"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <PlusCircle className="w-4 h-4 mr-2" />
-                        Create {selectedIssues.length > 0 ? `${selectedIssues.length} Selected` : 'All'}
-                      </>
-                    )}
-                  </button>
-                </div>
+                <button
+                  onClick={handleCreateAll}
+                  disabled={createAllLoading}
+                  className="flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+                >
+                  {createAllLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Creating All...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create All ({missing_asana.length})
+                    </>
+                  )}
+                </button>
               )}
             </div>
-
-            {type === 'missing' && selectedIssues.length > 0 && (
-              <div className="mt-4 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-                {selectedIssues.length} ticket(s) selected for creation
-              </div>
-            )}
           </div>
         </div>
 
@@ -155,116 +128,99 @@ const ReverseTicketDetailView = ({
           {type === 'missing' && missing_asana.map((issue) => (
             <div
               key={issue.id}
-              className={`glass-panel border rounded-lg p-6 transition-all ${
-                selectedIssues.includes(issue.id)
-                  ? 'border-blue-400 bg-blue-50 shadow-md'
-                  : 'border-gray-200 bg-white hover:shadow-md'
-              }`}
+              className="glass-panel border border-gray-200 bg-white rounded-lg p-6 hover:shadow-md transition-all"
             >
-              <div className="flex items-start">
-                {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={selectedIssues.includes(issue.id)}
-                  onChange={() => toggleIssueSelection(issue.id)}
-                  className="mt-1 mr-4 w-5 h-5 cursor-pointer"
-                />
+              {/* Header */}
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <span className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm">
+                    {issue.id}
+                  </span>
+                  <h3 className="text-lg font-semibold text-gray-900">{issue.summary}</h3>
+                </div>
+                <button
+                  onClick={() => setExpandedTicket(expandedTicket === issue.id ? null : issue.id)}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  {expandedTicket === issue.id ? 'Hide Details' : 'Show Details'}
+                </button>
+              </div>
 
-                {/* Ticket Content */}
-                <div className="flex-1">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-sm">
-                        {issue.id}
-                      </span>
-                      <h3 className="text-lg font-semibold text-gray-900">{issue.summary}</h3>
-                    </div>
-                    <button
-                      onClick={() => setExpandedTicket(expandedTicket === issue.id ? null : issue.id)}
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                      {expandedTicket === issue.id ? 'Hide Details' : 'Show Details'}
-                    </button>
+              {/* Metadata */}
+              <div className="flex flex-wrap gap-4 mb-3">
+                {issue.state && (
+                  <div className="flex items-center text-sm">
+                    <FileText className="w-4 h-4 mr-1.5 text-blue-600" />
+                    <span className="text-gray-700">State:</span>
+                    <span className="ml-1 px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-medium">
+                      {issue.state}
+                    </span>
+                  </div>
+                )}
+                {issue.subsystem && (
+                  <div className="flex items-center text-sm">
+                    <Tag className="w-4 h-4 mr-1.5 text-purple-600" />
+                    <span className="text-gray-700">Subsystem:</span>
+                    <span className="ml-1 px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">
+                      {issue.subsystem}
+                    </span>
+                  </div>
+                )}
+                {issue.created_by && (
+                  <div className="flex items-center text-sm">
+                    <User className="w-4 h-4 mr-1.5 text-gray-600" />
+                    <span className="text-gray-700">Creator:</span>
+                    <span className="ml-1 font-medium text-gray-900">{issue.created_by}</span>
+                  </div>
+                )}
+                {issue.created && (
+                  <div className="flex items-center text-sm">
+                    <Calendar className="w-4 h-4 mr-1.5 text-gray-600" />
+                    <span className="text-gray-700">Created:</span>
+                    <span className="ml-1 text-gray-900">{formatDate(issue.created)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Description Preview */}
+              {issue.description && (
+                <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-sm text-gray-700 line-clamp-2">
+                    {issue.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Expanded Details */}
+              {expandedTicket === issue.id && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-2">Full Description</h4>
+                  <div className="p-4 bg-white rounded-lg border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap max-h-64 overflow-y-auto">
+                    {issue.description || 'No description available'}
                   </div>
 
-                  {/* Metadata */}
-                  <div className="flex flex-wrap gap-4 mb-3">
-                    {issue.state && (
-                      <div className="flex items-center text-sm">
-                        <FileText className="w-4 h-4 mr-1.5 text-blue-600" />
-                        <span className="text-gray-700">State:</span>
-                        <span className="ml-1 px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-medium">
-                          {issue.state}
-                        </span>
-                      </div>
-                    )}
-                    {issue.subsystem && (
-                      <div className="flex items-center text-sm">
-                        <Tag className="w-4 h-4 mr-1.5 text-purple-600" />
-                        <span className="text-gray-700">Subsystem:</span>
-                        <span className="ml-1 px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-medium">
-                          {issue.subsystem}
-                        </span>
-                      </div>
-                    )}
-                    {issue.created_by && (
-                      <div className="flex items-center text-sm">
-                        <User className="w-4 h-4 mr-1.5 text-gray-600" />
-                        <span className="text-gray-700">Creator:</span>
-                        <span className="ml-1 font-medium text-gray-900">{issue.created_by}</span>
-                      </div>
-                    )}
-                    {issue.created && (
-                      <div className="flex items-center text-sm">
-                        <Calendar className="w-4 h-4 mr-1.5 text-gray-600" />
-                        <span className="text-gray-700">Created:</span>
-                        <span className="ml-1 text-gray-900">{formatDate(issue.created)}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Description Preview */}
-                  {issue.description && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <p className="text-sm text-gray-700 line-clamp-2">
-                        {issue.description}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Expanded Details */}
-                  {expandedTicket === issue.id && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <h4 className="font-semibold text-gray-900 mb-2">Full Description</h4>
-                      <div className="p-4 bg-white rounded-lg border border-gray-200 text-sm text-gray-700 whitespace-pre-wrap max-h-64 overflow-y-auto">
-                        {issue.description || 'No description available'}
-                      </div>
-
-                      {issue.attachments && issue.attachments.length > 0 && (
-                        <div className="mt-4">
-                          <h4 className="font-semibold text-gray-900 mb-2">
-                            Attachments ({issue.attachments.length})
-                          </h4>
-                          <div className="space-y-2">
-                            {issue.attachments.map((attachment, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200"
-                              >
-                                <span className="text-sm text-gray-700">{attachment.name}</span>
-                                <span className="text-xs text-gray-500">
-                                  {(attachment.size / 1024).toFixed(1)} KB
-                                </span>
-                              </div>
-                            ))}
+                  {issue.attachments && issue.attachments.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold text-gray-900 mb-2">
+                        Attachments ({issue.attachments.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {issue.attachments.map((attachment, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200"
+                          >
+                            <span className="text-sm text-gray-700">{attachment.name}</span>
+                            <span className="text-xs text-gray-500">
+                              {(attachment.size / 1024).toFixed(1)} KB
+                            </span>
                           </div>
-                        </div>
-                      )}
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
+              )}
             </div>
           ))}
 

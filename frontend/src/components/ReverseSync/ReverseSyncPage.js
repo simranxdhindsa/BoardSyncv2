@@ -1,6 +1,6 @@
 // frontend/src/components/ReverseSync/ReverseSyncPage.js
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Users, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Users, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getYouTrackUsers, reverseAnalyzeTickets, reverseCreateTickets } from '../../services/api';
 import CreatorFilter from './CreatorFilter';
 import ReverseAnalysisResults from './ReverseAnalysisResults';

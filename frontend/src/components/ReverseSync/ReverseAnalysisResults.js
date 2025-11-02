@@ -1,13 +1,23 @@
 // frontend/src/components/ReverseSync/ReverseAnalysisResults.js
-import React, { useState } from 'react';
-import { ArrowLeft, CheckCircle, AlertCircle, PlusCircle, Loader2, Eye, Calendar, User, Tag, FileText, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, CheckCircle, AlertCircle, Plus, Eye, FileText, RefreshCw } from 'lucide-react';
 import ReverseTicketDetailView from './ReverseTicketDetailView';
 
 const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreateTickets, onReanalyze, loading }) => {
-  const [selectedIssues, setSelectedIssues] = useState([]);
   const [detailView, setDetailView] = useState(null); // null or { type: 'matched' | 'missing' }
+  const [creating, setCreating] = useState({});
+  const [createAllLoading, setCreateAllLoading] = useState(false);
+  const [createdTickets, setCreatedTickets] = useState(new Set());
 
-  const { matched = [], missing_asana = [] } = analysisData;
+  // LOCAL STATE for optimistic updates
+  const [localAnalysisData, setLocalAnalysisData] = useState(analysisData);
+
+  // Update local data when prop changes
+  useEffect(() => {
+    setLocalAnalysisData(analysisData);
+  }, [analysisData]);
+
+  const { matched = [], missing_asana = [] } = localAnalysisData || {};
 
   // Summary data
   const summaryData = {
@@ -19,29 +29,44 @@ const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreat
       : 100
   };
 
-  const toggleIssueSelection = (issueId) => {
-    setSelectedIssues(prev =>
-      prev.includes(issueId)
-        ? prev.filter(id => id !== issueId)
-        : [...prev, issueId]
-    );
-  };
+  // CREATE HANDLER - Wait for API success
+  const handleCreateTicket = async (ticket, index) => {
+    const ticketId = ticket.id;
+    setCreating(prev => ({ ...prev, [ticketId]: true }));
 
-  const toggleSelectAll = () => {
-    if (selectedIssues.length === missing_asana.length) {
-      setSelectedIssues([]);
-    } else {
-      setSelectedIssues(missing_asana.map(issue => issue.id));
+    try {
+      // Wait for actual create to complete
+      await onCreateTickets([ticketId]);
+
+      // Show success feedback
+      setCreatedTickets(prev => new Set([...prev, ticketId]));
+      setTimeout(() => {
+        setCreatedTickets(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(ticketId);
+          return newSet;
+        });
+      }, 2000);
+    } catch (error) {
+      console.error('Create failed:', error);
+    } finally {
+      setCreating(prev => ({ ...prev, [ticketId]: false }));
     }
   };
 
-  const handleCreate = () => {
-    if (selectedIssues.length === 0 && missing_asana.length > 0) {
-      // Create all if none selected
-      onCreateTickets([]);
-    } else {
-      // Create selected
-      onCreateTickets(selectedIssues);
+  // CREATE ALL HANDLER - Wait for API success
+  const handleCreateAll = async () => {
+    setCreateAllLoading(true);
+
+    try {
+      const ticketIds = missing_asana.map(t => t.id);
+
+      // Wait for create to complete
+      await onCreateTickets(ticketIds);
+    } catch (error) {
+      console.error('Failed to create tickets:', error);
+    } finally {
+      setCreateAllLoading(false);
     }
   };
 
@@ -49,11 +74,6 @@ const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreat
     setDetailView({ type });
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
 
   // If detail view is active, show it
   if (detailView) {
@@ -104,7 +124,7 @@ const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreat
             >
               {loading ? (
                 <>
-                  <Loader2 style={{ width: '16px', height: '16px', marginRight: '8px', animation: 'spin 1s linear infinite' }} />
+                  <RefreshCw style={{ width: '16px', height: '16px', marginRight: '8px', animation: 'spin 1s linear infinite' }} />
                   Analyzing...
                 </>
               ) : (
@@ -206,17 +226,11 @@ const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreat
         {/* Missing Tickets Preview - Only show if there are missing tickets */}
         {missing_asana.length > 0 && (
           <div className="glass-panel border border-gray-200 rounded-lg p-6 mb-6">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
-                Missing Tickets ({missing_asana.length})
+                Missing in Asana ({missing_asana.length})
               </h2>
               <div className="flex space-x-2">
-                <button
-                  onClick={toggleSelectAll}
-                  className="glass-panel interactive-element bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
-                >
-                  {selectedIssues.length === missing_asana.length ? 'Deselect All' : 'Select All'}
-                </button>
                 <button
                   onClick={() => handleSummaryCardClick('missing')}
                   className="glass-panel interactive-element bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
@@ -225,198 +239,95 @@ const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreat
                   View All
                 </button>
                 <button
-                  onClick={handleCreate}
-                  disabled={loading}
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-2 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center shadow-lg"
+                  onClick={handleCreateAll}
+                  disabled={createAllLoading}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center disabled:opacity-50"
                 >
-                  {loading ? (
+                  {createAllLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating...
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Creating All...
                     </>
                   ) : (
                     <>
-                      <PlusCircle className="w-4 h-4 mr-2" />
-                      Create {selectedIssues.length > 0 ? `${selectedIssues.length} Selected` : 'All'}
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create All
                     </>
                   )}
                 </button>
               </div>
             </div>
 
-            {selectedIssues.length > 0 && (
-              <div className="mb-4 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-                {selectedIssues.length} ticket(s) selected for creation
-              </div>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {missing_asana.slice(0, 6).map((ticket, index) => {
+                const ticketId = ticket.id;
+                const isCreating = creating[ticketId];
+                const isCreated = createdTickets.has(ticketId);
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left p-3 font-medium text-gray-700 w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedIssues.length === missing_asana.length && missing_asana.length > 0}
-                        onChange={toggleSelectAll}
-                        className="w-4 h-4 cursor-pointer"
-                      />
-                    </th>
-                    <th className="text-left p-3 font-medium text-gray-700">Ticket ID</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Summary</th>
-                    <th className="text-left p-3 font-medium text-gray-700">State</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Subsystem</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Creator</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {missing_asana.slice(0, 10).map((issue, index) => (
-                    <tr
-                      key={issue.id}
-                      className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                      }`}
-                    >
-                      <td className="p-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIssues.includes(issue.id)}
-                          onChange={() => toggleIssueSelection(issue.id)}
-                          className="w-4 h-4 cursor-pointer"
-                        />
-                      </td>
-                      <td className="p-3">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                          {issue.id}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-medium text-gray-900">{issue.summary}</div>
-                        {issue.description && (
-                          <div className="text-xs text-gray-500 mt-1 truncate max-w-md">
-                            {issue.description.substring(0, 80)}...
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                          <FileText className="w-3 h-3 mr-1" />
-                          {issue.state || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        {issue.subsystem ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
-                            <Tag className="w-3 h-3 mr-1" />
-                            {issue.subsystem}
-                          </span>
+                return (
+                  <div key={ticketId} className="glass-panel border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-medium text-gray-900 flex-1">{ticket.summary}</h3>
+                      <span className="ml-2 inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                        {ticket.id}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">
+                      State: {ticket.state || 'Unknown'}
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">
+                      Subsystem: {ticket.subsystem || 'None'}
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="text-xs text-gray-500 mb-1">Creator:</div>
+                      <span className="text-sm text-gray-700">{ticket.created_by || 'Unknown'}</span>
+                    </div>
+
+                    {isCreated ? (
+                      <div className="w-full bg-green-100 text-green-800 px-3 py-2 rounded text-sm text-center flex items-center justify-center">
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Created!
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleCreateTicket(ticket, index)}
+                        disabled={isCreating}
+                        className="w-full bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm transition-colors disabled:opacity-50 flex items-center justify-center"
+                      >
+                        {isCreating ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            Creating...
+                          </>
                         ) : (
-                          <span className="text-gray-400 text-xs">No subsystem</span>
+                          <>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create
+                          </>
                         )}
-                      </td>
-                      <td className="p-3">
-                        <span className="inline-flex items-center text-sm text-gray-700">
-                          <User className="w-3 h-3 mr-1 text-gray-500" />
-                          {issue.created_by || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span className="inline-flex items-center text-xs text-gray-600">
-                          <Calendar className="w-3 h-3 mr-1 text-gray-500" />
-                          {formatDate(issue.created)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            {missing_asana.length > 10 && (
+            {missing_asana.length > 6 && (
               <div className="mt-4 text-center">
                 <button
                   onClick={() => handleSummaryCardClick('missing')}
-                  className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center justify-center mx-auto"
+                  className="glass-panel interactive-element bg-blue-50 border border-blue-200 text-blue-700 px-6 py-3 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all font-medium inline-flex items-center"
                 >
+                  <Eye className="w-4 h-4 mr-2" />
                   View all {missing_asana.length} missing tickets
-                  <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
+                  <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* Matched Tickets Preview */}
-        {matched.length > 0 && (
-          <div className="glass-panel border border-gray-200 rounded-lg p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Already Synced Tickets ({matched.length})
-              </h2>
-              <button
-                onClick={() => handleSummaryCardClick('matched')}
-                className="glass-panel interactive-element bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                View All
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left p-3 font-medium text-gray-700">YouTrack ID</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Summary</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Asana Task ID</th>
-                    <th className="text-left p-3 font-medium text-gray-700">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {matched.slice(0, 5).map((item, index) => (
-                    <tr
-                      key={item.youtrack_issue.id}
-                      className={`border-b border-gray-100 hover:bg-green-50 transition-colors ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                      }`}
-                    >
-                      <td className="p-3">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white">
-                          {item.youtrack_issue.id}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="font-medium text-gray-900">{item.youtrack_issue.summary}</div>
-                      </td>
-                      <td className="p-3">
-                        <span className="text-sm text-gray-600 font-mono">{item.asana_task_id}</span>
-                      </td>
-                      <td className="p-3">
-                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Synced
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {matched.length > 5 && (
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => handleSummaryCardClick('matched')}
-                  className="text-green-600 hover:text-green-700 font-medium text-sm flex items-center justify-center mx-auto"
-                >
-                  View all {matched.length} matched tickets
-                  <ArrowLeft className="w-4 h-4 ml-1 rotate-180" />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* No Missing Tickets Message */}
         {missing_asana.length === 0 && (
