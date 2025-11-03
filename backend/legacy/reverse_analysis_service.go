@@ -10,18 +10,20 @@ import (
 )
 
 type ReverseAnalysisService struct {
-	db              *database.DB
-	youtrackService *YouTrackService
-	asanaService    *AsanaService
-	configService   *configpkg.Service
+	db                    *database.DB
+	youtrackService       *YouTrackService
+	asanaService          *AsanaService
+	configService         *configpkg.Service
+	reverseIgnoreService  *ReverseIgnoreService
 }
 
-func NewReverseAnalysisService(db *database.DB, youtrackService *YouTrackService, asanaService *AsanaService, configService *configpkg.Service) *ReverseAnalysisService {
+func NewReverseAnalysisService(db *database.DB, youtrackService *YouTrackService, asanaService *AsanaService, configService *configpkg.Service, reverseIgnoreService *ReverseIgnoreService) *ReverseAnalysisService {
 	return &ReverseAnalysisService{
-		db:              db,
-		youtrackService: youtrackService,
-		asanaService:    asanaService,
-		configService:   configService,
+		db:                   db,
+		youtrackService:      youtrackService,
+		asanaService:         asanaService,
+		configService:        configService,
+		reverseIgnoreService: reverseIgnoreService,
 	}
 }
 
@@ -45,6 +47,20 @@ func (s *ReverseAnalysisService) PerformReverseAnalysis(userID int, creatorFilte
 		return nil, fmt.Errorf("failed to fetch YouTrack issues: %w", err)
 	}
 	log.Printf("[Reverse Analysis] Found %d YouTrack issues created by '%s'", len(ytIssues), creatorFilter)
+
+	// 1.5. Filter out ignored tickets
+	var filteredIssues []YouTrackIssue
+	if s.reverseIgnoreService != nil {
+		for _, issue := range ytIssues {
+			if !s.reverseIgnoreService.IsIgnored(userID, issue.ID) {
+				filteredIssues = append(filteredIssues, issue)
+			} else {
+				log.Printf("[Reverse Analysis] Skipping ignored ticket: %s - %s", issue.ID, issue.Summary)
+			}
+		}
+		ytIssues = filteredIssues
+		log.Printf("[Reverse Analysis] After filtering ignored tickets: %d YouTrack issues remaining", len(ytIssues))
+	}
 
 	// 2. Fetch existing ticket mappings from database
 	mappings, err := s.db.GetAllTicketMappings(userID)

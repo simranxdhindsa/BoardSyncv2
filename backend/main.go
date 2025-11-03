@@ -260,6 +260,17 @@ func registerRoutes(
 	legacyAPI.HandleFunc("/reverse-sync/analyze", handleReverseAnalysis).Methods("POST", "OPTIONS")
 	legacyAPI.HandleFunc("/reverse-sync/create", handleReverseCreateTickets).Methods("POST", "OPTIONS")
 
+	// Reverse Sync - Ignored Tickets
+	legacyAPI.HandleFunc("/reverse-sync/ignored/status", handleGetReverseIgnoredStatus).Methods("GET", "OPTIONS")
+	legacyAPI.HandleFunc("/reverse-sync/ignored", handleReverseIgnoreAction).Methods("POST", "OPTIONS")
+	legacyAPI.HandleFunc("/reverse-sync/ignored/clear", handleClearReverseIgnored).Methods("POST", "OPTIONS")
+
+	// Reverse Sync - Auto-Create
+	legacyAPI.HandleFunc("/reverse-sync/auto-create/status", handleGetReverseAutoCreateStatus).Methods("GET", "OPTIONS")
+	legacyAPI.HandleFunc("/reverse-sync/auto-create/start", handleStartReverseAutoCreate).Methods("POST", "OPTIONS")
+	legacyAPI.HandleFunc("/reverse-sync/auto-create/stop", handleStopReverseAutoCreate).Methods("POST", "OPTIONS")
+	legacyAPI.HandleFunc("/reverse-sync/auto-create/settings", handleUpdateReverseAutoCreateSettings).Methods("POST", "OPTIONS")
+
 	// ========================================================================
 	// STATIC FILE SERVING
 	// ========================================================================
@@ -740,6 +751,218 @@ func handleReverseCreateTickets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SendSuccess(w, result, fmt.Sprintf("Successfully created %d/%d tickets", result.SuccessCount, result.TotalTickets))
+}
+
+// ============================================================================
+// REVERSE SYNC - IGNORED TICKETS HANDLERS
+// ============================================================================
+
+func handleGetReverseIgnoredStatus(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Unauthorized")
+		return
+	}
+
+	youtrackService := legacy.NewYouTrackService(configService)
+	asanaService := legacy.NewAsanaService(configService)
+	reverseSyncService := legacy.NewReverseSyncService(db, youtrackService, asanaService, configService)
+	status := reverseSyncService.ReverseIgnoreService.GetIgnoreStatus(user.UserID)
+	utils.SendSuccess(w, status, "Retrieved reverse ignored status")
+}
+
+func handleReverseIgnoreAction(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Unauthorized")
+		return
+	}
+
+	var req struct {
+		TicketID   string `json:"ticket_id"`
+		Action     string `json:"action"`      // "add" or "remove"
+		IgnoreType string `json:"ignore_type"` // "temp" or "forever"
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendBadRequest(w, "Invalid request body")
+		return
+	}
+
+	youtrackService := legacy.NewYouTrackService(configService)
+	asanaService := legacy.NewAsanaService(configService)
+	reverseSyncService := legacy.NewReverseSyncService(db, youtrackService, asanaService, configService)
+	err := reverseSyncService.ReverseIgnoreService.ProcessIgnoreRequest(user.UserID, req.TicketID, req.Action, req.IgnoreType)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to process ignore request: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, nil, "Ignore action processed successfully")
+}
+
+func handleClearReverseIgnored(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Unauthorized")
+		return
+	}
+
+	var req struct {
+		IgnoreType string `json:"ignore_type"` // "temp", "forever", or "" for all
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendBadRequest(w, "Invalid request body")
+		return
+	}
+
+	youtrackService := legacy.NewYouTrackService(configService)
+	asanaService := legacy.NewAsanaService(configService)
+	reverseSyncService := legacy.NewReverseSyncService(db, youtrackService, asanaService, configService)
+	var err error
+	switch req.IgnoreType {
+	case "temp":
+		err = reverseSyncService.ReverseIgnoreService.ClearTemporaryIgnores(user.UserID)
+	case "forever":
+		err = reverseSyncService.ReverseIgnoreService.ClearForeverIgnores(user.UserID)
+	default:
+		err = reverseSyncService.ReverseIgnoreService.ClearAllIgnores(user.UserID)
+	}
+
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to clear ignored tickets: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, nil, "Cleared ignored tickets successfully")
+}
+
+// ============================================================================
+// REVERSE SYNC - AUTO-CREATE HANDLERS
+// ============================================================================
+
+func handleGetReverseAutoCreateStatus(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Unauthorized")
+		return
+	}
+
+	settings, err := db.GetReverseAutoCreateSettings(user.UserID)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to get settings: %v", err))
+		return
+	}
+
+	if settings == nil {
+		// Return default disabled state
+		utils.SendSuccess(w, map[string]interface{}{
+			"enabled":           false,
+			"selected_creators": "[]",
+			"interval_seconds":  900, // 15 minutes default
+			"last_run_at":       nil,
+		}, "No settings found")
+		return
+	}
+
+	utils.SendSuccess(w, settings, "Retrieved auto-create settings")
+}
+
+func handleStartReverseAutoCreate(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Unauthorized")
+		return
+	}
+
+	var req struct {
+		IntervalSeconds  int    `json:"interval_seconds"`
+		SelectedCreators string `json:"selected_creators"` // JSON array or "All"
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendBadRequest(w, "Invalid request body")
+		return
+	}
+
+	// Validate interval (minimum 15 seconds)
+	if req.IntervalSeconds < 15 {
+		req.IntervalSeconds = 15
+	}
+
+	// Update settings to enabled
+	settings, err := db.UpsertReverseAutoCreateSettings(user.UserID, true, req.SelectedCreators, req.IntervalSeconds)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to update settings: %v", err))
+		return
+	}
+
+	// TODO: Start background worker here
+	log.Printf("Reverse auto-create started for user %d with interval %d seconds", user.UserID, req.IntervalSeconds)
+
+	utils.SendSuccess(w, settings, "Reverse auto-create started successfully")
+}
+
+func handleStopReverseAutoCreate(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Unauthorized")
+		return
+	}
+
+	// Update settings to disabled
+	settings, err := db.UpsertReverseAutoCreateSettings(user.UserID, false, "[]", 900)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to update settings: %v", err))
+		return
+	}
+
+	// TODO: Stop background worker here
+	log.Printf("Reverse auto-create stopped for user %d", user.UserID)
+
+	utils.SendSuccess(w, settings, "Reverse auto-create stopped successfully")
+}
+
+func handleUpdateReverseAutoCreateSettings(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Unauthorized")
+		return
+	}
+
+	var req struct {
+		SelectedCreators string `json:"selected_creators"` // JSON array or "All"
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendBadRequest(w, "Invalid request body")
+		return
+	}
+
+	// Get current settings
+	currentSettings, err := db.GetReverseAutoCreateSettings(user.UserID)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to get current settings: %v", err))
+		return
+	}
+
+	// Use current values if settings exist, otherwise defaults
+	enabled := false
+	intervalSeconds := 900
+	if currentSettings != nil {
+		enabled = currentSettings.Enabled
+		intervalSeconds = currentSettings.IntervalSeconds
+	}
+
+	// Update with new selected creators
+	settings, err := db.UpsertReverseAutoCreateSettings(user.UserID, enabled, req.SelectedCreators, intervalSeconds)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to update settings: %v", err))
+		return
+	}
+
+	utils.SendSuccess(w, settings, "Settings updated successfully")
 }
 
 // ============================================================================

@@ -1,9 +1,9 @@
 // frontend/src/components/ReverseSync/ReverseAnalysisResults.js
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle, AlertCircle, Plus, Eye, FileText, RefreshCw } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, Plus, Eye, EyeOff, FileText, RefreshCw } from 'lucide-react';
 import ReverseTicketDetailView from './ReverseTicketDetailView';
 
-const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreateTickets, onReanalyze, loading }) => {
+const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreateTickets, onReanalyze, onRefreshAnalysis, loading }) => {
   const [detailView, setDetailView] = useState(null); // null or { type: 'matched' | 'missing' }
   const [creating, setCreating] = useState({});
   const [createAllLoading, setCreateAllLoading] = useState(false);
@@ -17,12 +17,13 @@ const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreat
     setLocalAnalysisData(analysisData);
   }, [analysisData]);
 
-  const { matched = [], missing_asana = [] } = localAnalysisData || {};
+  const { matched = [], missing_asana = [], ignored = [] } = localAnalysisData || {};
 
   // Summary data
   const summaryData = {
     matched: matched.length,
     missing: missing_asana.length,
+    ignored: ignored.length,
     total: matched.length + missing_asana.length,
     syncRate: matched.length + missing_asana.length > 0
       ? Math.round((matched.length / (matched.length + missing_asana.length)) * 100)
@@ -84,6 +85,7 @@ const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreat
         selectedCreator={selectedCreator}
         onBack={() => setDetailView(null)}
         onCreateTickets={onCreateTickets}
+        onRefreshAnalysis={onRefreshAnalysis}
         loading={loading}
       />
     );
@@ -157,7 +159,7 @@ const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreat
         </div>
 
         {/* Summary Cards - CLICKABLE */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           {/* Matched Card */}
           <div
             className="glass-panel bg-green-50 border border-green-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-all"
@@ -191,6 +193,24 @@ const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreat
             <div className="flex items-center text-xs text-amber-700">
               <Eye className="w-3 h-3 mr-1" />
               Click to view & create
+            </div>
+          </div>
+
+          {/* Ignored Card */}
+          <div
+            className="glass-panel bg-purple-50 border border-purple-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-all"
+            onClick={() => handleSummaryCardClick('ignored')}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-purple-900 mb-1">Ignored</h3>
+                <p className="text-3xl font-bold text-purple-600">{summaryData.ignored}</p>
+              </div>
+              <EyeOff className="w-10 h-10 text-purple-600 opacity-80" />
+            </div>
+            <div className="flex items-center text-xs text-purple-700">
+              <Eye className="w-3 h-3 mr-1" />
+              Click to manage
             </div>
           </div>
 

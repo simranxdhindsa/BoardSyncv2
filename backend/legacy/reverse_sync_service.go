@@ -12,25 +12,28 @@ import (
 )
 
 type ReverseSyncService struct {
-	db               *database.DB
-	youtrackService  *YouTrackService
-	asanaService     *AsanaService
-	analysisService  *ReverseAnalysisService
-	configService    *configpkg.Service
-	tagMapper        *TagMapper
+	db                    *database.DB
+	youtrackService       *YouTrackService
+	asanaService          *AsanaService
+	analysisService       *ReverseAnalysisService
+	configService         *configpkg.Service
+	tagMapper             *TagMapper
+	ReverseIgnoreService  *ReverseIgnoreService
 }
 
 func NewReverseSyncService(db *database.DB, youtrackService *YouTrackService, asanaService *AsanaService, configService *configpkg.Service) *ReverseSyncService {
-	analysisService := NewReverseAnalysisService(db, youtrackService, asanaService, configService)
+	reverseIgnoreService := NewReverseIgnoreService(db, configService)
+	analysisService := NewReverseAnalysisService(db, youtrackService, asanaService, configService, reverseIgnoreService)
 	tagMapper := NewTagMapper()
 
 	return &ReverseSyncService{
-		db:               db,
-		youtrackService:  youtrackService,
-		asanaService:     asanaService,
-		analysisService:  analysisService,
-		configService:    configService,
-		tagMapper:        tagMapper,
+		db:                   db,
+		youtrackService:      youtrackService,
+		asanaService:         asanaService,
+		analysisService:      analysisService,
+		configService:        configService,
+		tagMapper:            tagMapper,
+		ReverseIgnoreService: reverseIgnoreService,
 	}
 }
 

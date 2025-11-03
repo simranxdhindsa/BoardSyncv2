@@ -9,12 +9,17 @@ import {
   getAutoCreateStatus,
   startAutoCreate,
   stopAutoCreate,
+  getReverseAutoCreateStatus,
+  startReverseAutoCreate,
+  stopReverseAutoCreate,
+  getYouTrackUsers,
   getUserSettings
 } from '../services/api';
 
 const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   const [autoSyncRunning, setAutoSyncRunning] = useState(false);
   const [autoCreateRunning, setAutoCreateRunning] = useState(false);
+  const [reverseAutoCreateRunning, setReverseAutoCreateRunning] = useState(false);
   const [autoSyncInterval, setAutoSyncInterval] = useState(15);
   const [autoCreateInterval, setAutoCreateInterval] = useState(15);
   const [showIntervalModal, setShowIntervalModal] = useState(null); // 'sync' or 'create'
@@ -22,9 +27,15 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   const [tempIntervalUnit, setTempIntervalUnit] = useState('seconds'); // 'seconds', 'minutes', 'hours'
   const [autoSyncLastInfo, setAutoSyncLastInfo] = useState('');
   const [autoCreateLastInfo, setAutoCreateLastInfo] = useState('');
-  const [toggleLoading, setToggleLoading] = useState({ sync: false, create: false });
+  const [reverseAutoCreateLastInfo, setReverseAutoCreateLastInfo] = useState('');
+  const [toggleLoading, setToggleLoading] = useState({ sync: false, create: false, reverseCreate: false });
   const [columns, setColumns] = useState([]);
   const [columnsLoading, setColumnsLoading] = useState(true);
+  const [showUserSelectionModal, setShowUserSelectionModal] = useState(false);
+  const [youtrackUsers, setYoutrackUsers] = useState([]);
+  const [selectedCreators, setSelectedCreators] = useState('All');
+  const [tempSelectedCreators, setTempSelectedCreators] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   const selectedColumnData = columns.find(col => col.value === selectedColumn);
 
@@ -104,25 +115,32 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   const loadAutoStatus = async () => {
     try {
       console.log('Loading auto status...'); // DEBUG
-      
-      const [syncStatus, createStatus] = await Promise.all([
+
+      const [syncStatus, createStatus, reverseCreateStatus] = await Promise.all([
         getAutoSyncStatus(),
-        getAutoCreateStatus()
+        getAutoCreateStatus(),
+        getReverseAutoCreateStatus()
       ]);
-      
+
       console.log('Auto-sync status:', syncStatus); // DEBUG
       console.log('Auto-create status:', createStatus); // DEBUG
-      
+      console.log('Reverse auto-create status:', reverseCreateStatus); // DEBUG
+
       if (syncStatus.auto_sync) {
         setAutoSyncRunning(syncStatus.auto_sync.running);
         setAutoSyncInterval(syncStatus.auto_sync.interval);
         setAutoSyncLastInfo(syncStatus.auto_sync.last_info || '');
       }
-      
+
       if (createStatus.auto_create) {
         setAutoCreateRunning(createStatus.auto_create.running);
         setAutoCreateInterval(createStatus.auto_create.interval);
         setAutoCreateLastInfo(createStatus.auto_create.last_info || '');
+      }
+
+      if (reverseCreateStatus.reverse_auto_create) {
+        setReverseAutoCreateRunning(reverseCreateStatus.reverse_auto_create.running);
+        setReverseAutoCreateLastInfo(reverseCreateStatus.reverse_auto_create.last_info || '');
       }
     } catch (error) {
       console.error('Failed to load auto status:', error);
@@ -155,7 +173,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
     try {
       console.log('Toggling auto-create...', autoCreateRunning ? 'STOP' : 'START'); // DEBUG
       console.log('API Base URL:', process.env.NODE_ENV === 'production' ? process.env.REACT_APP_API_URL || 'https://boardsyncapi.onrender.com' : 'http://localhost:8080'); // DEBUG
-      
+
       if (autoCreateRunning) {
         const result = await stopAutoCreate();
         console.log('Stop auto-create result:', result); // DEBUG
@@ -174,6 +192,79 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
     }
   };
 
+  const handleReverseAutoCreateToggle = async () => {
+    setToggleLoading(prev => ({ ...prev, reverseCreate: true }));
+    try {
+      console.log('Toggling reverse auto-create...', reverseAutoCreateRunning ? 'STOP' : 'START'); // DEBUG
+
+      if (reverseAutoCreateRunning) {
+        const result = await stopReverseAutoCreate();
+        console.log('Stop reverse auto-create result:', result); // DEBUG
+        setReverseAutoCreateRunning(false);
+      } else {
+        // Use same interval as auto-create
+        const result = await startReverseAutoCreate(autoCreateInterval, selectedCreators);
+        console.log('Start reverse auto-create result:', result); // DEBUG
+        setReverseAutoCreateRunning(true);
+      }
+    } catch (error) {
+      console.error('Reverse auto-create toggle failed:', error);
+      console.error('Error details:', error); // DEBUG
+      // REMOVED: alert() call - just log to console
+    } finally {
+      setToggleLoading(prev => ({ ...prev, reverseCreate: false }));
+    }
+  };
+
+  // User selection modal handlers
+  const handleOpenUserSelectionModal = async () => {
+    setShowUserSelectionModal(true);
+    setUsersLoading(true);
+    try {
+      const users = await getYouTrackUsers();
+      console.log('YouTrack users received:', users); // DEBUG
+      setYoutrackUsers(users);
+
+      // Initialize temp selection based on current selection
+      if (selectedCreators === 'All') {
+        setTempSelectedCreators([]);
+      } else {
+        setTempSelectedCreators(selectedCreators.split(','));
+      }
+    } catch (error) {
+      console.error('Failed to load YouTrack users:', error);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleCloseUserSelectionModal = () => {
+    setShowUserSelectionModal(false);
+    setTempSelectedCreators([]);
+  };
+
+  const handleToggleUser = (userName) => {
+    setTempSelectedCreators(prev => {
+      if (prev.includes(userName)) {
+        return prev.filter(u => u !== userName);
+      } else {
+        return [...prev, userName];
+      }
+    });
+  };
+
+  const handleSelectAllUsers = () => {
+    setTempSelectedCreators([]);
+  };
+
+  const handleSaveUserSelection = () => {
+    if (tempSelectedCreators.length === 0) {
+      setSelectedCreators('All');
+    } else {
+      setSelectedCreators(tempSelectedCreators.join(','));
+    }
+    handleCloseUserSelectionModal();
+  };
 
   // Interval editing handlers
   const handleOpenIntervalModal = (type) => {
@@ -221,6 +312,15 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
           console.error('Failed to update create interval:', error);
         }
       }
+      // Also update reverse create if running (shares same interval)
+      if (reverseAutoCreateRunning) {
+        try {
+          await stopReverseAutoCreate();
+          await startReverseAutoCreate(intervalInSeconds, selectedCreators);
+        } catch (error) {
+          console.error('Failed to update reverse create interval:', error);
+        }
+      }
     }
 
     handleCloseIntervalModal();
@@ -260,13 +360,13 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
                   {autoSyncRunning ? 'RUNNING' : 'STOPPED'}
                 </span>
               </div>
-              
+
               <button
                 onClick={handleAutoSyncToggle}
                 disabled={toggleLoading.sync}
                 className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-                  autoSyncRunning 
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                  autoSyncRunning
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
                     : 'bg-green-100 text-green-700 hover:bg-green-200'
                 } disabled:opacity-50`}
               >
@@ -280,7 +380,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
                 {autoSyncRunning ? 'Stop' : 'Start'}
               </button>
             </div>
-            
+
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-2" />
@@ -305,6 +405,16 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
               <div className="text-xs text-gray-500 mt-2">
                 Your tickets stay in perfect sync, while the ignored ones remain undisturbed
               </div>
+
+              {/* Reverse Sync Not Available Message */}
+              <div className="glass-panel border border-amber-200 rounded-lg p-2 mt-5 bg-amber-50">
+                <div className="flex items-start">
+                  <AlertCircle className="w-4 h-4 mr-2 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-xs text-gray-700">
+                    <span className="font-medium text-amber-700">Note:</span> Auto-sync is not available for reverse create. Use the Reverse Create toggle below instead.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -320,13 +430,13 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
                   {autoCreateRunning ? 'RUNNING' : 'STOPPED'}
                 </span>
               </div>
-              
+
               <button
                 onClick={handleAutoCreateToggle}
                 disabled={toggleLoading.create}
                 className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-                  autoCreateRunning 
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                  autoCreateRunning
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200'
                     : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                 } disabled:opacity-50`}
               >
@@ -340,7 +450,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
                 {autoCreateRunning ? 'Stop' : 'Start'}
               </button>
             </div>
-            
+
             <div className="space-y-2 text-sm text-gray-600">
               <div className="flex items-center">
                 <Clock className="w-4 h-4 mr-2" />
@@ -363,8 +473,61 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
                 </>
               )}
               <div className="text-xs text-gray-500 mt-2">
-                Creates what’s missing, but never touches the tickets you’ve sidelined
+                Creates what's missing, but never touches the tickets you've sidelined
               </div>
+            </div>
+
+            {/* Reverse Create Section */}
+            <div className="glass-panel border border-gray-200 rounded-lg p-3 mt-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <RefreshCw className={`w-4 h-4 mr-2 ${reverseAutoCreateRunning ? 'text-purple-600' : 'text-gray-500'}`} />
+                  <span className="text-sm font-medium text-gray-700">Reverse Create</span>
+                  <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    reverseAutoCreateRunning ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {reverseAutoCreateRunning ? 'ON' : 'OFF'}
+                  </span>
+                </div>
+
+                <button
+                  onClick={handleReverseAutoCreateToggle}
+                  disabled={toggleLoading.reverseCreate}
+                  className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    reverseAutoCreateRunning
+                      ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                  } disabled:opacity-50`}
+                >
+                  {toggleLoading.reverseCreate ? (
+                    <RefreshCw className="w-3 h-3 mr-1.5 animate-spin" />
+                  ) : reverseAutoCreateRunning ? (
+                    <Square className="w-3 h-3 mr-1.5" />
+                  ) : (
+                    <Play className="w-3 h-3 mr-1.5" />
+                  )}
+                  {reverseAutoCreateRunning ? 'Stop' : 'Start'}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between mt-2 text-xs text-gray-600">
+                <span>
+                  Creators: <span className="font-medium text-gray-900">{selectedCreators === 'All' ? 'All Users' : `${selectedCreators.split(',').length} selected`}</span>
+                </span>
+                <button
+                  onClick={handleOpenUserSelectionModal}
+                  className="interval-edit-button"
+                  title="Edit creators"
+                >
+                  <Edit className="interval-edit-icon" />
+                </button>
+              </div>
+
+              {reverseAutoCreateRunning && reverseAutoCreateLastInfo && (
+                <div className="text-xs bg-gray-50 rounded p-2 mt-2">
+                  Last run: {reverseAutoCreateLastInfo}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -533,6 +696,95 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
                 className={`interval-modal-button save ${
                   (tempIntervalUnit === 'seconds' && tempIntervalValue < 15) ? 'disabled' : ''
                 }`}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Selection Modal */}
+      {showUserSelectionModal && (
+        <div className="modal-overlay" onClick={handleCloseUserSelectionModal}>
+          <div className="glass-panel interval-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <h3 className="interval-modal-title">
+              Select Creators for Reverse Auto-Create
+            </h3>
+
+            <div className="interval-modal-content">
+              {usersLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-5 h-5 mr-2 animate-spin text-purple-600" />
+                  <span className="text-gray-600">Loading users...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <button
+                      onClick={handleSelectAllUsers}
+                      className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        tempSelectedCreators.length === 0
+                          ? 'bg-purple-100 text-purple-800 border-2 border-purple-500'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      All Users
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {youtrackUsers.length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">
+                        No users found
+                      </div>
+                    ) : (
+                      youtrackUsers.map((user, index) => {
+                        const userName = user.name || user.fullName || user.login || `User ${index + 1}`;
+                        return (
+                          <button
+                            key={user.login || user.name || user.id || index}
+                            onClick={() => handleToggleUser(userName)}
+                            className={`w-full px-4 py-2 rounded-lg text-sm text-left transition-colors ${
+                              tempSelectedCreators.includes(userName)
+                                ? 'bg-purple-100 text-purple-800 border-2 border-purple-500'
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{userName}</span>
+                              {tempSelectedCreators.includes(userName) && (
+                                <CheckCircle className="w-4 h-4 text-purple-600" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-blue-800">
+                      {tempSelectedCreators.length === 0
+                        ? 'All YouTrack users will be included'
+                        : `${tempSelectedCreators.length} creator${tempSelectedCreators.length > 1 ? 's' : ''} selected`}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="interval-modal-actions">
+              <button
+                onClick={handleCloseUserSelectionModal}
+                className="interval-modal-button cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveUserSelection}
+                disabled={usersLoading}
+                className={`interval-modal-button save ${usersLoading ? 'disabled' : ''}`}
               >
                 Save
               </button>

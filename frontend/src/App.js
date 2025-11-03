@@ -257,28 +257,28 @@ function AppContent() {
                 className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
                 title="Reverse Sync (YouTrack → Asana)"
               >
-                <RefreshCw className="w-5 h-5" />
+                <RefreshCw className="w-7 h-7" strokeWidth={2.5} />
               </button>
               <button
                 onClick={() => setCurrentView('sync-history')}
                 className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
                 title="Sync History"
               >
-                <History className="w-5 h-5" />
+                <History className="w-7 h-7" strokeWidth={2.5} />
               </button>
               <button
                 onClick={() => setCurrentView('audit-logs')}
                 className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
                 title="Audit Logs"
               >
-                <FileText className="w-5 h-5" />
+                <FileText className="w-7 h-7" strokeWidth={2.5} />
               </button>
               <button
                 onClick={() => setCurrentView('settings')}
                 className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
                 title="Settings"
               >
-                <Settings className="w-5 h-5" />
+                <Settings className="w-7 h-7" strokeWidth={2.5} />
               </button>
               <div className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-lg shadow-sm text-white font-bold text-lg">
                 {user?.username?.charAt(0).toUpperCase()}

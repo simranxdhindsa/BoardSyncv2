@@ -74,6 +74,20 @@ const ReverseSyncPage = ({ onBack }) => {
     setAnalysisData(null);
   };
 
+  const handleRefreshAnalysis = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await reverseAnalyzeTickets(selectedCreator);
+      setAnalysisData(data);
+    } catch (err) {
+      setError('Failed to refresh analysis: ' + err.message);
+      console.error('Error refreshing analysis:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="reverse-sync-page" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
       {/* Header */}
@@ -193,6 +207,7 @@ const ReverseSyncPage = ({ onBack }) => {
           onBack={handleBackToCreatorSelection}
           onCreateTickets={handleCreateTickets}
           onReanalyze={handleAnalyze}
+          onRefreshAnalysis={handleRefreshAnalysis}
           loading={creatingTickets || loading}
         />
       )}

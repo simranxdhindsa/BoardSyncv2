@@ -998,3 +998,138 @@ export const reverseCreateTickets = async (selectedIssueIDs = []) => {
 
   return response.json();
 };
+
+// ============================================================================
+// REVERSE SYNC - IGNORED TICKETS API
+// ============================================================================
+
+// Get reverse ignored tickets status
+export const getReverseIgnoredStatus = async () => {
+  const response = await fetch(`${API_BASE}/reverse-sync/ignored/status`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error('Failed to get reverse ignored status');
+  }
+
+  const result = await response.json();
+  return result.data || result;
+};
+
+// Add or remove a reverse ignored ticket
+export const reverseIgnoreAction = async (ticketId, action, ignoreType) => {
+  const response = await fetch(`${API_BASE}/reverse-sync/ignored`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      ticket_id: ticketId,
+      action: action, // "add" or "remove"
+      ignore_type: ignoreType // "temp" or "forever"
+    })
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    const error = await response.json().catch(() => ({ message: 'Action failed' }));
+    throw new Error(error.message || 'Failed to process ignore action');
+  }
+
+  return response.json();
+};
+
+// Clear reverse ignored tickets
+export const clearReverseIgnored = async (ignoreType = '') => {
+  const response = await fetch(`${API_BASE}/reverse-sync/ignored/clear`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      ignore_type: ignoreType // "temp", "forever", or "" for all
+    })
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    const error = await response.json().catch(() => ({ message: 'Clear failed' }));
+    throw new Error(error.message || 'Failed to clear ignored tickets');
+  }
+
+  return response.json();
+};
+
+// ============================================================================
+// REVERSE SYNC - AUTO-CREATE API
+// ============================================================================
+
+// Get reverse auto-create status
+export const getReverseAutoCreateStatus = async () => {
+  const response = await fetch(`${API_BASE}/reverse-sync/auto-create/status`, {
+    method: 'GET',
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error('Failed to get reverse auto-create status');
+  }
+
+  const result = await response.json();
+  return result.data || result;
+};
+
+// Start reverse auto-create
+export const startReverseAutoCreate = async (intervalSeconds, selectedCreators) => {
+  const response = await fetch(`${API_BASE}/reverse-sync/auto-create/start`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      interval_seconds: intervalSeconds,
+      selected_creators: selectedCreators // JSON string array or "All"
+    })
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    const error = await response.json().catch(() => ({ message: 'Start failed' }));
+    throw new Error(error.message || 'Failed to start reverse auto-create');
+  }
+
+  return response.json();
+};
+
+// Stop reverse auto-create
+export const stopReverseAutoCreate = async () => {
+  const response = await fetch(`${API_BASE}/reverse-sync/auto-create/stop`, {
+    method: 'POST',
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    const error = await response.json().catch(() => ({ message: 'Stop failed' }));
+    throw new Error(error.message || 'Failed to stop reverse auto-create');
+  }
+
+  return response.json();
+};
+
+// Update reverse auto-create settings
+export const updateReverseAutoCreateSettings = async (selectedCreators) => {
+  const response = await fetch(`${API_BASE}/reverse-sync/auto-create/settings`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      selected_creators: selectedCreators // JSON string array or "All"
+    })
+  });
+
+  if (!response.ok) {
+    handleAuthError(response);
+    const error = await response.json().catch(() => ({ message: 'Update failed' }));
+    throw new Error(error.message || 'Failed to update settings');
+  }
+
+  return response.json();
+};
