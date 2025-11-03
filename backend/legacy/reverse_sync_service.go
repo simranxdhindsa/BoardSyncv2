@@ -211,25 +211,43 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 
 // mapYouTrackStateToAsanaSection maps YouTrack state to Asana section using reverse column mappings
 func (s *ReverseSyncService) mapYouTrackStateToAsanaSection(userID int, ytState string, settings *configpkg.UserSettings) (string, error) {
-	// Use the existing asana_to_youtrack mappings in reverse
+	// First, look for priority mappings
+	var priorityMapping *database.ColumnMapping
+	var fallbackMappings []database.ColumnMapping
+
 	for _, mapping := range settings.ColumnMappings.AsanaToYouTrack {
 		if strings.EqualFold(mapping.YouTrackStatus, ytState) {
-			// Find the Asana section ID by name
-			sections, err := s.asanaService.GetProjectSections(userID, settings.AsanaProjectID)
-			if err != nil {
-				return "", fmt.Errorf("failed to get Asana sections: %w", err)
+			if mapping.ReverseSyncPriority {
+				priorityMapping = &mapping
+				break // Use the first priority mapping found
 			}
-
-			for _, section := range sections {
-				if strings.EqualFold(section.Name, mapping.AsanaColumn) {
-					return section.GID, nil
-				}
-			}
-			return "", fmt.Errorf("Asana section not found: %s", mapping.AsanaColumn)
+			fallbackMappings = append(fallbackMappings, mapping)
 		}
 	}
 
-	return "", fmt.Errorf("no mapping found for YouTrack state: %s", ytState)
+	// Use priority mapping if exists, otherwise use first fallback
+	var selectedMapping *database.ColumnMapping
+	if priorityMapping != nil {
+		selectedMapping = priorityMapping
+	} else if len(fallbackMappings) > 0 {
+		selectedMapping = &fallbackMappings[0]
+	} else {
+		return "", fmt.Errorf("no mapping found for YouTrack state: %s", ytState)
+	}
+
+	// Find the Asana section ID by name
+	sections, err := s.asanaService.GetProjectSections(userID, settings.AsanaProjectID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get Asana sections: %w", err)
+	}
+
+	for _, section := range sections {
+		if strings.EqualFold(section.Name, selectedMapping.AsanaColumn) {
+			return section.GID, nil
+		}
+	}
+
+	return "", fmt.Errorf("Asana section not found: %s", selectedMapping.AsanaColumn)
 }
 
 // mapSubsystemToAsanaTags maps YouTrack subsystem to Asana tags using reverse tag mappings

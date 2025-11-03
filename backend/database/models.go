@@ -65,9 +65,10 @@ func (cfm *CustomFieldMappings) Scan(value interface{}) error {
 
 // ColumnMapping represents a single column mapping configuration
 type ColumnMapping struct {
-	AsanaColumn    string `json:"asana_column"`
-	YouTrackStatus string `json:"youtrack_status"`
-	DisplayOnly    bool   `json:"display_only"`
+	AsanaColumn         string `json:"asana_column"`
+	YouTrackStatus      string `json:"youtrack_status"`
+	DisplayOnly         bool   `json:"display_only"`
+	ReverseSyncPriority bool   `json:"reverse_sync_priority"` // If true, this column is prioritized for reverse sync when multiple Asana columns map to same YouTrack state
 }
 
 // ColumnMappings represents bidirectional column mappings
