@@ -15,7 +15,8 @@ import {
   AlertCircle,
   ArrowRight,
   Eye,
-  CheckCircle
+  CheckCircle,
+  Star
 } from 'lucide-react';
 
 const ColumnMappingSettings = ({
@@ -116,7 +117,7 @@ const ColumnMappingSettings = ({
   const addMapping = () => {
     setColumnMappings([
       ...columnMappings,
-      { asana_column: '', youtrack_status: '', display_only: false }
+      { asana_column: '', youtrack_status: '', display_only: false, reverse_sync_priority: false }
     ]);
   };
 
@@ -267,7 +268,7 @@ const ColumnMappingSettings = ({
                   </select>
 
                   {/* Display Only Toggle */}
-                  <label className="flex items-center space-x-2 px-3 py-2 bg-white bg-opacity-30 rounded-lg cursor-pointer border border-white border-opacity-40">
+                  <label className="flex items-center space-x-2 px-3 py-2 glass-panel bg-opacity-30 rounded-lg cursor-pointer border border-white border-opacity-40">
                     <input
                       type="checkbox"
                       checked={mapping.display_only}
@@ -276,6 +277,20 @@ const ColumnMappingSettings = ({
                     />
                     <Eye className="w-4 h-4 text-gray-600" />
                     <span className="text-sm font-medium text-gray-700">Display Only</span>
+                  </label>
+
+                  {/* Reverse Sync Priority Toggle */}
+                  <label className="flex items-center space-x-2 px-3 py-2 glass-panel bg-opacity-30 rounded-lg cursor-pointer border border-white border-opacity-40"
+                    title="If multiple Asana columns map to the same YouTrack state, prioritize this one for reverse sync">
+                    <input
+                      type="checkbox"
+                      checked={mapping.reverse_sync_priority || false}
+                      onChange={(e) => updateMapping(index, 'reverse_sync_priority', e.target.checked)}
+                      className="mapping-checkbox"
+                      disabled={mapping.display_only}
+                    />
+                    <Star className={`w-4 h-4 ${mapping.reverse_sync_priority ? 'text-yellow-500 fill-yellow-500' : 'text-gray-600'}`} />
+                    <span className="text-sm font-medium text-gray-700">Priority</span>
                   </label>
 
                   {/* Remove Button */}

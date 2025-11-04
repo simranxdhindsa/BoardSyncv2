@@ -3,34 +3,37 @@ package legacy
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
 	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/database"
-	"asana-youtrack-sync/utils"
 )
 
 type ReverseSyncService struct {
-	db               *database.DB
-	youtrackService  *YouTrackService
-	asanaService     *AsanaService
-	analysisService  *ReverseAnalysisService
-	configService    *configpkg.Service
-	tagMapper        *TagMapper
+	db                    *database.DB
+	youtrackService       *YouTrackService
+	asanaService          *AsanaService
+	analysisService       *ReverseAnalysisService
+	configService         *configpkg.Service
+	tagMapper             *TagMapper
+	ReverseIgnoreService  *ReverseIgnoreService
 }
 
 func NewReverseSyncService(db *database.DB, youtrackService *YouTrackService, asanaService *AsanaService, configService *configpkg.Service) *ReverseSyncService {
-	analysisService := NewReverseAnalysisService(db, youtrackService, asanaService, configService)
+	reverseIgnoreService := NewReverseIgnoreService(db, configService)
+	analysisService := NewReverseAnalysisService(db, youtrackService, asanaService, configService, reverseIgnoreService)
 	tagMapper := NewTagMapper()
 
 	return &ReverseSyncService{
-		db:               db,
-		youtrackService:  youtrackService,
-		asanaService:     asanaService,
-		analysisService:  analysisService,
-		configService:    configService,
-		tagMapper:        tagMapper,
+		db:                   db,
+		youtrackService:      youtrackService,
+		asanaService:         asanaService,
+		analysisService:      analysisService,
+		configService:        configService,
+		tagMapper:            tagMapper,
+		ReverseIgnoreService: reverseIgnoreService,
 	}
 }
 
@@ -99,7 +102,7 @@ func (s *ReverseSyncService) CreateMissingAsanaTickets(userID int, analysis *Rev
 // CreateSingleAsanaTicket creates a single ticket in Asana from YouTrack issue
 func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrackIssue, settings *configpkg.UserSettings) (string, error) {
 	// 1. Get the Asana section (column) based on YouTrack state
-	asanaSection, err := s.mapYouTrackStateToAsanaSection(ytIssue.State, settings)
+	asanaSection, err := s.mapYouTrackStateToAsanaSection(userID, ytIssue.State, settings)
 	if err != nil {
 		return "", fmt.Errorf("failed to map state: %w", err)
 	}
@@ -107,8 +110,55 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 	// 2. Keep the YouTrack title format with ID prefix (e.g., "ARD-123 Fix bug")
 	taskTitle := fmt.Sprintf("%s %s", ytIssue.ID, ytIssue.Summary)
 
-	// 3. Convert YouTrack markdown description to Asana HTML
-	htmlDescription := utils.ConvertYouTrackMarkdownToAsanaHTML(ytIssue.Description)
+	// 3. Clean up description - remove ALL markdown formatting
+	plainDescription := ytIssue.Description
+
+	// Remove inline image markdown patterns:
+	// ![alt text](image.png)
+	// ![alt text](image.png){width=70%}
+	// ![](image.png){width=70%}
+	plainDescription = regexp.MustCompile(`!\[[^\]]*\]\([^)]+\)(?:\{[^}]*\})?`).ReplaceAllString(plainDescription, "")
+
+	// Also remove any leftover patterns like ".png){width=70%}" that might remain
+	plainDescription = regexp.MustCompile(`\.[a-zA-Z]{3,4}\)\{[^}]+\}`).ReplaceAllString(plainDescription, "")
+
+	// Remove code blocks: ```code``` -> code
+	plainDescription = regexp.MustCompile("```[\\s\\S]*?```").ReplaceAllStringFunc(plainDescription, func(match string) string {
+		// Extract content between ``` markers
+		content := strings.TrimPrefix(match, "```")
+		content = strings.TrimSuffix(content, "```")
+		// Remove language identifier if present (e.g., ```javascript)
+		lines := strings.Split(content, "\n")
+		if len(lines) > 0 && !strings.Contains(lines[0], " ") {
+			lines = lines[1:] // Skip first line if it's a language identifier
+		}
+		return strings.TrimSpace(strings.Join(lines, "\n"))
+	})
+
+	// Remove inline code: `code` -> code
+	plainDescription = regexp.MustCompile("`([^`]+)`").ReplaceAllString(plainDescription, "$1")
+
+	// Remove blockquotes: > quote -> quote
+	plainDescription = regexp.MustCompile(`(?m)^>\s*(.*)$`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove bold formatting: **text** -> text
+	plainDescription = regexp.MustCompile(`\*\*([^\*]+)\*\*`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove italic formatting: *text* -> text
+	plainDescription = regexp.MustCompile(`\*([^\*\n]+)\*`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove strikethrough: ~~text~~ -> text
+	plainDescription = regexp.MustCompile(`~~([^~]+)~~`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove underline: _text_ -> text
+	plainDescription = regexp.MustCompile(`_([^_\n]+)_`).ReplaceAllString(plainDescription, "$1")
+
+	// Remove links but keep the text: [text](url) -> text
+	plainDescription = regexp.MustCompile(`\[([^\]]+)\]\([^\)]+\)`).ReplaceAllString(plainDescription, "$1")
+
+	plainDescription = strings.TrimSpace(plainDescription)
+
+	log.Printf("[Reverse Sync] Using plain description for %s: %s", ytIssue.ID, plainDescription)
 
 	// 4. Map YouTrack subsystem to Asana tags
 	asanaTags, err := s.mapSubsystemToAsanaTags(userID, ytIssue.Subsystem, settings)
@@ -117,12 +167,11 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 		asanaTags = []string{} // Skip tags if mapping fails
 	}
 
-	// 5. Create the task in Asana
+	// 5. Create the task in Asana with plain text (HTML doesn't work with Asana API)
 	taskData := map[string]interface{}{
-		"name":       taskTitle,
-		"notes":      ytIssue.Description,
-		"html_notes": htmlDescription,
-		"projects":   []string{settings.AsanaProjectID},
+		"name":     taskTitle,
+		"notes":    plainDescription,
+		"projects": []string{settings.AsanaProjectID},
 	}
 
 	// Add section/column
@@ -161,26 +210,44 @@ func (s *ReverseSyncService) CreateSingleAsanaTicket(userID int, ytIssue YouTrac
 }
 
 // mapYouTrackStateToAsanaSection maps YouTrack state to Asana section using reverse column mappings
-func (s *ReverseSyncService) mapYouTrackStateToAsanaSection(ytState string, settings *configpkg.UserSettings) (string, error) {
-	// Use the existing asana_to_youtrack mappings in reverse
+func (s *ReverseSyncService) mapYouTrackStateToAsanaSection(userID int, ytState string, settings *configpkg.UserSettings) (string, error) {
+	// First, look for priority mappings
+	var priorityMapping *database.ColumnMapping
+	var fallbackMappings []database.ColumnMapping
+
 	for _, mapping := range settings.ColumnMappings.AsanaToYouTrack {
 		if strings.EqualFold(mapping.YouTrackStatus, ytState) {
-			// Find the Asana section ID by name
-			sections, err := s.asanaService.GetProjectSections(settings.AsanaProjectID)
-			if err != nil {
-				return "", fmt.Errorf("failed to get Asana sections: %w", err)
+			if mapping.ReverseSyncPriority {
+				priorityMapping = &mapping
+				break // Use the first priority mapping found
 			}
-
-			for _, section := range sections {
-				if strings.EqualFold(section.Name, mapping.AsanaColumn) {
-					return section.GID, nil
-				}
-			}
-			return "", fmt.Errorf("Asana section not found: %s", mapping.AsanaColumn)
+			fallbackMappings = append(fallbackMappings, mapping)
 		}
 	}
 
-	return "", fmt.Errorf("no mapping found for YouTrack state: %s", ytState)
+	// Use priority mapping if exists, otherwise use first fallback
+	var selectedMapping *database.ColumnMapping
+	if priorityMapping != nil {
+		selectedMapping = priorityMapping
+	} else if len(fallbackMappings) > 0 {
+		selectedMapping = &fallbackMappings[0]
+	} else {
+		return "", fmt.Errorf("no mapping found for YouTrack state: %s", ytState)
+	}
+
+	// Find the Asana section ID by name
+	sections, err := s.asanaService.GetProjectSections(userID, settings.AsanaProjectID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get Asana sections: %w", err)
+	}
+
+	for _, section := range sections {
+		if strings.EqualFold(section.Name, selectedMapping.AsanaColumn) {
+			return section.GID, nil
+		}
+	}
+
+	return "", fmt.Errorf("Asana section not found: %s", selectedMapping.AsanaColumn)
 }
 
 // mapSubsystemToAsanaTags maps YouTrack subsystem to Asana tags using reverse tag mappings
@@ -209,8 +276,8 @@ func (s *ReverseSyncService) syncAttachmentsToAsana(userID int, ytIssueID, asana
 	for i, attachment := range attachments {
 		log.Printf("[Reverse Sync] Processing attachment %d/%d: %s", i+1, len(attachments), attachment.Name)
 
-		// Download from YouTrack
-		fileData, err := s.youtrackService.DownloadAttachment(userID, ytIssueID, attachment.ID)
+		// Download from YouTrack using the URL from the API response
+		fileData, err := s.youtrackService.DownloadAttachment(userID, ytIssueID, attachment.URL)
 		if err != nil {
 			log.Printf("[Reverse Sync] Failed to download attachment %s: %v", attachment.Name, err)
 			continue

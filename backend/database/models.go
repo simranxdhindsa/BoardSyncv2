@@ -65,9 +65,10 @@ func (cfm *CustomFieldMappings) Scan(value interface{}) error {
 
 // ColumnMapping represents a single column mapping configuration
 type ColumnMapping struct {
-	AsanaColumn    string `json:"asana_column"`
-	YouTrackStatus string `json:"youtrack_status"`
-	DisplayOnly    bool   `json:"display_only"`
+	AsanaColumn         string `json:"asana_column"`
+	YouTrackStatus      string `json:"youtrack_status"`
+	DisplayOnly         bool   `json:"display_only"`
+	ReverseSyncPriority bool   `json:"reverse_sync_priority"` // If true, this column is prioritized for reverse sync when multiple Asana columns map to same YouTrack state
 }
 
 // ColumnMappings represents bidirectional column mappings
@@ -146,7 +147,7 @@ func (od *OperationData) Scan(value interface{}) error {
 	}
 }
 
-// IgnoredTicket represents an ignored ticket for a user's project
+// IgnoredTicket represents an ignored ticket for a user's project (Asana -> YouTrack)
 type IgnoredTicket struct {
 	ID             int       `json:"id" db:"id"`
 	UserID         int       `json:"user_id" db:"user_id"`
@@ -154,6 +155,28 @@ type IgnoredTicket struct {
 	TicketID       string    `json:"ticket_id" db:"ticket_id"`
 	IgnoreType     string    `json:"ignore_type" db:"ignore_type"` // "temp" or "forever"
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+}
+
+// ReverseIgnoredTicket represents an ignored ticket for reverse sync (YouTrack -> Asana)
+type ReverseIgnoredTicket struct {
+	ID                int       `json:"id" db:"id"`
+	UserID            int       `json:"user_id" db:"user_id"`
+	YouTrackProjectID string    `json:"youtrack_project_id" db:"youtrack_project_id"`
+	TicketID          string    `json:"ticket_id" db:"ticket_id"` // e.g., "ARD-123"
+	IgnoreType        string    `json:"ignore_type" db:"ignore_type"` // "temp" or "forever"
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
+}
+
+// ReverseAutoCreateSettings represents auto-create settings for reverse sync
+type ReverseAutoCreateSettings struct {
+	ID                int       `json:"id" db:"id"`
+	UserID            int       `json:"user_id" db:"user_id"`
+	Enabled           bool      `json:"enabled" db:"enabled"`
+	SelectedCreators  string    `json:"selected_creators" db:"selected_creators"` // JSON array of creator names, or "All"
+	IntervalSeconds   int       `json:"interval_seconds" db:"interval_seconds"`
+	LastRunAt         *time.Time `json:"last_run_at" db:"last_run_at"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // TicketMapping represents a manual mapping between Asana task and YouTrack issue

@@ -1,6 +1,6 @@
 // frontend/src/components/ReverseSync/ReverseSyncPage.js
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, Users, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Users, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getYouTrackUsers, reverseAnalyzeTickets, reverseCreateTickets } from '../../services/api';
 import CreatorFilter from './CreatorFilter';
 import ReverseAnalysisResults from './ReverseAnalysisResults';
@@ -55,8 +55,8 @@ const ReverseSyncPage = ({ onBack }) => {
       setError(null);
       const result = await reverseCreateTickets(selectedIssueIDs);
 
-      // Show success message
-      alert(`Successfully created ${result.data.success_count}/${result.data.total_tickets} tickets!`);
+      // Log success message to console
+      console.log(`Successfully created ${result.data.success_count}/${result.data.total_tickets} tickets!`);
 
       // Re-analyze to refresh data
       const data = await reverseAnalyzeTickets(selectedCreator);
@@ -72,6 +72,20 @@ const ReverseSyncPage = ({ onBack }) => {
   const handleBackToCreatorSelection = () => {
     setStep(1);
     setAnalysisData(null);
+  };
+
+  const handleRefreshAnalysis = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await reverseAnalyzeTickets(selectedCreator);
+      setAnalysisData(data);
+    } catch (err) {
+      setError('Failed to refresh analysis: ' + err.message);
+      console.error('Error refreshing analysis:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -192,7 +206,9 @@ const ReverseSyncPage = ({ onBack }) => {
           selectedCreator={selectedCreator}
           onBack={handleBackToCreatorSelection}
           onCreateTickets={handleCreateTickets}
-          loading={creatingTickets}
+          onReanalyze={handleAnalyze}
+          onRefreshAnalysis={handleRefreshAnalysis}
+          loading={creatingTickets || loading}
         />
       )}
     </div>

@@ -1137,11 +1137,12 @@ func (s *YouTrackService) GetIssuesByCreator(userID int, creatorFilter string) (
 		}
 
 		issue := YouTrackIssue{
-			ID:          issueID,
-			Summary:     getString(rawIssue, "summary"),
-			Description: getString(rawIssue, "description"),
-			Created:     getInt64(rawIssue, "created"),
-			Updated:     getInt64(rawIssue, "updated"),
+			ID:                  issueID,
+			Summary:             getString(rawIssue, "summary"),
+			Description:         getString(rawIssue, "description"),
+			WikifiedDescription: getString(rawIssue, "wikifiedDescription"),
+			Created:             getInt64(rawIssue, "created"),
+			Updated:             getInt64(rawIssue, "updated"),
 		}
 
 		// Extract State and Subsystem from customFields
@@ -1195,16 +1196,18 @@ func (s *YouTrackService) GetIssuesByCreator(userID int, creatorFilter string) (
 	return issues, nil
 }
 
-// DownloadAttachment downloads an attachment from a YouTrack issue
-func (s *YouTrackService) DownloadAttachment(userID int, issueID, attachmentID string) ([]byte, error) {
+// DownloadAttachment downloads an attachment from a YouTrack issue using the attachment URL
+func (s *YouTrackService) DownloadAttachment(userID int, issueID, attachmentURL string) ([]byte, error) {
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/api/issues/%s/attachments/%s", settings.YouTrackBaseURL, issueID, attachmentID)
+	// The attachmentURL comes from the API response and is a relative path like "/api/files/12-6?sign=..."
+	// We need to prepend the base URL
+	fullURL := settings.YouTrackBaseURL + attachmentURL
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

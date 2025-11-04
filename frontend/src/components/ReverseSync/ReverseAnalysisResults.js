@@ -1,412 +1,367 @@
 // frontend/src/components/ReverseSync/ReverseAnalysisResults.js
-import React, { useState } from 'react';
-import { ArrowLeft, CheckCircle, AlertCircle, PlusCircle, Loader2, Check, Calendar, User, Tag, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, CheckCircle, AlertCircle, Plus, Eye, EyeOff, FileText, RefreshCw } from 'lucide-react';
+import ReverseTicketDetailView from './ReverseTicketDetailView';
 
-const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreateTickets, loading }) => {
-  const [selectedIssues, setSelectedIssues] = useState([]);
-  const [viewMode, setViewMode] = useState('missing'); // 'missing' or 'matched'
+const ReverseAnalysisResults = ({ analysisData, selectedCreator, onBack, onCreateTickets, onReanalyze, onRefreshAnalysis, loading }) => {
+  const [detailView, setDetailView] = useState(null); // null or { type: 'matched' | 'missing' }
+  const [creating, setCreating] = useState({});
+  const [createAllLoading, setCreateAllLoading] = useState(false);
+  const [createdTickets, setCreatedTickets] = useState(new Set());
 
-  const { matched = [], missing_asana = [] } = analysisData;
+  // LOCAL STATE for optimistic updates
+  const [localAnalysisData, setLocalAnalysisData] = useState(analysisData);
 
-  const toggleIssueSelection = (issueId) => {
-    setSelectedIssues(prev =>
-      prev.includes(issueId)
-        ? prev.filter(id => id !== issueId)
-        : [...prev, issueId]
+  // Update local data when prop changes
+  useEffect(() => {
+    setLocalAnalysisData(analysisData);
+  }, [analysisData]);
+
+  const { matched = [], missing_asana = [], ignored = [] } = localAnalysisData || {};
+
+  // Summary data
+  const summaryData = {
+    matched: matched.length,
+    missing: missing_asana.length,
+    ignored: ignored.length,
+    total: matched.length + missing_asana.length,
+    syncRate: matched.length + missing_asana.length > 0
+      ? Math.round((matched.length / (matched.length + missing_asana.length)) * 100)
+      : 100
+  };
+
+  // CREATE HANDLER - Wait for API success
+  const handleCreateTicket = async (ticket, index) => {
+    const ticketId = ticket.id;
+    setCreating(prev => ({ ...prev, [ticketId]: true }));
+
+    try {
+      // Wait for actual create to complete
+      await onCreateTickets([ticketId]);
+
+      // Show success feedback
+      setCreatedTickets(prev => new Set([...prev, ticketId]));
+      setTimeout(() => {
+        setCreatedTickets(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(ticketId);
+          return newSet;
+        });
+      }, 2000);
+    } catch (error) {
+      console.error('Create failed:', error);
+    } finally {
+      setCreating(prev => ({ ...prev, [ticketId]: false }));
+    }
+  };
+
+  // CREATE ALL HANDLER - Wait for API success
+  const handleCreateAll = async () => {
+    setCreateAllLoading(true);
+
+    try {
+      const ticketIds = missing_asana.map(t => t.id);
+
+      // Wait for create to complete
+      await onCreateTickets(ticketIds);
+    } catch (error) {
+      console.error('Failed to create tickets:', error);
+    } finally {
+      setCreateAllLoading(false);
+    }
+  };
+
+  const handleSummaryCardClick = (type) => {
+    setDetailView({ type });
+  };
+
+
+  // If detail view is active, show it
+  if (detailView) {
+    return (
+      <ReverseTicketDetailView
+        type={detailView.type}
+        analysisData={analysisData}
+        selectedCreator={selectedCreator}
+        onBack={() => setDetailView(null)}
+        onCreateTickets={onCreateTickets}
+        onRefreshAnalysis={onRefreshAnalysis}
+        loading={loading}
+      />
     );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIssues.length === missing_asana.length) {
-      setSelectedIssues([]);
-    } else {
-      setSelectedIssues(missing_asana.map(issue => issue.id));
-    }
-  };
-
-  const handleCreate = () => {
-    if (selectedIssues.length === 0 && missing_asana.length > 0) {
-      // Create all if none selected
-      onCreateTickets([]);
-    } else {
-      // Create selected
-      onCreateTickets(selectedIssues);
-    }
-  };
-
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'N/A';
-    const date = new Date(timestamp);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  }
 
   return (
-    <div>
-      {/* Summary Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '16px',
-        marginBottom: '24px'
-      }}>
-        {/* Matched Card */}
-        <div style={{
-          padding: '20px',
-          background: 'rgba(240, 253, 244, 0.95)',
-          borderLeft: '4px solid #10b981',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          border: viewMode === 'matched' ? '2px solid #10b981' : '1px solid rgba(16, 185, 129, 0.2)'
-        }}
-          onClick={() => setViewMode('matched')}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '32px', fontWeight: '700', color: '#059669', marginBottom: '4px' }}>
-                {matched.length}
-              </div>
-              <div style={{ fontSize: '14px', color: '#047857', fontWeight: '500' }}>
-                Already in Asana
-              </div>
-            </div>
-            <CheckCircle size={40} color="#10b981" />
+    <div className="min-h-screen">
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Reverse Sync Analysis - {selectedCreator === 'All' ? 'ALL USERS' : selectedCreator.toUpperCase()}
+            </h1>
+            <p className="text-gray-600">
+              Review YouTrack tickets and create missing ones in Asana. Click on any summary card to see detailed views.
+            </p>
           </div>
-        </div>
 
-        {/* Missing Card */}
-        <div style={{
-          padding: '20px',
-          background: 'rgba(254, 243, 199, 0.95)',
-          borderLeft: '4px solid #f59e0b',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-          border: viewMode === 'missing' ? '2px solid #f59e0b' : '1px solid rgba(245, 158, 11, 0.2)'
-        }}
-          onClick={() => setViewMode('missing')}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '32px', fontWeight: '700', color: '#d97706', marginBottom: '4px' }}>
-                {missing_asana.length}
-              </div>
-              <div style={{ fontSize: '14px', color: '#b45309', fontWeight: '500' }}>
-                Missing in Asana
-              </div>
-            </div>
-            <AlertCircle size={40} color="#f59e0b" />
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons (only for missing view) */}
-      {viewMode === 'missing' && missing_asana.length > 0 && (
-        <div style={{
-          marginBottom: '24px',
-          padding: '20px',
-          background: 'rgba(255, 255, 255, 0.95)',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-          border: '1px solid rgba(226, 232, 240, 0.8)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <button
-                onClick={toggleSelectAll}
-                style={{
-                  padding: '10px 20px',
-                  background: 'white',
-                  border: '1px solid rgba(226, 232, 240, 0.8)',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#475569',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = 'rgba(241, 245, 249, 0.8)';
-                  e.target.style.borderColor = '#3b82f6';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = 'white';
-                  e.target.style.borderColor = 'rgba(226, 232, 240, 0.8)';
-                }}
-              >
-                <Check size={16} style={{ marginRight: '6px' }} />
-                {selectedIssues.length === missing_asana.length ? 'Deselect All' : 'Select All'}
-              </button>
-              <div style={{ fontSize: '14px', color: '#64748b' }}>
-                {selectedIssues.length > 0
-                  ? `${selectedIssues.length} selected`
-                  : 'No tickets selected'
-                }
-              </div>
-            </div>
-
+          <div style={{ display: 'flex', gap: '12px' }}>
             <button
-              onClick={handleCreate}
+              onClick={onReanalyze}
               disabled={loading}
+              className="glass-button"
               style={{
-                padding: '12px 24px',
-                background: loading
-                  ? 'rgba(148, 163, 184, 0.5)'
-                  : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                padding: '8px 16px',
+                background: loading ? 'rgba(59, 130, 246, 0.5)' : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
-                fontSize: '15px',
-                fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: '500',
                 transition: 'all 0.2s',
-                boxShadow: loading ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)'
-              }}
-              onMouseEnter={(e) => {
-                if (!loading) {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!loading) {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-                }
+                opacity: loading ? 0.6 : 1
               }}
             >
               {loading ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" style={{ marginRight: '8px' }} />
-                  Creating...
+                  <RefreshCw style={{ width: '16px', height: '16px', marginRight: '8px', animation: 'spin 1s linear infinite' }} />
+                  Analyzing...
                 </>
               ) : (
                 <>
-                  <PlusCircle size={18} style={{ marginRight: '8px' }} />
-                  Create {selectedIssues.length > 0 ? `${selectedIssues.length} Selected` : 'All'} Tickets
+                  <RefreshCw style={{ width: '16px', height: '16px', marginRight: '8px' }} />
+                  Re-analyze
                 </>
               )}
             </button>
+            <button
+              onClick={onBack}
+              className="glass-button"
+              style={{
+                padding: '8px 16px',
+                background: 'rgba(255, 255, 255, 0.8)',
+                border: '1px solid rgba(226, 232, 240, 0.8)',
+                color: '#4b5563',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                cursor: 'pointer',
+                fontWeight: '500',
+                transition: 'all 0.2s'
+              }}
+            >
+              <ArrowLeft style={{ width: '16px', height: '16px', marginRight: '8px' }} />
+              Back
+            </button>
           </div>
         </div>
-      )}
 
-      {/* Tickets List */}
-      <div style={{
-        background: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: '12px',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-        border: '1px solid rgba(226, 232, 240, 0.8)',
-        overflow: 'hidden'
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '16px 20px',
-          background: 'rgba(241, 245, 249, 0.8)',
-          borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
-            {viewMode === 'matched' ? 'Matched Tickets' : 'Missing Tickets'}
-          </h3>
-          <button
-            onClick={onBack}
-            style={{
-              padding: '8px 16px',
-              background: 'white',
-              border: '1px solid rgba(226, 232, 240, 0.8)',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: '500',
-              color: '#475569',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              transition: 'all 0.2s'
-            }}
+        {/* Summary Cards - CLICKABLE */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+          {/* Matched Card */}
+          <div
+            className="glass-panel bg-green-50 border border-green-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-all"
+            onClick={() => handleSummaryCardClick('matched')}
           >
-            <ArrowLeft size={14} style={{ marginRight: '6px' }} />
-            Back
-          </button>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-green-900 mb-1">Already in Asana</h3>
+                <p className="text-3xl font-bold text-green-600">{summaryData.matched}</p>
+              </div>
+              <CheckCircle className="w-10 h-10 text-green-600 opacity-80" />
+            </div>
+            <div className="flex items-center text-xs text-green-700">
+              <Eye className="w-3 h-3 mr-1" />
+              Click to view details
+            </div>
+          </div>
+
+          {/* Missing Card */}
+          <div
+            className="glass-panel bg-amber-50 border border-amber-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-all"
+            onClick={() => handleSummaryCardClick('missing')}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-amber-900 mb-1">Missing in Asana</h3>
+                <p className="text-3xl font-bold text-amber-600">{summaryData.missing}</p>
+              </div>
+              <AlertCircle className="w-10 h-10 text-amber-600 opacity-80" />
+            </div>
+            <div className="flex items-center text-xs text-amber-700">
+              <Eye className="w-3 h-3 mr-1" />
+              Click to view & create
+            </div>
+          </div>
+
+          {/* Ignored Card */}
+          <div
+            className="glass-panel bg-purple-50 border border-purple-200 rounded-lg p-6 cursor-pointer hover:shadow-lg transition-all"
+            onClick={() => handleSummaryCardClick('ignored')}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-purple-900 mb-1">Ignored</h3>
+                <p className="text-3xl font-bold text-purple-600">{summaryData.ignored}</p>
+              </div>
+              <EyeOff className="w-10 h-10 text-purple-600 opacity-80" />
+            </div>
+            <div className="flex items-center text-xs text-purple-700">
+              <Eye className="w-3 h-3 mr-1" />
+              Click to manage
+            </div>
+          </div>
+
+          {/* Total Tickets Card */}
+          <div className="glass-panel bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-blue-900 mb-1">Total Tickets</h3>
+                <p className="text-3xl font-bold text-blue-600">{summaryData.total}</p>
+              </div>
+              <FileText className="w-10 h-10 text-blue-600 opacity-80" />
+            </div>
+            <p className="text-xs text-blue-700">
+              Analyzed from YouTrack
+            </p>
+          </div>
+
+          {/* Sync Rate Card */}
+          <div className="glass-panel bg-indigo-50 border border-indigo-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-indigo-900 mb-1">Sync Rate</h3>
+                <p className="text-3xl font-bold text-indigo-600">{summaryData.syncRate}%</p>
+              </div>
+              <RefreshCw className="w-10 h-10 text-indigo-600 opacity-80" />
+            </div>
+            <p className="text-xs text-indigo-700">
+              Tickets already synced
+            </p>
+          </div>
         </div>
 
-        {/* Tickets */}
-        <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-          {viewMode === 'missing' && missing_asana.length === 0 && (
-            <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
-              <CheckCircle size={48} style={{ margin: '0 auto 16px', color: '#10b981' }} />
-              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
-                All tickets are synced!
-              </div>
-              <div style={{ fontSize: '14px' }}>
-                No missing tickets found for {selectedCreator === 'All' ? 'any user' : selectedCreator}
-              </div>
-            </div>
-          )}
-
-          {viewMode === 'matched' && matched.length === 0 && (
-            <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
-              <AlertCircle size={48} style={{ margin: '0 auto 16px', color: '#f59e0b' }} />
-              <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
-                No matched tickets
-              </div>
-              <div style={{ fontSize: '14px' }}>
-                No tickets found that exist in both systems
-              </div>
-            </div>
-          )}
-
-          {/* Missing Tickets */}
-          {viewMode === 'missing' && missing_asana.map((issue, index) => (
-            <div
-              key={issue.id}
-              style={{
-                padding: '16px 20px',
-                borderBottom: index < missing_asana.length - 1 ? '1px solid rgba(226, 232, 240, 0.5)' : 'none',
-                transition: 'background 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(241, 245, 249, 0.5)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-            >
-              <div style={{ display: 'flex', alignItems: 'start', gap: '12px' }}>
-                {/* Checkbox */}
-                <input
-                  type="checkbox"
-                  checked={selectedIssues.includes(issue.id)}
-                  onChange={() => toggleIssueSelection(issue.id)}
-                  style={{
-                    marginTop: '4px',
-                    width: '18px',
-                    height: '18px',
-                    cursor: 'pointer'
-                  }}
-                />
-
-                {/* Ticket Info */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <span style={{
-                      padding: '4px 10px',
-                      background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                      color: 'white',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: '600'
-                    }}>
-                      {issue.id}
-                    </span>
-                    <span style={{
-                      fontSize: '15px',
-                      fontWeight: '600',
-                      color: '#1e293b'
-                    }}>
-                      {issue.summary}
-                    </span>
-                  </div>
-
-                  {/* Meta Info */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px', color: '#64748b' }}>
-                    {issue.state && (
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <FileText size={14} style={{ marginRight: '4px' }} />
-                        <span>{issue.state}</span>
-                      </div>
-                    )}
-                    {issue.subsystem && (
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <Tag size={14} style={{ marginRight: '4px' }} />
-                        <span>{issue.subsystem}</span>
-                      </div>
-                    )}
-                    {issue.created_by && (
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <User size={14} style={{ marginRight: '4px' }} />
-                        <span>{issue.created_by}</span>
-                      </div>
-                    )}
-                    {issue.created && (
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <Calendar size={14} style={{ marginRight: '4px' }} />
-                        <span>{formatDate(issue.created)}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Description Preview */}
-                  {issue.description && (
-                    <div style={{
-                      marginTop: '8px',
-                      padding: '8px 12px',
-                      background: 'rgba(248, 250, 252, 0.8)',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      color: '#475569',
-                      maxHeight: '60px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {issue.description.substring(0, 150)}{issue.description.length > 150 ? '...' : ''}
-                    </div>
+        {/* Missing Tickets Preview - Only show if there are missing tickets */}
+        {missing_asana.length > 0 && (
+          <div className="glass-panel border border-gray-200 rounded-lg p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Missing in Asana ({missing_asana.length})
+              </h2>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleSummaryCardClick('missing')}
+                  className="glass-panel interactive-element bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  View All
+                </button>
+                <button
+                  onClick={handleCreateAll}
+                  disabled={createAllLoading}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center disabled:opacity-50"
+                >
+                  {createAllLoading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Creating All...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create All
+                    </>
                   )}
-                </div>
+                </button>
               </div>
             </div>
-          ))}
 
-          {/* Matched Tickets */}
-          {viewMode === 'matched' && matched.map((item, index) => (
-            <div
-              key={item.youtrack_issue.id}
-              style={{
-                padding: '16px 20px',
-                borderBottom: index < matched.length - 1 ? '1px solid rgba(226, 232, 240, 0.5)' : 'none',
-                transition: 'background 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(240, 253, 244, 0.3)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <CheckCircle size={20} color="#10b981" />
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{
-                      padding: '4px 10px',
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      color: 'white',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: '600'
-                    }}>
-                      {item.youtrack_issue.id}
-                    </span>
-                    <span style={{
-                      fontSize: '15px',
-                      fontWeight: '600',
-                      color: '#1e293b'
-                    }}>
-                      {item.youtrack_issue.summary}
-                    </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {missing_asana.slice(0, 6).map((ticket, index) => {
+                const ticketId = ticket.id;
+                const isCreating = creating[ticketId];
+                const isCreated = createdTickets.has(ticketId);
+
+                return (
+                  <div key={ticketId} className="glass-panel border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-medium text-gray-900 flex-1">{ticket.summary}</h3>
+                      <span className="ml-2 inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                        {ticket.id}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">
+                      State: {ticket.state || 'Unknown'}
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">
+                      Subsystem: {ticket.subsystem || 'None'}
+                    </div>
+
+                    <div className="mb-3">
+                      <div className="text-xs text-gray-500 mb-1">Creator:</div>
+                      <span className="text-sm text-gray-700">{ticket.created_by || 'Unknown'}</span>
+                    </div>
+
+                    {isCreated ? (
+                      <div className="w-full bg-green-100 text-green-800 px-3 py-2 rounded text-sm text-center flex items-center justify-center">
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Created!
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleCreateTicket(ticket, index)}
+                        disabled={isCreating}
+                        className="w-full bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm transition-colors disabled:opacity-50 flex items-center justify-center"
+                      >
+                        {isCreating ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
-                  <div style={{ fontSize: '13px', color: '#64748b' }}>
-                    Already synced • Asana Task ID: {item.asana_task_id}
-                  </div>
-                </div>
-              </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+
+            {missing_asana.length > 6 && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => handleSummaryCardClick('missing')}
+                  className="glass-panel interactive-element bg-blue-50 border border-blue-200 text-blue-700 px-6 py-3 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all font-medium inline-flex items-center"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  View all {missing_asana.length} missing tickets
+                  <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+
+        {/* No Missing Tickets Message */}
+        {missing_asana.length === 0 && (
+          <div className="glass-panel border border-green-200 bg-green-50 rounded-lg p-8 text-center">
+            <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-green-900 mb-2">
+              All Tickets Synced!
+            </h3>
+            <p className="text-green-700">
+              No missing tickets found for {selectedCreator === 'All' ? 'any user' : selectedCreator}.
+              All YouTrack tickets are already in Asana.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

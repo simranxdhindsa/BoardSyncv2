@@ -10,22 +10,26 @@ import (
 )
 
 type DB struct {
-	dataDir           string
-	mutex             sync.RWMutex
-	users             map[int]*User
-	settings          map[int]*UserSettings
-	operations        map[int]*SyncOperation
-	ignoredTickets    map[int]*IgnoredTicket
-	ticketMappings    map[int]*TicketMapping
-	rollbackSnapshots map[int]*RollbackSnapshot
-	auditLogs         map[int]*AuditLogEntry
-	nextUserID        int
-	nextSettingsID    int
-	nextOperationID   int
-	nextIgnoredID     int
-	nextMappingID     int
-	nextSnapshotID    int
-	nextAuditLogID    int
+	dataDir                  string
+	mutex                    sync.RWMutex
+	users                    map[int]*User
+	settings                 map[int]*UserSettings
+	operations               map[int]*SyncOperation
+	ignoredTickets           map[int]*IgnoredTicket
+	ticketMappings           map[int]*TicketMapping
+	rollbackSnapshots        map[int]*RollbackSnapshot
+	auditLogs                map[int]*AuditLogEntry
+	reverseIgnoredTickets    map[int]*ReverseIgnoredTicket
+	reverseAutoCreateSettings map[int]*ReverseAutoCreateSettings
+	nextUserID               int
+	nextSettingsID           int
+	nextOperationID          int
+	nextIgnoredID            int
+	nextMappingID            int
+	nextSnapshotID           int
+	nextAuditLogID           int
+	nextReverseIgnoredID     int
+	nextReverseAutoCreateID  int
 }
 
 var database *DB
@@ -39,21 +43,25 @@ func InitDB(dbPath string) (*DB, error) {
 	}
 
 	database = &DB{
-		dataDir:           dataDir,
-		users:             make(map[int]*User),
-		settings:          make(map[int]*UserSettings),
-		operations:        make(map[int]*SyncOperation),
-		ignoredTickets:    make(map[int]*IgnoredTicket),
-		ticketMappings:    make(map[int]*TicketMapping),
-		rollbackSnapshots: make(map[int]*RollbackSnapshot),
-		auditLogs:         make(map[int]*AuditLogEntry),
-		nextUserID:        1,
-		nextSettingsID:    1,
-		nextOperationID:   1,
-		nextIgnoredID:     1,
-		nextMappingID:     1,
-		nextSnapshotID:    1,
-		nextAuditLogID:    1,
+		dataDir:                  dataDir,
+		users:                    make(map[int]*User),
+		settings:                 make(map[int]*UserSettings),
+		operations:               make(map[int]*SyncOperation),
+		ignoredTickets:           make(map[int]*IgnoredTicket),
+		ticketMappings:           make(map[int]*TicketMapping),
+		rollbackSnapshots:        make(map[int]*RollbackSnapshot),
+		auditLogs:                make(map[int]*AuditLogEntry),
+		reverseIgnoredTickets:    make(map[int]*ReverseIgnoredTicket),
+		reverseAutoCreateSettings: make(map[int]*ReverseAutoCreateSettings),
+		nextUserID:               1,
+		nextSettingsID:           1,
+		nextOperationID:          1,
+		nextIgnoredID:            1,
+		nextMappingID:            1,
+		nextSnapshotID:           1,
+		nextAuditLogID:           1,
+		nextReverseIgnoredID:     1,
+		nextReverseAutoCreateID:  1,
 	}
 
 	// Load existing data
@@ -650,35 +658,43 @@ func (db *DB) GetUserDataSummary(userID int) (map[string]int, error) {
 // Data persistence
 func (db *DB) saveData() error {
 	data := struct {
-		Users             map[int]*User              `json:"users"`
-		Settings          map[int]*UserSettings      `json:"settings"`
-		Operations        map[int]*SyncOperation     `json:"operations"`
-		IgnoredTickets    map[int]*IgnoredTicket     `json:"ignored_tickets"`
-		TicketMappings    map[int]*TicketMapping     `json:"ticket_mappings"`
-		RollbackSnapshots map[int]*RollbackSnapshot  `json:"rollback_snapshots"`
-		AuditLogs         map[int]*AuditLogEntry     `json:"audit_logs"`
-		NextUserID        int                        `json:"next_user_id"`
-		NextSettingsID    int                        `json:"next_settings_id"`
-		NextOperationID   int                        `json:"next_operation_id"`
-		NextIgnoredID     int                        `json:"next_ignored_id"`
-		NextMappingID     int                        `json:"next_mapping_id"`
-		NextSnapshotID    int                        `json:"next_snapshot_id"`
-		NextAuditLogID    int                        `json:"next_audit_log_id"`
+		Users                    map[int]*User                     `json:"users"`
+		Settings                 map[int]*UserSettings             `json:"settings"`
+		Operations               map[int]*SyncOperation            `json:"operations"`
+		IgnoredTickets           map[int]*IgnoredTicket            `json:"ignored_tickets"`
+		TicketMappings           map[int]*TicketMapping            `json:"ticket_mappings"`
+		RollbackSnapshots        map[int]*RollbackSnapshot         `json:"rollback_snapshots"`
+		AuditLogs                map[int]*AuditLogEntry            `json:"audit_logs"`
+		ReverseIgnoredTickets    map[int]*ReverseIgnoredTicket     `json:"reverse_ignored_tickets"`
+		ReverseAutoCreateSettings map[int]*ReverseAutoCreateSettings `json:"reverse_auto_create_settings"`
+		NextUserID               int                               `json:"next_user_id"`
+		NextSettingsID           int                               `json:"next_settings_id"`
+		NextOperationID          int                               `json:"next_operation_id"`
+		NextIgnoredID            int                               `json:"next_ignored_id"`
+		NextMappingID            int                               `json:"next_mapping_id"`
+		NextSnapshotID           int                               `json:"next_snapshot_id"`
+		NextAuditLogID           int                               `json:"next_audit_log_id"`
+		NextReverseIgnoredID     int                               `json:"next_reverse_ignored_id"`
+		NextReverseAutoCreateID  int                               `json:"next_reverse_auto_create_id"`
 	}{
-		Users:             db.users,
-		Settings:          db.settings,
-		Operations:        db.operations,
-		IgnoredTickets:    db.ignoredTickets,
-		TicketMappings:    db.ticketMappings,
-		RollbackSnapshots: db.rollbackSnapshots,
-		AuditLogs:         db.auditLogs,
-		NextUserID:        db.nextUserID,
-		NextSettingsID:    db.nextSettingsID,
-		NextOperationID:   db.nextOperationID,
-		NextIgnoredID:     db.nextIgnoredID,
-		NextMappingID:     db.nextMappingID,
-		NextSnapshotID:    db.nextSnapshotID,
-		NextAuditLogID:    db.nextAuditLogID,
+		Users:                    db.users,
+		Settings:                 db.settings,
+		Operations:               db.operations,
+		IgnoredTickets:           db.ignoredTickets,
+		TicketMappings:           db.ticketMappings,
+		RollbackSnapshots:        db.rollbackSnapshots,
+		AuditLogs:                db.auditLogs,
+		ReverseIgnoredTickets:    db.reverseIgnoredTickets,
+		ReverseAutoCreateSettings: db.reverseAutoCreateSettings,
+		NextUserID:               db.nextUserID,
+		NextSettingsID:           db.nextSettingsID,
+		NextOperationID:          db.nextOperationID,
+		NextIgnoredID:            db.nextIgnoredID,
+		NextMappingID:            db.nextMappingID,
+		NextSnapshotID:           db.nextSnapshotID,
+		NextAuditLogID:           db.nextAuditLogID,
+		NextReverseIgnoredID:     db.nextReverseIgnoredID,
+		NextReverseAutoCreateID:  db.nextReverseAutoCreateID,
 	}
 
 	filePath := db.dataDir + "/data.json"
@@ -730,20 +746,24 @@ func (db *DB) loadData() error {
 	defer file.Close()
 
 	var data struct {
-		Users             map[int]*User              `json:"users"`
-		Settings          map[int]*UserSettings      `json:"settings"`
-		Operations        map[int]*SyncOperation     `json:"operations"`
-		IgnoredTickets    map[int]*IgnoredTicket     `json:"ignored_tickets"`
-		TicketMappings    map[int]*TicketMapping     `json:"ticket_mappings"`
-		RollbackSnapshots map[int]*RollbackSnapshot  `json:"rollback_snapshots"`
-		AuditLogs         map[int]*AuditLogEntry     `json:"audit_logs"`
-		NextUserID        int                        `json:"next_user_id"`
-		NextSettingsID    int                        `json:"next_settings_id"`
-		NextOperationID   int                        `json:"next_operation_id"`
-		NextIgnoredID     int                        `json:"next_ignored_id"`
-		NextMappingID     int                        `json:"next_mapping_id"`
-		NextSnapshotID    int                        `json:"next_snapshot_id"`
-		NextAuditLogID    int                        `json:"next_audit_log_id"`
+		Users                    map[int]*User                     `json:"users"`
+		Settings                 map[int]*UserSettings             `json:"settings"`
+		Operations               map[int]*SyncOperation            `json:"operations"`
+		IgnoredTickets           map[int]*IgnoredTicket            `json:"ignored_tickets"`
+		TicketMappings           map[int]*TicketMapping            `json:"ticket_mappings"`
+		RollbackSnapshots        map[int]*RollbackSnapshot         `json:"rollback_snapshots"`
+		AuditLogs                map[int]*AuditLogEntry            `json:"audit_logs"`
+		ReverseIgnoredTickets    map[int]*ReverseIgnoredTicket     `json:"reverse_ignored_tickets"`
+		ReverseAutoCreateSettings map[int]*ReverseAutoCreateSettings `json:"reverse_auto_create_settings"`
+		NextUserID               int                               `json:"next_user_id"`
+		NextSettingsID           int                               `json:"next_settings_id"`
+		NextOperationID          int                               `json:"next_operation_id"`
+		NextIgnoredID            int                               `json:"next_ignored_id"`
+		NextMappingID            int                               `json:"next_mapping_id"`
+		NextSnapshotID           int                               `json:"next_snapshot_id"`
+		NextAuditLogID           int                               `json:"next_audit_log_id"`
+		NextReverseIgnoredID     int                               `json:"next_reverse_ignored_id"`
+		NextReverseAutoCreateID  int                               `json:"next_reverse_auto_create_id"`
 	}
 
 	if err := json.NewDecoder(file).Decode(&data); err != nil {
@@ -779,6 +799,14 @@ func (db *DB) loadData() error {
 		db.auditLogs = data.AuditLogs
 		log.Printf("DB: Loaded %d audit log entries\n", len(data.AuditLogs))
 	}
+	if data.ReverseIgnoredTickets != nil {
+		db.reverseIgnoredTickets = data.ReverseIgnoredTickets
+		log.Printf("DB: Loaded %d reverse ignored tickets\n", len(data.ReverseIgnoredTickets))
+	}
+	if data.ReverseAutoCreateSettings != nil {
+		db.reverseAutoCreateSettings = data.ReverseAutoCreateSettings
+		log.Printf("DB: Loaded %d reverse auto-create settings\n", len(data.ReverseAutoCreateSettings))
+	}
 
 	db.nextUserID = data.NextUserID
 	db.nextSettingsID = data.NextSettingsID
@@ -787,6 +815,8 @@ func (db *DB) loadData() error {
 	db.nextMappingID = data.NextMappingID
 	db.nextSnapshotID = data.NextSnapshotID
 	db.nextAuditLogID = data.NextAuditLogID
+	db.nextReverseIgnoredID = data.NextReverseIgnoredID
+	db.nextReverseAutoCreateID = data.NextReverseAutoCreateID
 
 	log.Printf("DB: Data loaded successfully from %s\n", filePath)
 	return nil
@@ -796,4 +826,188 @@ func (db *DB) loadData() error {
 func (db *DB) Close() error {
 	log.Println("DB: Closing database and saving final state")
 	return db.saveData()
+}
+
+// Reverse Ignored Ticket operations
+func (db *DB) AddReverseIgnoredTicket(userID int, youtrackProjectID, ticketID, ignoreType string) (*ReverseIgnoredTicket, error) {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	// Check if already ignored
+	for _, ignored := range db.reverseIgnoredTickets {
+		if ignored.UserID == userID &&
+		   ignored.YouTrackProjectID == youtrackProjectID &&
+		   ignored.TicketID == ticketID {
+			// Update ignore type if different
+			if ignored.IgnoreType != ignoreType {
+				ignored.IgnoreType = ignoreType
+				return ignored, db.saveData()
+			}
+			return ignored, nil
+		}
+	}
+
+	ticket := &ReverseIgnoredTicket{
+		ID:                db.nextReverseIgnoredID,
+		UserID:            userID,
+		YouTrackProjectID: youtrackProjectID,
+		TicketID:          ticketID,
+		IgnoreType:        ignoreType,
+		CreatedAt:         time.Now(),
+	}
+
+	db.reverseIgnoredTickets[ticket.ID] = ticket
+	db.nextReverseIgnoredID++
+
+	if err := db.saveData(); err != nil {
+		return nil, err
+	}
+
+	return ticket, nil
+}
+
+func (db *DB) RemoveReverseIgnoredTicket(userID int, youtrackProjectID, ticketID, ignoreType string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	toDelete := -1
+	for id, ignored := range db.reverseIgnoredTickets {
+		if ignored.UserID == userID &&
+		   ignored.YouTrackProjectID == youtrackProjectID &&
+		   ignored.TicketID == ticketID &&
+		   (ignoreType == "" || ignored.IgnoreType == ignoreType) {
+			toDelete = id
+			break
+		}
+	}
+
+	if toDelete == -1 {
+		return nil
+	}
+
+	delete(db.reverseIgnoredTickets, toDelete)
+	return db.saveData()
+}
+
+func (db *DB) GetReverseIgnoredTickets(userID int, youtrackProjectID string) ([]*ReverseIgnoredTicket, error) {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	var ignored []*ReverseIgnoredTicket
+	for _, ticket := range db.reverseIgnoredTickets {
+		if ticket.UserID == userID && ticket.YouTrackProjectID == youtrackProjectID {
+			ignored = append(ignored, ticket)
+		}
+	}
+
+	return ignored, nil
+}
+
+func (db *DB) IsReverseTicketIgnored(userID int, youtrackProjectID, ticketID string) (bool, string) {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	for _, ignored := range db.reverseIgnoredTickets {
+		if ignored.UserID == userID &&
+		   ignored.YouTrackProjectID == youtrackProjectID &&
+		   ignored.TicketID == ticketID {
+			return true, ignored.IgnoreType
+		}
+	}
+
+	return false, ""
+}
+
+func (db *DB) ClearReverseIgnoredTickets(userID int, youtrackProjectID, ignoreType string) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	toDelete := []int{}
+	for id, ignored := range db.reverseIgnoredTickets {
+		if ignored.UserID == userID &&
+		   ignored.YouTrackProjectID == youtrackProjectID &&
+		   (ignoreType == "" || ignored.IgnoreType == ignoreType) {
+			toDelete = append(toDelete, id)
+		}
+	}
+
+	for _, id := range toDelete {
+		delete(db.reverseIgnoredTickets, id)
+	}
+
+	if len(toDelete) > 0 {
+		return db.saveData()
+	}
+
+	return nil
+}
+
+// Reverse Auto-Create Settings operations
+func (db *DB) GetReverseAutoCreateSettings(userID int) (*ReverseAutoCreateSettings, error) {
+	db.mutex.RLock()
+	defer db.mutex.RUnlock()
+
+	for _, settings := range db.reverseAutoCreateSettings {
+		if settings.UserID == userID {
+			return settings, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (db *DB) UpsertReverseAutoCreateSettings(userID int, enabled bool, selectedCreators string, intervalSeconds int) (*ReverseAutoCreateSettings, error) {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	// Check if settings exist
+	for _, settings := range db.reverseAutoCreateSettings {
+		if settings.UserID == userID {
+			// Update existing
+			settings.Enabled = enabled
+			settings.SelectedCreators = selectedCreators
+			settings.IntervalSeconds = intervalSeconds
+			settings.UpdatedAt = time.Now()
+			if err := db.saveData(); err != nil {
+				return nil, err
+			}
+			return settings, nil
+		}
+	}
+
+	// Create new
+	settings := &ReverseAutoCreateSettings{
+		ID:               db.nextReverseAutoCreateID,
+		UserID:           userID,
+		Enabled:          enabled,
+		SelectedCreators: selectedCreators,
+		IntervalSeconds:  intervalSeconds,
+		LastRunAt:        nil,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+
+	db.reverseAutoCreateSettings[settings.ID] = settings
+	db.nextReverseAutoCreateID++
+
+	if err := db.saveData(); err != nil {
+		return nil, err
+	}
+
+	return settings, nil
+}
+
+func (db *DB) UpdateReverseAutoCreateLastRun(userID int, lastRunAt time.Time) error {
+	db.mutex.Lock()
+	defer db.mutex.Unlock()
+
+	for _, settings := range db.reverseAutoCreateSettings {
+		if settings.UserID == userID {
+			settings.LastRunAt = &lastRunAt
+			settings.UpdatedAt = time.Now()
+			return db.saveData()
+		}
+	}
+
+	return nil
 }

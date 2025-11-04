@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ArrowLeft, RefreshCw, Tag, EyeOff, Eye, Plus, CheckCircle, Clock,
-  AlertTriangle, Trash2, X, Copy, ExternalLink, Search,
+  AlertTriangle, Trash2, X, Copy,
   ChevronDown, ChevronUp, Calendar, User, Zap, FileText, RotateCw,
   AlertCircle, TrendingUp, History
 } from 'lucide-react';
@@ -265,7 +265,7 @@ const TicketDetailView = ({
               className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
               title="Sync History"
             >
-              <History className="w-5 h-5" />
+              <History className="w-7 h-7" strokeWidth={2.5} />
             </button>
           </>
         )}
@@ -1001,7 +1001,24 @@ const TicketDetailView = ({
                   className="p-1 rounded hover:bg-gray-200 transition-colors"
                   title="Search in YouTrack"
                 >
-                  <Search className="w-3 h-3 text-orange-600" />
+                  <svg className="w-4 h-4" viewBox="0 0 43.788 42.787" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g clipPath="url(#clip0)">
+                      <path fill="url(#gradient0)" d="M0.816462 32.0278C0.755912 31.9832 0.735994 31.9016 0.768806 31.834L5.54107 22.0055L0.0363835 15.4316C-0.0190853 15.3656 -0.0101009 15.2668 0.0563054 15.2118L16.1117 1.83243C18.9684 -0.548815 23.1044 -0.616002 26.0391 1.66955C28.9727 3.95509 29.9102 7.97463 28.2872 11.3172L26.5376 14.9215C27.22 14.6926 27.8954 14.4844 28.5633 14.2973L36.4844 12.0219C36.5707 11.9969 36.6606 12.05 36.6801 12.1379L39.9961 26.8785C40.0164 26.9696 39.9548 27.0586 39.8618 27.0703C38.8106 27.2028 33.0758 28.0266 25.936 31.0262C17.8466 34.4238 12.5082 39.2528 11.752 39.959C11.6961 40.0113 11.6141 40.0133 11.5528 39.968L0.816462 32.0278Z"/>
+                      <path fill="black" d="M32.5 7.5H7.5V32.5H32.5V7.5Z"/>
+                      <path fill="white" d="M13.4164 16.4828L9.98633 10.6211H11.9559L14.0797 14.366L14.3278 14.902L14.5758 14.3594L16.6457 10.6211H18.5816L15.2051 16.4695V20H13.4164V16.4828Z"/>
+                      <path fill="white" d="M20.625 27.5H10.625V29.375H20.625V27.5Z"/>
+                      <path fill="white" d="M26.4531 10.6211H18.9301L18.9297 12.2692H21.7836V20H23.6125V12.2692H26.4531V10.6211Z"/>
+                    </g>
+                    <defs>
+                      <linearGradient id="gradient0" x1="-0.0640069" y1="20" x2="40.0332" y2="20" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#FB43FF"/>
+                        <stop offset="0.97" stopColor="#FB406D"/>
+                      </linearGradient>
+                      <clipPath id="clip0">
+                        <rect fill="white" width="163.125" height="40"/>
+                      </clipPath>
+                    </defs>
+                  </svg>
                 </button>
                 <button
                   onClick={(e) => {
@@ -1011,7 +1028,11 @@ const TicketDetailView = ({
                   className="p-1 rounded hover:bg-gray-200 transition-colors"
                   title="Open in Asana"
                 >
-                  <ExternalLink className="w-3 h-3 text-blue-600" />
+                  <svg className="w-4 h-4" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="16" cy="9" r="5" fill="#F06A6A"/>
+                    <circle cx="9" cy="20" r="5" fill="#F06A6A"/>
+                    <circle cx="23" cy="20" r="5" fill="#F06A6A"/>
+                  </svg>
                 </button>
                 <button
                   onClick={(e) => {
@@ -1211,7 +1232,7 @@ const TicketDetailView = ({
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="glass-panel rounded-lg p-6 max-w-md w-full mx-4">
               <div className="flex items-center mb-4">
                 <AlertTriangle className="w-6 h-6 text-red-600 mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900">Confirm Deletion</h3>
@@ -1271,8 +1292,8 @@ const TicketDetailView = ({
         {/* Changes Comparison Modal */}
         {showChangesModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full my-8 max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
+            <div className="glass-panel rounded-lg max-w-4xl w-full my-8 max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 glass-panel border-b border-gray-200 p-6 z-10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <TrendingUp className="w-6 h-6 text-orange-600 mr-2" />
@@ -1401,7 +1422,7 @@ const TicketDetailView = ({
                 ))}
               </div>
 
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 p-6">
+              <div className="sticky bottom-0 glass-panel border-t border-gray-200 p-6">
                 <div className="flex justify-between items-center">
                   <p className="text-gray-600">
                     {changedMappings.length} ticket{changedMappings.length !== 1 ? 's' : ''} with changes
@@ -1488,7 +1509,7 @@ const TicketDetailView = ({
                 </button>
               </div>
 
-              <div className="mb-4 p-3 bg-white bg-opacity-50 rounded-lg">
+              <div className="mb-4 p-3 glass-panel rounded-lg">
                 <p className="text-sm font-medium text-gray-700">
                   Ticket ID: <span className="font-mono">{selectedTicketForHistory}</span>
                 </p>
