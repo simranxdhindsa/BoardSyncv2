@@ -185,7 +185,7 @@ function AppContent() {
       return {
         left: (
           <div className="flex items-center">
-            <Settings className="w-8 h-8 text-blue-600 mr-3" />
+            <Settings className="w-6 h-6 text-blue-600 mr-3" />
             <div className="text-xl font-semibold text-gray-900">Settings</div>
           </div>
         ),
@@ -197,7 +197,7 @@ function AppContent() {
       return {
         left: (
           <div className="flex items-center">
-            <History className="w-8 h-8 text-purple-600 mr-3" />
+            <History className="w-6 h-6 text-purple-600 mr-3" />
             <div className="text-xl font-semibold text-gray-900">Sync History</div>
           </div>
         ),
@@ -209,7 +209,7 @@ function AppContent() {
       return {
         left: (
           <div className="flex items-center">
-            <FileText className="w-8 h-8 text-green-600 mr-3" />
+            <FileText className="w-6 h-6 text-green-600 mr-3" />
             <div className="text-xl font-semibold text-gray-900">Audit Logs</div>
           </div>
         ),
@@ -221,7 +221,7 @@ function AppContent() {
       return {
         left: (
           <div className="flex items-center">
-            <RefreshCw className="w-8 h-8 text-blue-600 mr-3" />
+            <RefreshCw className="w-6 h-6 text-blue-600 mr-3" />
             <div className="text-xl font-semibold text-gray-900">Reverse Sync</div>
           </div>
         ),
