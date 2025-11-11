@@ -5,7 +5,6 @@ import React, { useState, useEffect } from 'react';
 import {
   getAsanaSections,
   getYouTrackStates,
-  getYouTrackBoards,
   updateUserSettings
 } from '../../services/api';
 import {
@@ -27,41 +26,11 @@ const ColumnMappingSettings = ({
 }) => {
   const [asanaSections, setAsanaSections] = useState([]);
   const [youtrackStates, setYoutrackStates] = useState([]);
-  const [youtrackBoards, setYoutrackBoards] = useState([]);
   const [loading, setLoading] = useState({ sections: false, states: false, boards: false });
   const [columnMappings, setColumnMappings] = useState([]);
   const [initialColumnMappings, setInitialColumnMappings] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    // Initialize column mappings from settings
-    const mappings = settings?.column_mappings?.asana_to_youtrack || [];
-    setColumnMappings(mappings);
-    setInitialColumnMappings(JSON.parse(JSON.stringify(mappings))); // Deep copy
-    setHasChanges(false);
-
-    // Auto-load columns when component mounts (without showing success messages)
-    const loadColumnsAutomatically = async () => {
-      // Load Asana sections if credentials are configured and not already loaded
-      if (settings?.asana_pat && settings?.asana_project_id && asanaSections.length === 0) {
-        await loadAsanaSections(false);
-      }
-
-      // Load YouTrack states if credentials are configured and not already loaded
-      if (settings?.youtrack_base_url && settings?.youtrack_token && settings?.youtrack_project_id && youtrackStates.length === 0) {
-        await loadYouTrackStates(false);
-      }
-    };
-
-    loadColumnsAutomatically();
-  }, [settings]);
-
-  // Track changes to enable/disable save button
-  useEffect(() => {
-    const mappingsChanged = JSON.stringify(columnMappings) !== JSON.stringify(initialColumnMappings);
-    setHasChanges(mappingsChanged);
-  }, [columnMappings, initialColumnMappings]);
 
   const loadAsanaSections = async (showMessages = true) => {
     setLoading(prev => ({ ...prev, sections: true }));
@@ -101,18 +70,35 @@ const ColumnMappingSettings = ({
     }
   };
 
-  const loadYouTrackBoards = async () => {
-    setLoading(prev => ({ ...prev, boards: true }));
-    try {
-      const response = await getYouTrackBoards();
-      setYoutrackBoards(response.data || response);
-      onSuccess?.('YouTrack boards loaded successfully!');
-    } catch (err) {
-      onError?.('Failed to load YouTrack boards: ' + err.message);
-    } finally {
-      setLoading(prev => ({ ...prev, boards: false }));
-    }
-  };
+  useEffect(() => {
+    // Initialize column mappings from settings
+    const mappings = settings?.column_mappings?.asana_to_youtrack || [];
+    setColumnMappings(mappings);
+    setInitialColumnMappings(JSON.parse(JSON.stringify(mappings))); // Deep copy
+    setHasChanges(false);
+
+    // Auto-load columns when component mounts (without showing success messages)
+    const loadColumnsAutomatically = async () => {
+      // Load Asana sections if credentials are configured and not already loaded
+      if (settings?.asana_pat && settings?.asana_project_id && asanaSections.length === 0) {
+        await loadAsanaSections(false);
+      }
+
+      // Load YouTrack states if credentials are configured and not already loaded
+      if (settings?.youtrack_base_url && settings?.youtrack_token && settings?.youtrack_project_id && youtrackStates.length === 0) {
+        await loadYouTrackStates(false);
+      }
+    };
+
+    loadColumnsAutomatically();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings]);
+
+  // Track changes to enable/disable save button
+  useEffect(() => {
+    const mappingsChanged = JSON.stringify(columnMappings) !== JSON.stringify(initialColumnMappings);
+    setHasChanges(mappingsChanged);
+  }, [columnMappings, initialColumnMappings]);
 
   const addMapping = () => {
     setColumnMappings([
