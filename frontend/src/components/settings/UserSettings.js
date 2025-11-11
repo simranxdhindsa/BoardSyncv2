@@ -16,7 +16,6 @@ import {
 import { CreateMappingForm, MappingsList } from '../mapping/MappingComponents';
 import ColumnMappingSettings from './ColumnMappingSettings';
 import {
-  Settings,
   Key,
   Link,
   Link2,
@@ -111,12 +110,14 @@ const UserSettings = ({ onBack }) => {
     if (activeTab === 'api' && settings.asana_pat && asanaProjects.length === 0 && !loadingProjects.asana) {
       loadAsanaProjects();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, settings.asana_pat]);
 
   useEffect(() => {
     if (activeTab === 'api' && settings.youtrack_base_url && settings.youtrack_token && youtrackProjects.length === 0 && !loadingProjects.youtrack) {
       loadYoutrackProjects();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, settings.youtrack_base_url, settings.youtrack_token]);
 
   // Auto-load YouTrack boards when API tab is active and credentials are available
@@ -124,6 +125,7 @@ const UserSettings = ({ onBack }) => {
     if (activeTab === 'api' && settings.youtrack_base_url && settings.youtrack_token && youtrackBoards.length === 0 && !loadingProjects.youtrackBoards) {
       loadYoutrackBoardsAuto();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, settings.youtrack_base_url, settings.youtrack_token]);
 
   const loadSettings = async () => {
