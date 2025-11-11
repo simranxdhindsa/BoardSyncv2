@@ -267,6 +267,14 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 
 	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
 
+	// Auto-assign agile board if configured
+	if settings.YouTrackBoardID != "" {
+		if err := s.assignIssueToAgileBoard(settings, issueID); err != nil {
+			fmt.Printf("Warning: Failed to assign issue to agile board: %v\n", err)
+			// Don't fail the whole operation if agile board assignment fails
+		}
+	}
+
 	// Process attachments - download from Asana and upload to YouTrack
 	if len(task.Attachments) > 0 {
 		asanaService := NewAsanaService(s.configService)
@@ -370,6 +378,14 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 
 	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
 
+	// Auto-assign agile board if configured
+	if settings.YouTrackBoardID != "" {
+		if err := s.assignIssueToAgileBoard(settings, issueID); err != nil {
+			fmt.Printf("Warning: Failed to assign issue to agile board: %v\n", err)
+			// Don't fail the whole operation if agile board assignment fails
+		}
+	}
+
 	// Process attachments - download from Asana and upload to YouTrack
 	if len(task.Attachments) > 0 {
 		asanaService := NewAsanaService(s.configService)
@@ -438,6 +454,135 @@ func (s *YouTrackService) createIssueAndGetID(settings *config.UserSettings, pay
 	}
 
 	return createdIssue.ID, nil
+}
+
+// assignIssueToAgileBoard assigns an issue to the configured agile board using YouTrack commands API
+func (s *YouTrackService) assignIssueToAgileBoard(settings *config.UserSettings, issueID string) error {
+	// First, get the agile board details to get board name and sprints
+	url := fmt.Sprintf("%s/api/agiles/%s?fields=id,name,sprints(id,name,archived,finish,start)",
+		settings.YouTrackBaseURL,
+		settings.YouTrackBoardID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to get agile board: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var agileBoard map[string]interface{}
+	if err := json.Unmarshal(body, &agileBoard); err != nil {
+		return fmt.Errorf("failed to parse agile board: %w", err)
+	}
+
+	// Get the board name
+	boardName, ok := agileBoard["name"].(string)
+	if !ok || boardName == "" {
+		return fmt.Errorf("could not get agile board name")
+	}
+
+	// Get sprints from the agile board
+	sprints, ok := agileBoard["sprints"].([]interface{})
+	if !ok || len(sprints) == 0 {
+		// If no sprints, just add the issue to the agile board without a specific sprint
+		return s.addIssueToAgileBoardUsingCommand(settings, issueID, boardName, "")
+	}
+
+	// Find the first non-archived sprint
+	var targetSprintName string
+	for _, sprintInterface := range sprints {
+		sprint, ok := sprintInterface.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		archived, _ := sprint["archived"].(bool)
+		if !archived {
+			sprintName, _ := sprint["name"].(string)
+			if sprintName != "" {
+				targetSprintName = sprintName
+				break
+			}
+		}
+	}
+
+	if targetSprintName == "" {
+		// No active sprint found, add to board without sprint
+		return s.addIssueToAgileBoardUsingCommand(settings, issueID, boardName, "")
+	}
+
+	// Add the issue to the agile board and sprint using the commands API
+	return s.addIssueToAgileBoardUsingCommand(settings, issueID, boardName, targetSprintName)
+}
+
+// addIssueToAgileBoardUsingCommand adds an issue to agile board using YouTrack's commands API
+func (s *YouTrackService) addIssueToAgileBoardUsingCommand(settings *config.UserSettings, issueID, boardName, sprintName string) error {
+	// Build the command string
+	var command string
+	if sprintName != "" {
+		command = fmt.Sprintf("add Board %s %s", boardName, sprintName)
+	} else {
+		command = fmt.Sprintf("add Board %s", boardName)
+	}
+
+	// Use the YouTrack commands API
+	commandURL := fmt.Sprintf("%s/api/commands", settings.YouTrackBaseURL)
+
+	commandPayload := map[string]interface{}{
+		"query": command,
+		"issues": []map[string]interface{}{
+			{
+				"idReadable": issueID,
+			},
+		},
+	}
+
+	jsonPayload, err := json.Marshal(commandPayload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal command payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", commandURL, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return fmt.Errorf("failed to create command request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	commandResp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("command request failed: %w", err)
+	}
+	defer commandResp.Body.Close()
+
+	commandBody, _ := io.ReadAll(commandResp.Body)
+
+	if commandResp.StatusCode != http.StatusOK && commandResp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("failed to execute command: %d - %s", commandResp.StatusCode, string(commandBody))
+	}
+
+	if sprintName != "" {
+		fmt.Printf("Successfully assigned issue %s to agile board '%s' (sprint: '%s')\n", issueID, boardName, sprintName)
+	} else {
+		fmt.Printf("Successfully assigned issue %s to agile board '%s'\n", issueID, boardName)
+	}
+	return nil
 }
 
 // UpdateIssue updates an existing YouTrack issue

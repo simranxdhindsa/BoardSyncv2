@@ -119,6 +119,13 @@ const UserSettings = ({ onBack }) => {
     }
   }, [activeTab, settings.youtrack_base_url, settings.youtrack_token]);
 
+  // Auto-load YouTrack boards when API tab is active and credentials are available
+  useEffect(() => {
+    if (activeTab === 'api' && settings.youtrack_base_url && settings.youtrack_token && youtrackBoards.length === 0 && !loadingProjects.youtrackBoards) {
+      loadYoutrackBoardsAuto();
+    }
+  }, [activeTab, settings.youtrack_base_url, settings.youtrack_token]);
+
   const loadSettings = async () => {
     setLoading(true);
     setError(null);
@@ -240,6 +247,23 @@ const UserSettings = ({ onBack }) => {
       setError('Failed to load YouTrack projects: ' + err.message);
     } finally {
       setLoadingProjects(prev => ({ ...prev, youtrack: false }));
+    }
+  };
+
+  const loadYoutrackBoardsAuto = async () => {
+    if (!settings.youtrack_base_url || !settings.youtrack_token) {
+      return;
+    }
+
+    setLoadingProjects(prev => ({ ...prev, youtrackBoards: true }));
+
+    try {
+      const response = await getYouTrackBoards();
+      setYoutrackBoards(response.data || response);
+    } catch (err) {
+      console.error('Failed to auto-load YouTrack boards:', err.message);
+    } finally {
+      setLoadingProjects(prev => ({ ...prev, youtrackBoards: false }));
     }
   };
 
