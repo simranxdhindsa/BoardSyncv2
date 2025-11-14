@@ -5,8 +5,7 @@ import React, { useState, useEffect } from 'react';
 import {
   getSyncHistory,
   rollbackSync,
-  getSnapshotSummary,
-  getOperationAuditLogs
+  getSnapshotSummary
 } from '../services/api';
 import {
   RotateCcw,
@@ -31,6 +30,7 @@ const SyncHistory = ({ onSuccess, onError }) => {
 
   useEffect(() => {
     loadSyncHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadSyncHistory = async () => {

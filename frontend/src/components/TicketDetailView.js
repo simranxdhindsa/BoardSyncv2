@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   getTicketsByType, ignoreTicket, unignoreTicket, deleteTickets,
-  getEnhancedAnalysis, getChangedMappings,
+  getChangedMappings,
   syncEnhancedTickets, getAutoSyncDetailed, getUserSettings
 } from '../services/api';
 import TicketAuditTrail from './TicketAuditTrail';
@@ -64,7 +64,6 @@ const TicketDetailView = ({
   const isInitialMount = useRef(true);
 
   // Column mappings state
-  const [columnMappings, setColumnMappings] = useState([]);
   const [isDisplayOnlyColumn, setIsDisplayOnlyColumn] = useState(false);
 
   // Ticket history modal state
@@ -78,7 +77,6 @@ const TicketDetailView = ({
         const response = await getUserSettings();
         const settings = response.data || response;
         const mappings = settings.column_mappings?.asana_to_youtrack || [];
-        setColumnMappings(mappings);
 
         // Check if current column is display-only
         if (column && column !== 'all_syncable') {
@@ -468,7 +466,7 @@ const TicketDetailView = ({
       });
 
       if (onSilentRefresh) {
-        setTimeout(() => onSilentRefresh(), 3000);
+        onSilentRefresh();
       }
     } catch (err) {
       console.error('Failed to create all tickets:', err);
@@ -533,7 +531,7 @@ const TicketDetailView = ({
       }
 
       if (onSilentRefresh) {
-        setTimeout(() => onSilentRefresh(), 3000);
+        onSilentRefresh();
       }
     } catch (err) {
       console.error('Failed to sync ticket:', err);
@@ -556,7 +554,7 @@ const TicketDetailView = ({
       }
 
       if (onSilentRefresh) {
-        setTimeout(() => onSilentRefresh(), 3000);
+        onSilentRefresh();
       }
     } catch (err) {
       console.error('Failed to create ticket:', err);
@@ -651,7 +649,7 @@ const TicketDetailView = ({
       }, 100);
 
       if (onSilentRefresh) {
-        setTimeout(() => onSilentRefresh(), 3000);
+        onSilentRefresh();
       }
 
     } catch (err) {

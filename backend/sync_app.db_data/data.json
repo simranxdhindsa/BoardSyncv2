@@ -28,10 +28,14 @@
       "youtrack_project_id": "ARD",
       "youtrack_board_id": "183-4",
       "custom_field_mappings": {
-        "tag_mapping": {},
+        "tag_mapping": {
+          "Mobile": "Mobile"
+        },
         "priority_mapping": {},
         "status_mapping": {},
-        "custom_fields": {}
+        "custom_fields": {
+          "Mobile": "Mobile"
+        }
       },
       "column_mappings": {
         "asana_to_youtrack": [
@@ -69,7 +73,7 @@
         "youtrack_to_asana": []
       },
       "created_at": "2025-10-03T22:28:50.0268461+05:30",
-      "updated_at": "2025-11-11T23:28:02.6173005+05:30"
+      "updated_at": "2025-11-13T20:48:40.7395878+05:30"
     },
     "2": {
       "id": 2,
@@ -1227,6 +1231,46 @@
       "created_at": "2025-11-11T23:12:24.5236377+05:30",
       "updated_at": "2025-11-11T23:12:24.5236377+05:30"
     },
+    "126": {
+      "id": 126,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211922135441109",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1439",
+      "created_at": "2025-11-13T17:36:32.6103592+05:30",
+      "updated_at": "2025-11-13T17:36:32.6103592+05:30"
+    },
+    "127": {
+      "id": 127,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211920548066909",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1440",
+      "created_at": "2025-11-13T17:37:32.5474054+05:30",
+      "updated_at": "2025-11-13T17:37:32.5474054+05:30"
+    },
+    "128": {
+      "id": 128,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211912311436850",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1442",
+      "created_at": "2025-11-13T17:37:57.8215195+05:30",
+      "updated_at": "2025-11-13T17:37:57.8215195+05:30"
+    },
+    "129": {
+      "id": 129,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211919610014577",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1441",
+      "created_at": "2025-11-13T17:38:09.5985958+05:30",
+      "updated_at": "2025-11-13T17:38:09.5985958+05:30"
+    },
     "13": {
       "id": 13,
       "user_id": 1,
@@ -1236,6 +1280,106 @@
       "youtrack_issue_id": "3-1237",
       "created_at": "2025-10-13T22:59:41.5623159+05:30",
       "updated_at": "2025-10-13T22:59:41.5623159+05:30"
+    },
+    "130": {
+      "id": 130,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211912311436841",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1443",
+      "created_at": "2025-11-13T17:41:12.8386979+05:30",
+      "updated_at": "2025-11-13T17:41:12.8386979+05:30"
+    },
+    "131": {
+      "id": 131,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211912311436838",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1444",
+      "created_at": "2025-11-13T17:41:42.1863361+05:30",
+      "updated_at": "2025-11-13T17:41:42.1863361+05:30"
+    },
+    "132": {
+      "id": 132,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211912311436835",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1445",
+      "created_at": "2025-11-13T17:41:45.5473845+05:30",
+      "updated_at": "2025-11-13T17:41:45.5473845+05:30"
+    },
+    "133": {
+      "id": 133,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211912311436832",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1446",
+      "created_at": "2025-11-13T17:41:46.5243324+05:30",
+      "updated_at": "2025-11-13T17:41:46.5243324+05:30"
+    },
+    "134": {
+      "id": 134,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211912311436829",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1447",
+      "created_at": "2025-11-13T17:41:47.6223318+05:30",
+      "updated_at": "2025-11-13T17:41:47.6223318+05:30"
+    },
+    "135": {
+      "id": 135,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211912311436817",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1448",
+      "created_at": "2025-11-13T17:42:18.2630272+05:30",
+      "updated_at": "2025-11-13T17:42:18.2630272+05:30"
+    },
+    "136": {
+      "id": 136,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211912307970364",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1449",
+      "created_at": "2025-11-13T17:42:19.4340593+05:30",
+      "updated_at": "2025-11-13T17:42:19.4340593+05:30"
+    },
+    "137": {
+      "id": 137,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211895311014248",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1450",
+      "created_at": "2025-11-13T17:42:21.3046927+05:30",
+      "updated_at": "2025-11-13T17:42:21.3046927+05:30"
+    },
+    "138": {
+      "id": 138,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211895311014241",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1451",
+      "created_at": "2025-11-13T17:42:40.6046534+05:30",
+      "updated_at": "2025-11-13T17:42:40.6046534+05:30"
+    },
+    "139": {
+      "id": 139,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211892033900179",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1452",
+      "created_at": "2025-11-13T17:43:09.5124829+05:30",
+      "updated_at": "2025-11-13T17:43:09.5124829+05:30"
     },
     "14": {
       "id": 14,
@@ -1247,6 +1391,106 @@
       "created_at": "2025-10-13T22:59:53.4595608+05:30",
       "updated_at": "2025-10-13T22:59:53.4595608+05:30"
     },
+    "140": {
+      "id": 140,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211892033900177",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1453",
+      "created_at": "2025-11-13T17:43:14.2995377+05:30",
+      "updated_at": "2025-11-13T17:43:14.2995377+05:30"
+    },
+    "141": {
+      "id": 141,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211892033900175",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1454",
+      "created_at": "2025-11-13T17:43:26.0469917+05:30",
+      "updated_at": "2025-11-13T17:43:26.0469917+05:30"
+    },
+    "142": {
+      "id": 142,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211892033900170",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1455",
+      "created_at": "2025-11-13T17:43:26.8321398+05:30",
+      "updated_at": "2025-11-13T17:43:26.8321398+05:30"
+    },
+    "143": {
+      "id": 143,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211892033900166",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1456",
+      "created_at": "2025-11-13T17:43:34.1576027+05:30",
+      "updated_at": "2025-11-13T17:43:34.1576027+05:30"
+    },
+    "144": {
+      "id": 144,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211892033900168",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1457",
+      "created_at": "2025-11-13T17:43:39.0157079+05:30",
+      "updated_at": "2025-11-13T17:43:39.0157079+05:30"
+    },
+    "145": {
+      "id": 145,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211872467122678",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1458",
+      "created_at": "2025-11-13T17:45:11.8502478+05:30",
+      "updated_at": "2025-11-13T17:45:11.8502478+05:30"
+    },
+    "146": {
+      "id": 146,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211874995669336",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1459",
+      "created_at": "2025-11-13T17:45:16.9475409+05:30",
+      "updated_at": "2025-11-13T17:45:16.9475409+05:30"
+    },
+    "147": {
+      "id": 147,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211892033900164",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1460",
+      "created_at": "2025-11-13T18:13:08.2686319+05:30",
+      "updated_at": "2025-11-13T18:13:08.2686319+05:30"
+    },
+    "148": {
+      "id": 148,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211872467122680",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1462",
+      "created_at": "2025-11-13T18:49:28.6775782+05:30",
+      "updated_at": "2025-11-13T18:49:28.6775782+05:30"
+    },
+    "149": {
+      "id": 149,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211861136038506",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1463",
+      "created_at": "2025-11-13T18:49:43.1622457+05:30",
+      "updated_at": "2025-11-13T18:49:43.1622457+05:30"
+    },
     "15": {
       "id": 15,
       "user_id": 1,
@@ -1256,6 +1500,106 @@
       "youtrack_issue_id": "3-1239",
       "created_at": "2025-10-13T23:05:13.2315261+05:30",
       "updated_at": "2025-10-13T23:05:13.2315261+05:30"
+    },
+    "150": {
+      "id": 150,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211861136038500",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1465",
+      "created_at": "2025-11-13T19:10:32.1282984+05:30",
+      "updated_at": "2025-11-13T19:10:32.1282984+05:30"
+    },
+    "151": {
+      "id": 151,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211858153293847",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1466",
+      "created_at": "2025-11-13T19:10:44.5149529+05:30",
+      "updated_at": "2025-11-13T19:10:44.5149529+05:30"
+    },
+    "152": {
+      "id": 152,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211857959096442",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1467",
+      "created_at": "2025-11-13T19:10:51.3663745+05:30",
+      "updated_at": "2025-11-13T19:10:51.3663745+05:30"
+    },
+    "153": {
+      "id": 153,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211841375577204",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1468",
+      "created_at": "2025-11-13T19:12:30.2462959+05:30",
+      "updated_at": "2025-11-13T19:12:30.2462959+05:30"
+    },
+    "154": {
+      "id": 154,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211841375577201",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1476",
+      "created_at": "2025-11-13T19:19:44.5744653+05:30",
+      "updated_at": "2025-11-13T19:19:44.5744653+05:30"
+    },
+    "155": {
+      "id": 155,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211841375577196",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1477",
+      "created_at": "2025-11-13T19:20:04.1865181+05:30",
+      "updated_at": "2025-11-13T19:20:04.1865181+05:30"
+    },
+    "156": {
+      "id": 156,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211808183123847",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1478",
+      "created_at": "2025-11-13T19:20:05.4296256+05:30",
+      "updated_at": "2025-11-13T19:20:05.4296256+05:30"
+    },
+    "157": {
+      "id": 157,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211606527865588",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-386",
+      "created_at": "2025-11-13T19:27:37.1237987+05:30",
+      "updated_at": "2025-11-13T19:33:37.6889035+05:30"
+    },
+    "158": {
+      "id": 158,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211059518421540",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1479",
+      "created_at": "2025-11-13T19:27:50.3089546+05:30",
+      "updated_at": "2025-11-13T19:27:50.3089546+05:30"
+    },
+    "159": {
+      "id": 159,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211669170041161",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1482",
+      "created_at": "2025-11-13T19:32:27.7106954+05:30",
+      "updated_at": "2025-11-13T19:32:27.7106954+05:30"
     },
     "16": {
       "id": 16,
@@ -1267,6 +1611,206 @@
       "created_at": "2025-10-13T23:06:45.7596723+05:30",
       "updated_at": "2025-10-13T23:06:45.7596723+05:30"
     },
+    "160": {
+      "id": 160,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211700052149690",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1483",
+      "created_at": "2025-11-13T19:32:29.349047+05:30",
+      "updated_at": "2025-11-13T19:32:29.349047+05:30"
+    },
+    "161": {
+      "id": 161,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211780049716169",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1485",
+      "created_at": "2025-11-13T19:35:16.8145032+05:30",
+      "updated_at": "2025-11-13T19:35:16.8145032+05:30"
+    },
+    "162": {
+      "id": 162,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211802004161053",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1487",
+      "created_at": "2025-11-13T20:12:14.7846433+05:30",
+      "updated_at": "2025-11-13T20:12:14.7846433+05:30"
+    },
+    "163": {
+      "id": 163,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211802004161048",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1488",
+      "created_at": "2025-11-13T20:13:53.3392923+05:30",
+      "updated_at": "2025-11-13T20:13:53.3392923+05:30"
+    },
+    "164": {
+      "id": 164,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211780480704821",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1489",
+      "created_at": "2025-11-13T20:46:23.786259+05:30",
+      "updated_at": "2025-11-13T20:46:23.786259+05:30"
+    },
+    "165": {
+      "id": 165,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211752346707812",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1490",
+      "created_at": "2025-11-13T20:49:14.9265093+05:30",
+      "updated_at": "2025-11-13T20:49:14.9265093+05:30"
+    },
+    "166": {
+      "id": 166,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211780049716166",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1491",
+      "created_at": "2025-11-13T20:57:46.090737+05:30",
+      "updated_at": "2025-11-13T20:57:46.090737+05:30"
+    },
+    "167": {
+      "id": 167,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211780049716163",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1492",
+      "created_at": "2025-11-13T20:57:49.4211812+05:30",
+      "updated_at": "2025-11-13T20:57:49.4211812+05:30"
+    },
+    "168": {
+      "id": 168,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211752346707822",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1493",
+      "created_at": "2025-11-13T21:03:09.3633239+05:30",
+      "updated_at": "2025-11-13T21:03:09.3633239+05:30"
+    },
+    "169": {
+      "id": 169,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211932899926485",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1496",
+      "created_at": "2025-11-13T21:06:28.7960566+05:30",
+      "updated_at": "2025-11-13T21:06:28.7960566+05:30"
+    },
+    "170": {
+      "id": 170,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211932899926499",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1495",
+      "created_at": "2025-11-13T21:06:40.5070635+05:30",
+      "updated_at": "2025-11-13T21:06:40.5070635+05:30"
+    },
+    "171": {
+      "id": 171,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211935423548505",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1494",
+      "created_at": "2025-11-13T21:07:21.5996789+05:30",
+      "updated_at": "2025-11-13T21:07:21.5996789+05:30"
+    },
+    "172": {
+      "id": 172,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211921480212085",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1497",
+      "created_at": "2025-11-13T21:07:24.5356084+05:30",
+      "updated_at": "2025-11-13T21:07:24.5356084+05:30"
+    },
+    "173": {
+      "id": 173,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211896479441041",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1498",
+      "created_at": "2025-11-13T21:10:11.9651287+05:30",
+      "updated_at": "2025-11-13T21:10:11.9651287+05:30"
+    },
+    "174": {
+      "id": 174,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211874954304989",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1499",
+      "created_at": "2025-11-13T21:14:03.9548833+05:30",
+      "updated_at": "2025-11-13T21:14:03.9548833+05:30"
+    },
+    "175": {
+      "id": 175,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211861190867158",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1500",
+      "created_at": "2025-11-13T21:51:38.7875408+05:30",
+      "updated_at": "2025-11-13T21:51:38.7875408+05:30"
+    },
+    "176": {
+      "id": 176,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211832581560821",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1502",
+      "created_at": "2025-11-13T21:52:36.1549528+05:30",
+      "updated_at": "2025-11-13T21:52:36.1549528+05:30"
+    },
+    "177": {
+      "id": 177,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211841375577207",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1503",
+      "created_at": "2025-11-13T21:52:37.4474248+05:30",
+      "updated_at": "2025-11-13T21:52:37.4474248+05:30"
+    },
+    "178": {
+      "id": 178,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211872467122673",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1504",
+      "created_at": "2025-11-13T21:52:37.627593+05:30",
+      "updated_at": "2025-11-13T21:52:37.627593+05:30"
+    },
+    "179": {
+      "id": 179,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211895311014255",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1501",
+      "created_at": "2025-11-13T21:53:20.0418076+05:30",
+      "updated_at": "2025-11-13T21:53:20.0418076+05:30"
+    },
     "18": {
       "id": 18,
       "user_id": 1,
@@ -1277,6 +1821,106 @@
       "created_at": "2025-10-13T23:19:14.9507894+05:30",
       "updated_at": "2025-10-13T23:19:14.9507894+05:30"
     },
+    "180": {
+      "id": 180,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211923607085818",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1506",
+      "created_at": "2025-11-13T21:54:11.8076238+05:30",
+      "updated_at": "2025-11-13T21:54:11.8076238+05:30"
+    },
+    "181": {
+      "id": 181,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211921892352484",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1507",
+      "created_at": "2025-11-13T21:54:20.3495043+05:30",
+      "updated_at": "2025-11-13T21:54:20.3495043+05:30"
+    },
+    "182": {
+      "id": 182,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211921892352481",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1508",
+      "created_at": "2025-11-13T21:54:20.3558208+05:30",
+      "updated_at": "2025-11-13T21:54:20.3558208+05:30"
+    },
+    "183": {
+      "id": 183,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211932899926504",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1505",
+      "created_at": "2025-11-13T21:54:21.4147516+05:30",
+      "updated_at": "2025-11-13T21:54:21.4147516+05:30"
+    },
+    "184": {
+      "id": 184,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211919610014579",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1509",
+      "created_at": "2025-11-13T21:54:25.058707+05:30",
+      "updated_at": "2025-11-13T21:54:25.058707+05:30"
+    },
+    "185": {
+      "id": 185,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211912311436852",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1510",
+      "created_at": "2025-11-13T21:54:25.4666745+05:30",
+      "updated_at": "2025-11-13T21:54:25.4666745+05:30"
+    },
+    "186": {
+      "id": 186,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211907361089721",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1512",
+      "created_at": "2025-11-13T21:54:32.7179136+05:30",
+      "updated_at": "2025-11-13T21:54:32.7179136+05:30"
+    },
+    "187": {
+      "id": 187,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211911007261033",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1511",
+      "created_at": "2025-11-13T21:55:31.6286243+05:30",
+      "updated_at": "2025-11-13T21:55:31.6286243+05:30"
+    },
+    "188": {
+      "id": 188,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211802756233653",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1514",
+      "created_at": "2025-11-13T21:56:02.9541992+05:30",
+      "updated_at": "2025-11-13T21:56:02.9541992+05:30"
+    },
+    "189": {
+      "id": 189,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211841375577194",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1515",
+      "created_at": "2025-11-13T21:56:04.1568507+05:30",
+      "updated_at": "2025-11-13T21:56:04.1568507+05:30"
+    },
     "19": {
       "id": 19,
       "user_id": 1,
@@ -1286,6 +1930,86 @@
       "youtrack_issue_id": "3-1241",
       "created_at": "2025-10-13T23:21:35.4800258+05:30",
       "updated_at": "2025-10-13T23:21:35.4800258+05:30"
+    },
+    "190": {
+      "id": 190,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211780304977830",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1513",
+      "created_at": "2025-11-13T21:56:04.6552254+05:30",
+      "updated_at": "2025-11-13T21:56:04.6552254+05:30"
+    },
+    "191": {
+      "id": 191,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211858153293849",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1516",
+      "created_at": "2025-11-13T21:56:05.8937469+05:30",
+      "updated_at": "2025-11-13T21:56:05.8937469+05:30"
+    },
+    "192": {
+      "id": 192,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211820926317341",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1517",
+      "created_at": "2025-11-13T21:56:08.3747578+05:30",
+      "updated_at": "2025-11-13T21:56:08.3747578+05:30"
+    },
+    "193": {
+      "id": 193,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211802863221989",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1518",
+      "created_at": "2025-11-13T21:56:10.2976636+05:30",
+      "updated_at": "2025-11-13T21:56:10.2976636+05:30"
+    },
+    "194": {
+      "id": 194,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211669298236841",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1521",
+      "created_at": "2025-11-13T22:00:07.7400755+05:30",
+      "updated_at": "2025-11-13T22:00:07.7400755+05:30"
+    },
+    "195": {
+      "id": 195,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211752346707809",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1520",
+      "created_at": "2025-11-13T22:00:07.7456175+05:30",
+      "updated_at": "2025-11-13T22:00:07.7456175+05:30"
+    },
+    "196": {
+      "id": 196,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211752346707817",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1519",
+      "created_at": "2025-11-13T22:00:09.948796+05:30",
+      "updated_at": "2025-11-13T22:00:09.948796+05:30"
+    },
+    "197": {
+      "id": 197,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211752346707804",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1522",
+      "created_at": "2025-11-13T22:00:11.9294836+05:30",
+      "updated_at": "2025-11-13T22:00:11.9294836+05:30"
     },
     "21": {
       "id": 21,
@@ -1863,9 +2587,9 @@
       "asana_project_id": "1207284744539269",
       "asana_task_id": "1211449586115044",
       "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "ARD-409",
+      "youtrack_issue_id": "3-1523",
       "created_at": "2025-10-14T00:51:11.0547448+05:30",
-      "updated_at": "2025-10-14T00:51:11.0547448+05:30"
+      "updated_at": "2025-11-13T22:00:10.6253098+05:30"
     },
     "80": {
       "id": 80,
@@ -1893,9 +2617,9 @@
       "asana_project_id": "1207284744539269",
       "asana_task_id": "1211669298236847",
       "youtrack_project_id": "ARD",
-      "youtrack_issue_id": "3-1327",
+      "youtrack_issue_id": "3-1481",
       "created_at": "2025-10-17T18:12:50.7544269+05:30",
-      "updated_at": "2025-10-17T18:12:50.7544269+05:30"
+      "updated_at": "2025-11-13T19:32:18.3900517+05:30"
     },
     "83": {
       "id": 83,
@@ -2170,7 +2894,7 @@
   "next_settings_id": 3,
   "next_operation_id": 6,
   "next_ignored_id": 92,
-  "next_mapping_id": 126,
+  "next_mapping_id": 198,
   "next_snapshot_id": 2,
   "next_audit_log_id": 1,
   "next_reverse_ignored_id": 0,

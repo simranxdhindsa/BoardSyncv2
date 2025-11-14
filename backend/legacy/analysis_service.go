@@ -74,19 +74,14 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 		return nil, fmt.Errorf("failed to get Asana tasks: %w", err)
 	}
 
-	fmt.Printf("ANALYSIS: Retrieved %d total Asana tasks for user %d\n", len(allAsanaTasks), userID)
-
 	// Step 2: Filter tasks by selected columns
 	asanaTasks := s.asanaService.FilterTasksByColumns(allAsanaTasks, selectedColumns)
-	fmt.Printf("ANALYSIS: After filtering by columns %v: %d tasks remain\n", selectedColumns, len(asanaTasks))
 
 	// Step 3: Get YouTrack issues for the user
 	youTrackIssues, err := s.youtrackService.GetIssues(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get YouTrack issues: %w", err)
 	}
-
-	fmt.Printf("ANALYSIS: Retrieved %d YouTrack issues for user %d\n", len(youTrackIssues), userID)
 
 	// Step 4: Build lookup maps - PRIORITIZE MAPPING TABLE, then DESCRIPTION, then TITLE
 	youTrackMap := make(map[string]YouTrackIssue)
@@ -301,8 +296,6 @@ func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, exis
 
 	asanaStatus := s.asanaService.MapStateToYouTrackWithSettings(userID, task)
 	youtrackStatus := s.youtrackService.GetStatus(existingIssue)
-
-	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s\n", task.Name, asanaStatus, youtrackStatus)
 
 	matchedTicket := MatchedTicket{
 		AsanaTask:         task,
@@ -728,8 +721,6 @@ func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existing
 	assigneeName := s.asanaService.GetAssigneeName(task)
 	priority := s.asanaService.GetPriority(task, userID)
 	createdAt := s.asanaService.GetCreatedAt(task)
-
-	fmt.Printf("ANALYSIS: Processing existing ticket '%s' - Asana: %s, YouTrack: %s\n", task.Name, asanaStatus, youtrackStatus)
 
 	matchedTicket := MatchedTicket{
 		AsanaTask:         task,

@@ -242,21 +242,29 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
-			customFields = append(customFields, map[string]interface{}{
-				"$type": "MultiOwnedIssueCustomField",
-				"name":  "Subsystem",
-				"value": []map[string]interface{}{
-					{
-						"$type": "OwnedBundleElement",
-						"name":  subsystem,
+			// Get the subsystem field and value IDs from YouTrack
+			fieldID, valueID, err := s.GetSubsystemFieldInfo(userID, subsystem)
+			if err != nil {
+				fmt.Printf("Warning: Failed to get subsystem field info for '%s': %v\n", subsystem, err)
+				// Don't fail the whole operation, just skip the subsystem field
+			} else {
+				customFields = append(customFields, map[string]interface{}{
+					"$type": "SingleOwnedIssueCustomField",
+					"id":    fieldID,
+					"value": map[string]interface{}{
+						"kind":        "enum",
+						"id":          valueID,
+						"name":        subsystem,
+						"label":       subsystem,
+						"description": nil,
 					},
-				},
-			})
+				})
+			}
 		}
 	}
 
 	if len(customFields) > 0 {
-		payload["customFields"] = customFields
+		payload["fields"] = customFields
 	}
 
 	// Create the issue and get the ID
@@ -353,21 +361,29 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
-			customFields = append(customFields, map[string]interface{}{
-				"$type": "MultiOwnedIssueCustomField",
-				"name":  "Subsystem",
-				"value": []map[string]interface{}{
-					{
-						"$type": "OwnedBundleElement",
-						"name":  subsystem,
+			// Get the subsystem field and value IDs from YouTrack
+			fieldID, valueID, err := s.GetSubsystemFieldInfo(userID, subsystem)
+			if err != nil {
+				fmt.Printf("Warning: Failed to get subsystem field info for '%s': %v\n", subsystem, err)
+				// Don't fail the whole operation, just skip the subsystem field
+			} else {
+				customFields = append(customFields, map[string]interface{}{
+					"$type": "SingleOwnedIssueCustomField",
+					"id":    fieldID,
+					"value": map[string]interface{}{
+						"kind":        "enum",
+						"id":          valueID,
+						"name":        subsystem,
+						"label":       subsystem,
+						"description": nil,
 					},
-				},
-			})
+				})
+			}
 		}
 	}
 
 	if len(customFields) > 0 {
-		payload["customFields"] = customFields
+		payload["fields"] = customFields
 	}
 
 	// Create the issue and get the ID
@@ -429,14 +445,14 @@ func (s *YouTrackService) createIssueAndGetID(settings *config.UserSettings, pay
 		bodyStr := string(body)
 		if strings.Contains(bodyStr, "incompatible-issue-custom-field-name-Subsystem") {
 			// Retry without subsystem
-			if customFields, ok := payload["customFields"].([]map[string]interface{}); ok {
+			if customFields, ok := payload["fields"].([]map[string]interface{}); ok {
 				var filteredFields []map[string]interface{}
 				for _, field := range customFields {
 					if name, ok := field["name"].(string); ok && name != "Subsystem" {
 						filteredFields = append(filteredFields, field)
 					}
 				}
-				payload["customFields"] = filteredFields
+				payload["fields"] = filteredFields
 			}
 			return s.createIssueAndGetID(settings, payload)
 		}
@@ -638,21 +654,29 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 		primaryTag := asanaTags[0]
 		subsystem := tagMapper.MapTagToSubsystem(primaryTag)
 		if subsystem != "" {
-			customFields = append(customFields, map[string]interface{}{
-				"$type": "MultiOwnedIssueCustomField",
-				"name":  "Subsystem",
-				"value": []map[string]interface{}{
-					{
-						"$type": "OwnedBundleElement",
-						"name":  subsystem,
+			// Get the subsystem field and value IDs from YouTrack
+			fieldID, valueID, err := s.GetSubsystemFieldInfo(userID, subsystem)
+			if err != nil {
+				fmt.Printf("Warning: Failed to get subsystem field info for '%s': %v\n", subsystem, err)
+				// Don't fail the whole operation, just skip the subsystem field
+			} else {
+				customFields = append(customFields, map[string]interface{}{
+					"$type": "SingleOwnedIssueCustomField",
+					"id":    fieldID,
+					"value": map[string]interface{}{
+						"kind":        "enum",
+						"id":          valueID,
+						"name":        subsystem,
+						"label":       subsystem,
+						"description": nil,
 					},
-				},
-			})
+				})
+			}
 		}
 	}
 
 	if len(customFields) > 0 {
-		payload["customFields"] = customFields
+		payload["fields"] = customFields
 	}
 
 	return s.createOrUpdateIssue(settings, issueID, payload)
@@ -667,7 +691,7 @@ func (s *YouTrackService) UpdateIssueStatus(userID int, issueID, status string) 
 
 	payload := map[string]interface{}{
 		"$type": "Issue",
-		"customFields": []map[string]interface{}{
+		"fields": []map[string]interface{}{
 			{
 				"$type": "StateIssueCustomField",
 				"name":  "State",
@@ -765,14 +789,14 @@ func (s *YouTrackService) createOrUpdateIssue(settings *config.UserSettings, iss
 // createOrUpdateIssueWithoutSubsystem fallback for systems without Subsystem field
 func (s *YouTrackService) createOrUpdateIssueWithoutSubsystem(settings *config.UserSettings, issueID string, payload map[string]interface{}) error {
 	// Remove subsystem from custom fields
-	if customFields, ok := payload["customFields"].([]map[string]interface{}); ok {
+	if customFields, ok := payload["fields"].([]map[string]interface{}); ok {
 		var filteredFields []map[string]interface{}
 		for _, field := range customFields {
 			if name, ok := field["name"].(string); ok && name != "Subsystem" {
 				filteredFields = append(filteredFields, field)
 			}
 		}
-		payload["customFields"] = filteredFields
+		payload["fields"] = filteredFields
 	}
 
 	jsonPayload, err := json.Marshal(payload)
@@ -849,17 +873,14 @@ func (s *YouTrackService) GetStatus(issue YouTrackIssue) string {
 			case map[string]interface{}:
 				// PRIORITY 1: Try to get the technical 'name' field first
 				if name, ok := value["name"].(string); ok && name != "" {
-					fmt.Printf("DEBUG: YouTrack Status (technical name): %s\n", name)
 					return name
 				}
 				// PRIORITY 2: Fall back to 'localizedName' if 'name' is not available
 				if localizedName, ok := value["localizedName"].(string); ok && localizedName != "" {
-					fmt.Printf("DEBUG: YouTrack Status (localized name): %s\n", localizedName)
 					return localizedName
 				}
 			case string:
 				if value != "" {
-					fmt.Printf("DEBUG: YouTrack Status (string): %s\n", value)
 					return value
 				}
 			case nil:
@@ -898,7 +919,6 @@ func (s *YouTrackService) GetStatusNormalized(issue YouTrackIssue) string {
 	}
 
 	if normalized, exists := statusMap[statusLower]; exists {
-		fmt.Printf("DEBUG: Normalized '%s' to '%s'\n", status, normalized)
 		return normalized
 	}
 
@@ -1394,4 +1414,128 @@ func getInt64(m map[string]interface{}, key string) int64 {
 		return val
 	}
 	return 0
+}
+
+// GetSubsystemFieldInfo retrieves the subsystem field ID and enum value details from YouTrack
+func (s *YouTrackService) GetSubsystemFieldInfo(userID int, subsystemName string) (fieldID string, valueID string, err error) {
+	// Hardcoded field ID for Subsystem (from your YouTrack setup)
+	fieldID = "172-17"
+
+	// Hardcoded value mappings for subsystems (from your YouTrack cURL)
+	subsystemValueMap := map[string]string{
+		"UI":     "180-3",
+		"MC":     "180-4",
+		"Admin":  "180-5",
+		"Core":   "180-6",
+		"RAG":    "180-7",
+		"Studio": "180-8",
+		"Mobile": "180-9",
+	}
+
+	// Look up the value ID
+	if vID, ok := subsystemValueMap[subsystemName]; ok {
+		valueID = vID
+		return fieldID, valueID, nil
+	}
+
+	// If not found in hardcoded map, try the API approach as fallback
+
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get user settings: %w", err)
+	}
+
+	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" || settings.YouTrackProjectID == "" {
+		return "", "", fmt.Errorf("youtrack credentials not configured")
+	}
+
+	// Get project info including custom fields
+	// Using /api/admin/projects/{id} with customFields expansion
+	url := fmt.Sprintf("%s/api/admin/projects/%s?fields=customFields(field(name),id,bundle(values(id,name)))",
+		settings.YouTrackBaseURL, settings.YouTrackProjectID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", fmt.Errorf("API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	// Parse the project response which contains customFields array
+	var projectResponse map[string]interface{}
+	if err := json.Unmarshal(body, &projectResponse); err != nil {
+		return "", "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Extract customFields array from project response
+	customFieldsInterface, ok := projectResponse["customFields"]
+	if !ok {
+		return "", "", fmt.Errorf("no customFields found in project response")
+	}
+
+	customFieldsArray, ok := customFieldsInterface.([]interface{})
+	if !ok {
+		return "", "", fmt.Errorf("customFields is not an array")
+	}
+
+	// Convert to []map[string]interface{}
+	customFields := make([]map[string]interface{}, 0, len(customFieldsArray))
+	for _, cf := range customFieldsArray {
+		if cfMap, ok := cf.(map[string]interface{}); ok {
+			customFields = append(customFields, cfMap)
+		}
+	}
+
+	// Find the Subsystem field
+	for _, field := range customFields {
+		if fieldInfo, ok := field["field"].(map[string]interface{}); ok {
+			if fieldName, ok := fieldInfo["name"].(string); ok {
+				if fieldName == "Subsystem" {
+					// Get the field ID
+					if id, ok := field["id"].(string); ok {
+						fieldID = id
+					}
+
+					// Find the matching value in the bundle
+					if bundle, ok := field["bundle"].(map[string]interface{}); ok {
+						if values, ok := bundle["values"].([]interface{}); ok {
+							for _, val := range values {
+								if valMap, ok := val.(map[string]interface{}); ok {
+									if name, ok := valMap["name"].(string); ok {
+										if strings.EqualFold(name, subsystemName) {
+											if id, ok := valMap["id"].(string); ok {
+												valueID = id
+												return fieldID, valueID, nil
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+
+					// If we found the field but not the value, return an error
+					if fieldID != "" {
+						return "", "", fmt.Errorf("subsystem value '%s' not found in YouTrack project", subsystemName)
+					}
+				}
+			}
+		}
+	}
+
+	return "", "", fmt.Errorf("subsystem field not found in YouTrack project")
 }

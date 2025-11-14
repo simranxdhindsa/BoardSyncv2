@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff, RotateCcw, History } from 'lucide-react';
 import TicketDetailView from './TicketDetailView';
 import SyncHistory from './SyncHistory';
@@ -37,6 +37,16 @@ const AnalysisResults = ({
   const [showSyncHistory, setShowSyncHistory] = useState(false);
   const [lastOperationId, setLastOperationId] = useState(null);
   const [undoingSync, setUndoingSync] = useState(false);
+
+  // Debounce timer ref for silent refresh
+  const refreshTimerRef = useRef(null);
+  // Store the latest selectedColumn in a ref to avoid recreating the callback
+  const selectedColumnRef = useRef(selectedColumn);
+
+  // Update the ref when selectedColumn changes
+  useEffect(() => {
+    selectedColumnRef.current = selectedColumn;
+  }, [selectedColumn]);
 
   // Update local data when prop changes
   useEffect(() => {
@@ -189,18 +199,42 @@ const AnalysisResults = ({
     });
   };
 
-  // SILENT BACKGROUND REFRESH
-  const silentRefreshAnalysis = async () => {
-    try {
-      const data = await analyzeTickets(selectedColumn);
-      setLocalAnalysisData({
-        ...data,
-        analyzedColumn: selectedColumn
-      });
-    } catch (error) {
-      console.error('Silent refresh failed:', error);
+  // SILENT BACKGROUND REFRESH (Debounced)
+  // This function will only run once after 4 seconds of the last call
+  // If called multiple times within 4 seconds, only the last call triggers the refresh
+  const silentRefreshAnalysis = useCallback(() => {
+    // Clear any existing timer
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
     }
-  };
+
+    // Set a new timer for 4 seconds
+    refreshTimerRef.current = setTimeout(async () => {
+      try {
+        // Use the ref value instead of closure value
+        const currentColumn = selectedColumnRef.current;
+        const data = await analyzeTickets(currentColumn);
+        setLocalAnalysisData({
+          ...data,
+          analyzedColumn: currentColumn
+        });
+        refreshTimerRef.current = null;
+      } catch (error) {
+        console.error('Silent refresh failed:', error);
+        refreshTimerRef.current = null;
+      }
+    }, 4000); // 4 seconds debounce delay
+  }, []); // No dependencies - function never recreated!
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleReAnalyze = async () => {
     setReAnalyzeLoading(true);
@@ -293,7 +327,7 @@ const AnalysisResults = ({
       }, 2000);
       
       // Silent refresh in background
-      setTimeout(() => silentRefreshAnalysis(), 3000);
+      silentRefreshAnalysis();
     } catch (error) {
       console.error('Sync failed:', error);
       alert('Sync failed: ' + error.message);
@@ -324,7 +358,7 @@ const AnalysisResults = ({
       });
       
       // Silent refresh in background
-      setTimeout(() => silentRefreshAnalysis(), 3000);
+      silentRefreshAnalysis();
     } catch (error) {
       console.error('Some tickets failed to sync:', error);
       alert('Some tickets failed to sync. Please try again.');
@@ -358,7 +392,7 @@ const AnalysisResults = ({
       }, 2000);
       
       // Silent refresh in background
-      setTimeout(() => silentRefreshAnalysis(), 3000);
+      silentRefreshAnalysis();
     } catch (error) {
       console.error('Create failed:', error);
       alert('Create failed: ' + error.message);
@@ -383,7 +417,7 @@ const AnalysisResults = ({
       });
       
       // Silent refresh in background
-      setTimeout(() => silentRefreshAnalysis(), 3000);
+      silentRefreshAnalysis();
     } catch (error) {
       console.error('Failed to create tickets:', error);
       alert('Failed to create tickets: ' + error.message);

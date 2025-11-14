@@ -67,7 +67,6 @@ func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	fmt.Printf("Retrieved %d Asana tasks for user %d\n", len(asanaResp.Data), userID)
 	return asanaResp.Data, nil
 }
 
@@ -293,20 +292,13 @@ func (s *AsanaService) MapStateToYouTrackWithSettings(userID int, task AsanaTask
 // FilterTasksByColumns filters Asana tasks by specified columns
 func (s *AsanaService) FilterTasksByColumns(tasks []AsanaTask, selectedColumns []string) []AsanaTask {
 	if len(selectedColumns) == 0 {
-		fmt.Printf("FILTER DEBUG: No columns specified, returning all %d tasks\n", len(tasks))
 		return tasks
 	}
-
-	fmt.Printf("FILTER DEBUG: Filtering %d tasks by columns: %v\n", len(tasks), selectedColumns)
 	filtered := []AsanaTask{}
 
-	for i, task := range tasks {
+	for _, task := range tasks {
 		if len(task.Memberships) > 0 {
 			sectionName := strings.ToLower(strings.TrimSpace(task.Memberships[0].Section.Name))
-
-			if i < 5 {
-				fmt.Printf("FILTER DEBUG: Task %d '%s' is in section '%s'\n", i, task.Name, sectionName)
-			}
 
 			matchFound := false
 			for _, selectedCol := range selectedColumns {
@@ -341,9 +333,6 @@ func (s *AsanaService) FilterTasksByColumns(tasks []AsanaTask, selectedColumns [
 
 				if matches {
 					matchFound = true
-					if i < 10 {
-						fmt.Printf("FILTER DEBUG: ✓ Task '%s' matches column '%s'\n", task.Name, selectedColLower)
-					}
 					break
 				}
 			}
@@ -354,7 +343,6 @@ func (s *AsanaService) FilterTasksByColumns(tasks []AsanaTask, selectedColumns [
 		}
 	}
 
-	fmt.Printf("FILTER DEBUG: Filtered %d tasks from %d total for columns: %v\n", len(filtered), len(tasks), selectedColumns)
 	return filtered
 }
 

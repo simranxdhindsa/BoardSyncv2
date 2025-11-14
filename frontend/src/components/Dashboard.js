@@ -59,6 +59,7 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
   // Load columns from user's column mappings
   useEffect(() => {
     loadColumnsFromSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadColumnsFromSettings = async () => {
