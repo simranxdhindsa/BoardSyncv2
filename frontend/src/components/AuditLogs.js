@@ -33,6 +33,7 @@ const AuditLogs = ({ onSuccess, onError }) => {
 
   useEffect(() => {
     loadAuditLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAuditLogs = async () => {

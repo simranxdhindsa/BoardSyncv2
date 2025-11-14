@@ -214,7 +214,17 @@ func registerRoutes(
 	// ENHANCED: Analysis with filtering and sorting
 	legacyAPI.HandleFunc("/analyze/enhanced", legacyHandler.AnalyzeTicketsEnhanced).Methods("GET", "POST", "OPTIONS")
 
-	// Removed: GetChangedMappings - title/description change detection no longer needed
+	// STUB: GetChangedMappings - returns empty array for backwards compatibility
+	legacyAPI.HandleFunc("/changed-mappings", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"data": map[string]interface{}{
+				"changed_mappings": []interface{}{},
+			},
+			"message": "Change detection feature removed - no changes to report",
+		})
+	}).Methods("GET", "OPTIONS")
 
 	// ENHANCED: Get available filter options
 	legacyAPI.HandleFunc("/filter-options", legacyHandler.GetFilterOptions).Methods("GET", "OPTIONS")

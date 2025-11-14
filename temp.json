@@ -1,0 +1,172 @@
+{
+  "data": [
+    {
+      "uuid": "6da12983-01c5-45ca-aa9a-732aac98e329",
+      "name": "Mastering Video Editing: From Basics to Pro Tools",
+      "description": "Learn the art and science of video editing with this complete course designed for aspiring creators, editors, and filmmakers. From cutting clips to mastering color grading, sound design, motion graphics, and storytelling — you’ll gain the skills to edit like a professional using industry-standard tools. Perfect for YouTubers, content creators, and anyone who wants to turn raw footage into cinematic stories.",
+      "objectives": "<p>By the end of <strong>“Mastering Video Editing: From Basics to Pro Tools”</strong>, learners will be able to:</p><ol><li>Understand the fundamentals of video editing, including timeline management, cutting, and sequencing.</li><li>Use industry-standard editing software (such as Adobe Premiere Pro, Final Cut Pro, or DaVinci Resolve) confidently.</li><li>Apply advanced editing techniques including transitions, keyframing, and effects.</li><li>Perform professional color correction and color grading to enhance visual storytelling.</li><li>Edit and mix audio to achieve balanced and immersive sound design.</li><li>Create and integrate motion graphics, titles, and visual effects into projects.</li><li>Develop storytelling and pacing skills to craft engaging video narratives.</li><li>Export and optimize videos for various platforms (YouTube, social media, film, and broadcast).</li></ol>",
+      "prerequisites": "<p>Before enrolling in this course, learners should have:</p><ol><li>Basic computer literacy (navigating files, installing software, managing folders).</li><li>Access to a computer that meets the minimum system requirements for video editing software.</li><li>A passion for storytelling, filmmaking, or content creation.</li><li>(Optional but helpful) Basic understanding of cameras, video formats, or visual composition.</li></ol>",
+      "status": "published",
+      "regular": true,
+      "ai_assistant": true,
+      "ai_instructor": false,
+      "authorize_for_all": true,
+      "ardoise_intelligence": true,
+      "level": "BEGINNER",
+      "teaser": "https://d34vl2bsyy5afv.cloudfront.net/dev/platform/null-bf20792e-0c34-4bb1-b85e-5d0bac43232d",
+      "created_at": "2025-11-04T05:21:18.400757Z",
+      "updated_at": "2025-11-09T17:34:09.957817Z",
+      "main_language": {
+        "uuid": "7662aa67-50f2-43c0-af0d-c67d0b15d918",
+        "key": "EN",
+        "type": "asset-languages-type",
+        "order": 2
+      },
+      "estimated_duration": 12,
+      "associated_bundle_id": "fc8e3692-a2a0-470f-91d9-9f11e45c7728",
+      "languages": [
+        {
+          "uuid": "7662aa67-50f2-43c0-af0d-c67d0b15d918",
+          "key": "EN",
+          "type": "asset-languages-type",
+          "order": 2
+        },
+        {
+          "uuid": "6d68cd84-cefe-4ed9-b752-978171bdc79b",
+          "key": "ES",
+          "type": "asset-languages-type",
+          "order": 3
+        },
+        {
+          "uuid": "1c2cc8f6-84d2-489a-bd79-70e8178a5097",
+          "key": "FR",
+          "type": "asset-languages-type",
+          "order": 1
+        },
+        {
+          "uuid": "f63776e1-06f0-40e8-b86d-aa28c2a67e7a",
+          "key": "JP",
+          "type": "asset-languages-type",
+          "order": 4
+        }
+      ],
+      "skills": [
+        {
+          "uuid": "f87ea972-1b6d-42fd-b20f-b5b469518ae3",
+          "key": "Empathy"
+        },
+        {
+          "uuid": "3582ccbe-58d5-4597-9769-f6cfecdb139a",
+          "key": "File Management"
+        },
+        {
+          "uuid": "fa28a8f4-5c52-488e-ae60-580710d73a22",
+          "key": "Learning"
+        },
+        {
+          "uuid": "8c73d3ed-a313-457f-bd0d-d8231d01caf6",
+          "key": "Listening"
+        },
+        {
+          "uuid": "fc28bbbc-9bbf-4442-ab01-1bbd97c27c20",
+          "key": "Operation"
+        },
+        {
+          "uuid": "34a1d365-e81d-479f-a0ad-9d4dc5e731b5",
+          "key": "Relatability"
+        },
+        {
+          "uuid": "38b2bd47-d2f0-4a57-9c35-90fb7a36e457",
+          "key": "Security"
+        },
+        {
+          "uuid": "73437b75-9042-49ae-8b25-66b7ede2a4d5",
+          "key": "Team management"
+        },
+        {
+          "uuid": "b7402394-4144-41e9-89f5-afc2de0e86b1",
+          "key": "Technical Documentation"
+        },
+        {
+          "uuid": "1b6dde19-9f74-41d1-8d04-79d98a6e10c5",
+          "key": "Troubleshooting"
+        }
+      ],
+      "roles": [
+        {
+          "uuid": "03976a80-fcb9-4fac-881e-d090103fff83",
+          "key": "Customer Care"
+        },
+        {
+          "uuid": "5b735ac6-9aa5-47e8-8efc-cf0164a21a37",
+          "key": "Customer Support"
+        },
+        {
+          "uuid": "71837504-9e18-49b8-b609-7bc42b2dfb8d",
+          "key": "Desktop Support Technician"
+        },
+        {
+          "uuid": "9e810866-0a83-4737-b02c-13f44b17de3f",
+          "key": "Office Manager"
+        },
+        {
+          "uuid": "2a315a5e-f958-4496-9e5d-01daa0dd6432",
+          "key": "Receptionist"
+        },
+        {
+          "uuid": "2777d4bf-f1b4-44ec-bc72-ff7a8dc2d65b",
+          "key": "Sales Person"
+        }
+      ]
+    },
+    {
+      "uuid": "0818230d-df3a-40b7-89b1-a84b746087d1",
+      "name": "Formation Rever II",
+      "description": "This training program focuses on developing the key behaviors and best practices for customer relations and sales at Fnac. Participants will learn how to create a positive customer experience through effective communication, active listening, and personalized service. The course also emphasizes sales techniques, product knowledge, and teamwork to strengthen customer loyalty and improve overall store performance.",
+      "status": "published",
+      "regular": true,
+      "ai_assistant": true,
+      "ai_instructor": false,
+      "authorize_for_all": true,
+      "ardoise_intelligence": true,
+      "level": "BEGINNER",
+      "teaser": "https://d34vl2bsyy5afv.cloudfront.net/dev/platform/null-df28bd51-4ded-4380-8966-f34b713dbc2f",
+      "created_at": "2025-10-31T10:17:04.360444Z",
+      "updated_at": "2025-11-08T05:19:58.326223Z",
+      "main_language": {
+        "uuid": "7662aa67-50f2-43c0-af0d-c67d0b15d918",
+        "key": "EN",
+        "type": "asset-languages-type",
+        "order": 2
+      },
+      "estimated_duration": 12,
+      "associated_bundle_id": "fc8e3692-a2a0-470f-91d9-9f11e45c7728",
+      "languages": [
+        {
+          "uuid": "7662aa67-50f2-43c0-af0d-c67d0b15d918",
+          "key": "EN",
+          "type": "asset-languages-type",
+          "order": 2
+        },
+        {
+          "uuid": "6d68cd84-cefe-4ed9-b752-978171bdc79b",
+          "key": "ES",
+          "type": "asset-languages-type",
+          "order": 3
+        },
+        {
+          "uuid": "1c2cc8f6-84d2-489a-bd79-70e8178a5097",
+          "key": "FR",
+          "type": "asset-languages-type",
+          "order": 1
+        },
+        {
+          "uuid": "f63776e1-06f0-40e8-b86d-aa28c2a67e7a",
+          "key": "JP",
+          "type": "asset-languages-type",
+          "order": 4
+        }
+      ],
+      "skills": [],
+      "roles": []
+    },

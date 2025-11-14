@@ -233,9 +233,6 @@ func (h *Handler) GetTicketsByType(w http.ResponseWriter, r *http.Request) {
 		count = 0
 	}
 
-	fmt.Printf("TICKETS: Returning %d tickets of type '%s' for user %d\n",
-		count, ticketType, user.UserID)
-
 	response := map[string]interface{}{
 		"type":    ticketType,
 		"column":  column,

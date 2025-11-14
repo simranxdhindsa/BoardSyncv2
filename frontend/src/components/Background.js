@@ -15,7 +15,6 @@ const LuxuryBackground = ({
   const lastViewRef = useRef('');
   const lastColumnRef = useRef('');
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [mouseZoom, setMouseZoom] = useState({ x: 0, y: 0, active: false });
   const animationTimeRef = useRef(0);
 
   // Enhanced configuration with mouse clustering
@@ -538,18 +537,7 @@ const LuxuryBackground = ({
       .sort((a, b) => calculateDistance(a, mouse) - calculateDistance(b, mouse))
       .slice(0, config.maxConnections);
 
-    if (nearestDots.length > 0) {
-      const closestDistance = calculateDistance(nearestDots[0], mouse);
-      const zoomStrength = Math.max(0, 1 - (closestDistance / config.cursorConnectionDistance));
-      setMouseZoom({ 
-        x: mouse.x, 
-        y: mouse.y, 
-        active: true,
-        strength: zoomStrength
-      });
-    } else {
-      setMouseZoom(prev => ({ ...prev, active: false, strength: 0 }));
-    }
+    // Mouse zoom effect removed for performance
 
     nearestDots.forEach(dot => {
       const cursorPoint = { x: mouse.x, y: mouse.y };
@@ -683,11 +671,13 @@ const LuxuryBackground = ({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('resize', handleResize);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle navigation changes
   useEffect(() => {
     handleNavigationChange();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentView, selectedColumn]);
 
   return (
