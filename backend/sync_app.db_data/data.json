@@ -73,7 +73,7 @@
         "youtrack_to_asana": []
       },
       "created_at": "2025-10-03T22:28:50.0268461+05:30",
-      "updated_at": "2025-11-13T20:48:40.7395878+05:30"
+      "updated_at": "2025-11-17T00:19:53.3778875+05:30"
     },
     "2": {
       "id": 2,
@@ -208,6 +208,36 @@
       "status": "completed",
       "created_at": "2025-10-31T12:41:09.0403369+05:30",
       "completed_at": "2025-10-31T12:41:17.5906842+05:30"
+    },
+    "6": {
+      "id": 6,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "all columns",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2025-11-14T13:15:00.001426+05:30",
+      "completed_at": "2025-11-14T13:15:05.1916313+05:30"
+    },
+    "7": {
+      "id": 7,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "all columns",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2025-11-14T20:58:15.1705848+05:30",
+      "completed_at": "2025-11-14T20:58:19.9182734+05:30"
     }
   },
   "ignored_tickets": {
@@ -2011,6 +2041,126 @@
       "created_at": "2025-11-13T22:00:11.9294836+05:30",
       "updated_at": "2025-11-13T22:00:11.9294836+05:30"
     },
+    "198": {
+      "id": 198,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211932203042047",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1524",
+      "created_at": "2025-11-14T13:15:33.5694481+05:30",
+      "updated_at": "2025-11-14T13:15:33.5694481+05:30"
+    },
+    "199": {
+      "id": 199,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210737584712843",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-132",
+      "created_at": "2025-11-14T13:43:19.6988608+05:30",
+      "updated_at": "2025-11-14T13:43:19.6988608+05:30"
+    },
+    "200": {
+      "id": 200,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211944100848536",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1527",
+      "created_at": "2025-11-14T17:25:09.0900834+05:30",
+      "updated_at": "2025-11-14T17:25:09.0900834+05:30"
+    },
+    "201": {
+      "id": 201,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211944100848539",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1528",
+      "created_at": "2025-11-14T17:25:12.9587442+05:30",
+      "updated_at": "2025-11-14T17:25:12.9587442+05:30"
+    },
+    "202": {
+      "id": 202,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1208329094811853",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-15",
+      "created_at": "2025-11-14T17:29:50.7608112+05:30",
+      "updated_at": "2025-11-14T17:29:50.7608112+05:30"
+    },
+    "203": {
+      "id": 203,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1208329096184650",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-17",
+      "created_at": "2025-11-14T17:30:40.7713563+05:30",
+      "updated_at": "2025-11-14T17:30:40.7713563+05:30"
+    },
+    "204": {
+      "id": 204,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210448622371596",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-7",
+      "created_at": "2025-11-14T17:33:35.3245416+05:30",
+      "updated_at": "2025-11-14T17:33:35.3245416+05:30"
+    },
+    "205": {
+      "id": 205,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210737584712811",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-126",
+      "created_at": "2025-11-14T17:42:52.2319472+05:30",
+      "updated_at": "2025-11-14T17:42:52.2319472+05:30"
+    },
+    "206": {
+      "id": 206,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211946910902260",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1529",
+      "created_at": "2025-11-14T17:51:32.9555991+05:30",
+      "updated_at": "2025-11-14T17:51:32.9555991+05:30"
+    },
+    "207": {
+      "id": 207,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211947323457665",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1532",
+      "created_at": "2025-11-14T20:57:49.3486424+05:30",
+      "updated_at": "2025-11-14T20:57:49.3486424+05:30"
+    },
+    "208": {
+      "id": 208,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210749350174706",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-134",
+      "created_at": "2025-11-17T00:20:12.4003004+05:30",
+      "updated_at": "2025-11-17T00:20:12.4003004+05:30"
+    },
+    "209": {
+      "id": 209,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210737584712819",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-128",
+      "created_at": "2025-11-17T00:20:49.6378081+05:30",
+      "updated_at": "2025-11-17T00:20:49.6378081+05:30"
+    },
     "21": {
       "id": 21,
       "user_id": 1,
@@ -2020,6 +2170,36 @@
       "youtrack_issue_id": "3-1243",
       "created_at": "2025-10-13T23:21:52.5851814+05:30",
       "updated_at": "2025-10-13T23:21:52.5851814+05:30"
+    },
+    "210": {
+      "id": 210,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210671121745208",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-33",
+      "created_at": "2025-11-17T00:21:15.7817422+05:30",
+      "updated_at": "2025-11-17T00:21:15.7817422+05:30"
+    },
+    "211": {
+      "id": 211,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210579546416952",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-29",
+      "created_at": "2025-11-17T00:21:45.2869692+05:30",
+      "updated_at": "2025-11-17T00:21:45.2869692+05:30"
+    },
+    "212": {
+      "id": 212,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1208329096184646",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "ARD-65",
+      "created_at": "2025-11-17T00:22:18.7669202+05:30",
+      "updated_at": "2025-11-17T00:22:18.7669202+05:30"
     },
     "22": {
       "id": 22,
@@ -2873,6 +3053,102 @@
       },
       "created_at": "2025-10-31T12:41:09.0442847+05:30",
       "expires_at": "2025-11-01T12:41:09.0442847+05:30"
+    },
+    "2": {
+      "id": 2,
+      "operation_id": 6,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
+            },
+            {
+              "asana_column": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
+            },
+            {
+              "asana_column": "DEV",
+              "display_only": false,
+              "reverse_sync_priority": true,
+              "youtrack_status": "Dev"
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Dev"
+            },
+            {
+              "asana_column": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Stage"
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2025-11-14T13:15:00.0114894+05:30",
+      "expires_at": "2025-11-15T13:15:00.0114894+05:30"
+    },
+    "3": {
+      "id": 3,
+      "operation_id": 7,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
+            },
+            {
+              "asana_column": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
+            },
+            {
+              "asana_column": "DEV",
+              "display_only": false,
+              "reverse_sync_priority": true,
+              "youtrack_status": "Dev"
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Dev"
+            },
+            {
+              "asana_column": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Stage"
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2025-11-14T20:58:15.1745143+05:30",
+      "expires_at": "2025-11-15T20:58:15.1745143+05:30"
     }
   },
   "audit_logs": {
@@ -2892,10 +3168,10 @@
   "reverse_auto_create_settings": {},
   "next_user_id": 3,
   "next_settings_id": 3,
-  "next_operation_id": 6,
+  "next_operation_id": 8,
   "next_ignored_id": 92,
-  "next_mapping_id": 198,
-  "next_snapshot_id": 2,
+  "next_mapping_id": 213,
+  "next_snapshot_id": 4,
   "next_audit_log_id": 1,
   "next_reverse_ignored_id": 0,
   "next_reverse_auto_create_id": 0

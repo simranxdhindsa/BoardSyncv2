@@ -191,10 +191,16 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 
 		// Handle "Ready for Stage" - sync with DEV status in YouTrack
 		if strings.Contains(sectionName, "ready for stage") {
+			// PRIORITY FIX: Check database mapping first
+			_, hasDBMapping := mappingAsanaToYT[task.GID]
 			existingIssue, existsInYouTrack := youTrackMap[task.GID]
 
 			if existsInYouTrack {
 				s.processReadyForStageTicket(userID, task, existingIssue, asanaTags, analysis)
+			} else if hasDBMapping {
+				// Has DB mapping but YouTrack issue not found in current fetch - treat as matched
+				fmt.Printf("ANALYSIS: Task '%s' (GID: %s) has DB mapping but YouTrack issue not in current results - treating as matched\n", task.Name, task.GID)
+				// Don't add to MissingYouTrack since mapping exists
 			} else {
 				analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
 			}
@@ -203,11 +209,16 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 			continue
 		}
 
-		// Check if this task has a corresponding YouTrack issue
+		// PRIORITY FIX: Check database mapping FIRST before checking YouTrack map
+		_, hasDBMapping := mappingAsanaToYT[task.GID]
 		existingIssue, existsInYouTrack := youTrackMap[task.GID]
 
 		if existsInYouTrack {
 			s.processExistingTicket(userID, task, existingIssue, asanaTags, sectionName, analysis)
+		} else if hasDBMapping {
+			// Has DB mapping but YouTrack issue not found in current fetch - treat as matched
+			fmt.Printf("ANALYSIS: Task '%s' (GID: %s) has DB mapping but YouTrack issue not in current results - treating as matched\n", task.Name, task.GID)
+			// Don't add to MissingYouTrack since mapping exists in database
 		} else {
 			if s.isSyncableSection(sectionName) {
 				fmt.Printf("ANALYSIS: Task '%s' (GID: %s) missing in YouTrack\n", task.Name, task.GID)
