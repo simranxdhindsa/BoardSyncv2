@@ -43,6 +43,9 @@ const TicketDetailView = ({
   // Create all loading state
   const [createAllLoading, setCreateAllLoading] = useState(false);
 
+  // Sync all loading state
+  const [syncAllLoading, setSyncAllLoading] = useState(false);
+
   // Copy state
   const [copiedId, setCopiedId] = useState(null);
 
@@ -70,6 +73,10 @@ const TicketDetailView = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedTicketForHistory, setSelectedTicketForHistory] = useState(null);
 
+  // Debounce timer ref for sync operations
+  const syncTimerRef = useRef(null);
+  const syncQueueRef = useRef(new Set());
+
   // Load column mappings on mount
   useEffect(() => {
     const loadColumnMappings = async () => {
@@ -92,6 +99,15 @@ const TicketDetailView = ({
     };
     loadColumnMappings();
   }, [column]);
+
+  // Cleanup sync timer on unmount
+  useEffect(() => {
+    return () => {
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+      }
+    };
+  }, []);
 
   const getTypeInfo = useCallback(() => {
     const typeConfig = {
@@ -241,6 +257,27 @@ const TicketDetailView = ({
                 )}
               </button>
             )}
+
+            {!isDisplayOnlyColumn && type === 'mismatched' && tickets.length > 0 && onSync && (
+              <button
+                onClick={handleSyncAll}
+                disabled={syncAllLoading}
+                className="flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+              >
+                {syncAllLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Syncing All...
+                  </>
+                ) : (
+                  <>
+                    <RotateCw className="w-4 h-4 mr-2" />
+                    Sync All ({tickets.length})
+                  </>
+                )}
+              </button>
+            )}
+
             {type !== 'ignored' && tickets.length > 0 && (
               <button
                 onClick={handleEnterDeleteMode}
@@ -280,7 +317,7 @@ const TicketDetailView = ({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, column, deleteMode, selectedTickets, tickets.length, loading, createAllLoading, changedMappings, sortConfig, getTypeInfo, showSyncHistory]);
+  }, [type, column, deleteMode, selectedTickets, tickets.length, loading, createAllLoading, syncAllLoading, changedMappings, sortConfig, getTypeInfo, showSyncHistory]);
 
   useEffect(() => {
     if (!deleteMode) {
@@ -518,26 +555,79 @@ const TicketDetailView = ({
     }
   };
 
-  // SYNC TICKET
-  const handleSyncTicket = async (ticketId) => {
+  // SYNC TICKET WITH DEBOUNCE
+  // This prevents multiple sync operations within 4 seconds
+  const handleSyncTicket = (ticketId) => {
+    // Add to queue
+    syncQueueRef.current.add(ticketId);
+
+    // Show loading immediately for user feedback
     setActionLoading(prev => ({ ...prev, [`sync_${ticketId}`]: true }));
-    try {
-      await onSync(ticketId);
 
-      removeTicketFromView(ticketId);
+    // Clear existing timer
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
+    }
 
-      if (onTicketMoved) {
-        onTicketMoved(ticketId, 'mismatched');
+    // Set new timer for 4 seconds
+    syncTimerRef.current = setTimeout(async () => {
+      const ticketsToSync = Array.from(syncQueueRef.current);
+      syncQueueRef.current.clear();
+
+      // Process all queued syncs
+      for (const id of ticketsToSync) {
+        try {
+          await onSync(id);
+
+          removeTicketFromView(id);
+
+          if (onTicketMoved) {
+            onTicketMoved(id, 'mismatched');
+          }
+        } catch (err) {
+          console.error('Failed to sync ticket:', err);
+          alert('Failed to sync ticket: ' + err.message);
+        } finally {
+          setActionLoading(prev => ({ ...prev, [`sync_${id}`]: false }));
+        }
       }
+
+      // Trigger silent refresh once after all syncs
+      if (onSilentRefresh && ticketsToSync.length > 0) {
+        onSilentRefresh();
+      }
+
+      syncTimerRef.current = null;
+    }, 4000); // 4 seconds debounce delay
+  };
+
+  // SYNC ALL - Sync all mismatched tickets
+  const handleSyncAll = async () => {
+    if (!onSync || tickets.length === 0 || type !== 'mismatched') return;
+
+    setSyncAllLoading(true);
+    try {
+      const ticketsCopy = [...tickets];
+
+      // Sync all tickets in parallel
+      const syncPromises = ticketsCopy.map(ticket => {
+        const ticketId = ticket.asana_task?.gid || ticket.gid;
+        return onSync(ticketId);
+      });
+
+      await Promise.all(syncPromises);
+
+      // Clear all tickets from view
+      setTickets([]);
 
       if (onSilentRefresh) {
         onSilentRefresh();
       }
     } catch (err) {
-      console.error('Failed to sync ticket:', err);
-      alert('Failed to sync ticket: ' + err.message);
+      console.error('Failed to sync all tickets:', err);
+      alert('Failed to sync all tickets: ' + err.message);
     } finally {
-      setActionLoading(prev => ({ ...prev, [`sync_${ticketId}`]: false }));
+      setSyncAllLoading(false);
     }
   };
 

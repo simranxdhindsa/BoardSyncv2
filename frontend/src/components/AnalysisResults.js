@@ -43,6 +43,10 @@ const AnalysisResults = ({
   // Store the latest selectedColumn in a ref to avoid recreating the callback
   const selectedColumnRef = useRef(selectedColumn);
 
+  // Debounce timer ref for sync operations
+  const syncTimerRef = useRef(null);
+  const syncQueueRef = useRef(new Set());
+
   // Update the ref when selectedColumn changes
   useEffect(() => {
     selectedColumnRef.current = selectedColumn;
@@ -89,7 +93,7 @@ const AnalysisResults = ({
       setNavBarSlots(
         null, // left slot
         <button
-          onClick={() => setShowSyncHistory(!showSyncHistory)}
+          onClick={() => setShowSyncHistory(prev => !prev)}
           className="flex items-center justify-center h-10 w-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg shadow-sm text-white hover:shadow-md transition-shadow"
           title="Sync History"
         >
@@ -102,7 +106,7 @@ const AnalysisResults = ({
         setNavBarSlots(null, null);
       }
     };
-  }, [setNavBarSlots, showSyncHistory, detailView]);
+  }, [setNavBarSlots, detailView]);
 
   // Data extraction
   let analysis = null;
@@ -227,11 +231,14 @@ const AnalysisResults = ({
     }, 4000); // 4 seconds debounce delay
   }, []); // No dependencies - function never recreated!
 
-  // Cleanup timer on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (refreshTimerRef.current) {
         clearTimeout(refreshTimerRef.current);
+      }
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
       }
     };
   }, []);
@@ -305,35 +312,57 @@ const AnalysisResults = ({
     );
   }
 
-  // SYNC HANDLER - Wait for API success before moving
-  const handleSyncTicket = async (ticketId) => {
+  // SYNC HANDLER WITH DEBOUNCE - Prevents multiple sync operations within 4 seconds
+  const handleSyncTicket = (ticketId) => {
+    // Add to queue
+    syncQueueRef.current.add(ticketId);
+
+    // Show loading immediately for user feedback
     setSyncing(prev => ({ ...prev, [ticketId]: true }));
-    
-    try {
-      // Wait for actual sync to complete
-      await onSync(ticketId);
-      
-      // Only move ticket after successful sync
-      moveTicketToMatched(ticketId, 'mismatched');
-      
-      // Show success feedback
-      setSyncedTickets(prev => new Set([...prev, ticketId]));
-      setTimeout(() => {
-        setSyncedTickets(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(ticketId);
-          return newSet;
-        });
-      }, 2000);
-      
-      // Silent refresh in background
-      silentRefreshAnalysis();
-    } catch (error) {
-      console.error('Sync failed:', error);
-      alert('Sync failed: ' + error.message);
-    } finally {
-      setSyncing(prev => ({ ...prev, [ticketId]: false }));
+
+    // Clear existing timer
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current);
     }
+
+    // Set new timer for 4 seconds
+    syncTimerRef.current = setTimeout(async () => {
+      const ticketsToSync = Array.from(syncQueueRef.current);
+      syncQueueRef.current.clear();
+
+      // Process all queued syncs
+      for (const id of ticketsToSync) {
+        try {
+          // Wait for actual sync to complete
+          await onSync(id);
+
+          // Only move ticket after successful sync
+          moveTicketToMatched(id, 'mismatched');
+
+          // Show success feedback
+          setSyncedTickets(prev => new Set([...prev, id]));
+          setTimeout(() => {
+            setSyncedTickets(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(id);
+              return newSet;
+            });
+          }, 2000);
+        } catch (error) {
+          console.error('Sync failed:', error);
+          alert('Sync failed: ' + error.message);
+        } finally {
+          setSyncing(prev => ({ ...prev, [id]: false }));
+        }
+      }
+
+      // Silent refresh in background once after all syncs
+      if (ticketsToSync.length > 0) {
+        silentRefreshAnalysis();
+      }
+
+      syncTimerRef.current = null;
+    }, 4000); // 4 seconds debounce delay
   };
 
   // SYNC ALL HANDLER - Wait for all API calls

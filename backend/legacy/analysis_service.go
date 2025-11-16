@@ -195,6 +195,22 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 			_, hasDBMapping := mappingAsanaToYT[task.GID]
 			existingIssue, existsInYouTrack := youTrackMap[task.GID]
 
+			// If not found via DB mapping or description, try title matching
+			if !existsInYouTrack && !hasDBMapping {
+				// Try to find matching YouTrack issue by title
+				for _, issue := range youTrackIssues {
+					if !usedYouTrackIssues[issue.ID] && titlesMatch(task.Name, issue.Summary) {
+						youTrackMap[task.GID] = issue
+						usedYouTrackIssues[issue.ID] = true
+						existingIssue = issue
+						existsInYouTrack = true
+						fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Ready for Stage task '%s' via TITLE matching ('%s' ≈ '%s')\n",
+							issue.ID, task.GID, issue.Summary, task.Name)
+						break
+					}
+				}
+			}
+
 			if existsInYouTrack {
 				s.processReadyForStageTicket(userID, task, existingIssue, asanaTags, analysis)
 			} else if hasDBMapping {
