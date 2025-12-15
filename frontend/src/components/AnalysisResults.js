@@ -43,9 +43,6 @@ const AnalysisResults = ({
   // Store the latest selectedColumn in a ref to avoid recreating the callback
   const selectedColumnRef = useRef(selectedColumn);
 
-  // Debounce timer ref for sync operations
-  const syncTimerRef = useRef(null);
-  const syncQueueRef = useRef(new Set());
 
   // Update the ref when selectedColumn changes
   useEffect(() => {
@@ -102,11 +99,11 @@ const AnalysisResults = ({
       );
     }
     return () => {
-      if (setNavBarSlots && !detailView) {
+      if (setNavBarSlots) {
         setNavBarSlots(null, null);
       }
     };
-  }, [setNavBarSlots, detailView]);
+  }, [detailView, showSyncHistory]);
 
   // Data extraction
   let analysis = null;
@@ -237,9 +234,6 @@ const AnalysisResults = ({
       if (refreshTimerRef.current) {
         clearTimeout(refreshTimerRef.current);
       }
-      if (syncTimerRef.current) {
-        clearTimeout(syncTimerRef.current);
-      }
     };
   }, []);
 
@@ -312,57 +306,35 @@ const AnalysisResults = ({
     );
   }
 
-  // SYNC HANDLER WITH DEBOUNCE - Prevents multiple sync operations within 4 seconds
-  const handleSyncTicket = (ticketId) => {
-    // Add to queue
-    syncQueueRef.current.add(ticketId);
-
-    // Show loading immediately for user feedback
+  // SYNC HANDLER - Execute immediately, but debounce analysis refresh
+  const handleSyncTicket = async (ticketId) => {
     setSyncing(prev => ({ ...prev, [ticketId]: true }));
 
-    // Clear existing timer
-    if (syncTimerRef.current) {
-      clearTimeout(syncTimerRef.current);
+    try {
+      // Wait for actual sync to complete
+      await onSync(ticketId);
+
+      // Only move ticket after successful sync
+      moveTicketToMatched(ticketId, 'mismatched');
+
+      // Show success feedback
+      setSyncedTickets(prev => new Set([...prev, ticketId]));
+      setTimeout(() => {
+        setSyncedTickets(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(ticketId);
+          return newSet;
+        });
+      }, 2000);
+
+      // Silent refresh in background (debounced - waits 4 seconds)
+      silentRefreshAnalysis();
+    } catch (error) {
+      console.error('Sync failed:', error);
+      alert('Sync failed: ' + error.message);
+    } finally {
+      setSyncing(prev => ({ ...prev, [ticketId]: false }));
     }
-
-    // Set new timer for 4 seconds
-    syncTimerRef.current = setTimeout(async () => {
-      const ticketsToSync = Array.from(syncQueueRef.current);
-      syncQueueRef.current.clear();
-
-      // Process all queued syncs
-      for (const id of ticketsToSync) {
-        try {
-          // Wait for actual sync to complete
-          await onSync(id);
-
-          // Only move ticket after successful sync
-          moveTicketToMatched(id, 'mismatched');
-
-          // Show success feedback
-          setSyncedTickets(prev => new Set([...prev, id]));
-          setTimeout(() => {
-            setSyncedTickets(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(id);
-              return newSet;
-            });
-          }, 2000);
-        } catch (error) {
-          console.error('Sync failed:', error);
-          alert('Sync failed: ' + error.message);
-        } finally {
-          setSyncing(prev => ({ ...prev, [id]: false }));
-        }
-      }
-
-      // Silent refresh in background once after all syncs
-      if (ticketsToSync.length > 0) {
-        silentRefreshAnalysis();
-      }
-
-      syncTimerRef.current = null;
-    }, 4000); // 4 seconds debounce delay
   };
 
   // SYNC ALL HANDLER - Wait for all API calls

@@ -73,9 +73,8 @@ const TicketDetailView = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedTicketForHistory, setSelectedTicketForHistory] = useState(null);
 
-  // Debounce timer ref for sync operations
-  const syncTimerRef = useRef(null);
-  const syncQueueRef = useRef(new Set());
+  // Debounce timer ref for analysis refresh only
+  const analysisRefreshTimerRef = useRef(null);
 
   // Load column mappings on mount
   useEffect(() => {
@@ -100,14 +99,30 @@ const TicketDetailView = ({
     loadColumnMappings();
   }, [column]);
 
-  // Cleanup sync timer on unmount
+  // Cleanup analysis refresh timer on unmount
   useEffect(() => {
     return () => {
-      if (syncTimerRef.current) {
-        clearTimeout(syncTimerRef.current);
+      if (analysisRefreshTimerRef.current) {
+        clearTimeout(analysisRefreshTimerRef.current);
       }
     };
   }, []);
+
+  // Debounced analysis refresh - only refresh once after 4 seconds
+  const debouncedAnalysisRefresh = () => {
+    if (!onSilentRefresh) return;
+
+    // Clear existing timer
+    if (analysisRefreshTimerRef.current) {
+      clearTimeout(analysisRefreshTimerRef.current);
+    }
+
+    // Set new timer for 4 seconds
+    analysisRefreshTimerRef.current = setTimeout(() => {
+      onSilentRefresh();
+      analysisRefreshTimerRef.current = null;
+    }, 4000);
+  };
 
   const getTypeInfo = useCallback(() => {
     const typeConfig = {
@@ -502,9 +517,8 @@ const TicketDetailView = ({
         }
       });
 
-      if (onSilentRefresh) {
-        onSilentRefresh();
-      }
+      // Debounced analysis refresh
+      debouncedAnalysisRefresh();
     } catch (err) {
       console.error('Failed to create all tickets:', err);
       alert('Failed to create all tickets: ' + err.message);
@@ -555,50 +569,26 @@ const TicketDetailView = ({
     }
   };
 
-  // SYNC TICKET WITH DEBOUNCE
-  // This prevents multiple sync operations within 4 seconds
-  const handleSyncTicket = (ticketId) => {
-    // Add to queue
-    syncQueueRef.current.add(ticketId);
-
-    // Show loading immediately for user feedback
+  // SYNC TICKET - Execute immediately, but debounce analysis refresh
+  const handleSyncTicket = async (ticketId) => {
     setActionLoading(prev => ({ ...prev, [`sync_${ticketId}`]: true }));
+    try {
+      await onSync(ticketId);
 
-    // Clear existing timer
-    if (syncTimerRef.current) {
-      clearTimeout(syncTimerRef.current);
+      removeTicketFromView(ticketId);
+
+      if (onTicketMoved) {
+        onTicketMoved(ticketId, 'mismatched');
+      }
+
+      // Debounced analysis refresh - only refresh once after 4 seconds
+      debouncedAnalysisRefresh();
+    } catch (err) {
+      console.error('Failed to sync ticket:', err);
+      alert('Failed to sync ticket: ' + err.message);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`sync_${ticketId}`]: false }));
     }
-
-    // Set new timer for 4 seconds
-    syncTimerRef.current = setTimeout(async () => {
-      const ticketsToSync = Array.from(syncQueueRef.current);
-      syncQueueRef.current.clear();
-
-      // Process all queued syncs
-      for (const id of ticketsToSync) {
-        try {
-          await onSync(id);
-
-          removeTicketFromView(id);
-
-          if (onTicketMoved) {
-            onTicketMoved(id, 'mismatched');
-          }
-        } catch (err) {
-          console.error('Failed to sync ticket:', err);
-          alert('Failed to sync ticket: ' + err.message);
-        } finally {
-          setActionLoading(prev => ({ ...prev, [`sync_${id}`]: false }));
-        }
-      }
-
-      // Trigger silent refresh once after all syncs
-      if (onSilentRefresh && ticketsToSync.length > 0) {
-        onSilentRefresh();
-      }
-
-      syncTimerRef.current = null;
-    }, 4000); // 4 seconds debounce delay
   };
 
   // SYNC ALL - Sync all mismatched tickets
@@ -620,9 +610,8 @@ const TicketDetailView = ({
       // Clear all tickets from view
       setTickets([]);
 
-      if (onSilentRefresh) {
-        onSilentRefresh();
-      }
+      // Debounced analysis refresh
+      debouncedAnalysisRefresh();
     } catch (err) {
       console.error('Failed to sync all tickets:', err);
       alert('Failed to sync all tickets: ' + err.message);
@@ -631,7 +620,7 @@ const TicketDetailView = ({
     }
   };
 
-  // CREATE TICKET
+  // CREATE TICKET - Execute immediately, but debounce analysis refresh
   const handleCreateTicket = async (taskId) => {
     setActionLoading(prev => ({ ...prev, [`create_${taskId}`]: true }));
     try {
@@ -643,9 +632,8 @@ const TicketDetailView = ({
         onTicketMoved(taskId, 'missing');
       }
 
-      if (onSilentRefresh) {
-        onSilentRefresh();
-      }
+      // Debounced analysis refresh
+      debouncedAnalysisRefresh();
     } catch (err) {
       console.error('Failed to create ticket:', err);
       alert('Failed to create ticket: ' + err.message);
