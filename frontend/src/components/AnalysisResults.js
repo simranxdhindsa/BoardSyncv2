@@ -447,7 +447,11 @@ const AnalysisResults = ({
       if (mapping.display_only) {
         const columnKey = mapping.asana_column.toLowerCase().replace(/\s+/g, '_');
         const tickets = [];
+        
+        //new code 
 
+
+        //new code 
         // Check backend's special fields first (findings_tickets, ready_for_stage, blocked_tickets)
         if (safeAnalysis[columnKey] && Array.isArray(safeAnalysis[columnKey])) {
           tickets.push(...safeAnalysis[columnKey]);
