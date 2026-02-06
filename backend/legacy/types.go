@@ -56,6 +56,15 @@ type AsanaResponse struct {
 	Data []AsanaTask `json:"data"`
 }
 
+// AsanaResponseWithPagination includes pagination info for handling large result sets
+type AsanaResponseWithPagination struct {
+	Data     []AsanaTask `json:"data"`
+	NextPage *struct {
+		Offset string `json:"offset"`
+		URI    string `json:"uri"`
+	} `json:"next_page"`
+}
+
 // YouTrack data structures
 type YouTrackIssue struct {
 	ID           string                 `json:"id"`

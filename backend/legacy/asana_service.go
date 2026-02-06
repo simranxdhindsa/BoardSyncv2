@@ -9,11 +9,24 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/database"
 )
+
+// TaskCache holds cached Asana tasks with expiration
+type TaskCache struct {
+	tasks     []AsanaTask
+	fetchedAt time.Time
+	mutex     sync.RWMutex
+}
+
+// Global cache for Asana tasks per user (userID -> cache)
+var asanaTaskCache = make(map[int]*TaskCache)
+var cacheMutex sync.RWMutex
+var cacheTTL = 2 * time.Minute // Cache expires after 2 minutes
 
 // AsanaService handles Asana API operations with user-specific settings
 type AsanaService struct {
@@ -27,8 +40,55 @@ func NewAsanaService(configService *configpkg.Service) *AsanaService {
 	}
 }
 
+// InvalidateCache clears the cache for a specific user
+func (s *AsanaService) InvalidateCache(userID int) {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+	delete(asanaTaskCache, userID)
+	fmt.Printf("CACHE: Invalidated cache for user %d\n", userID)
+}
+
+// getCachedTasks returns cached tasks if valid, or nil if cache is expired/missing
+func (s *AsanaService) getCachedTasks(userID int) []AsanaTask {
+	cacheMutex.RLock()
+	cache, exists := asanaTaskCache[userID]
+	cacheMutex.RUnlock()
+
+	if !exists {
+		return nil
+	}
+
+	cache.mutex.RLock()
+	defer cache.mutex.RUnlock()
+
+	if time.Since(cache.fetchedAt) > cacheTTL {
+		return nil
+	}
+
+	fmt.Printf("CACHE: Returning %d cached tasks for user %d (age: %v)\n", len(cache.tasks), userID, time.Since(cache.fetchedAt))
+	return cache.tasks
+}
+
+// setCachedTasks stores tasks in cache
+func (s *AsanaService) setCachedTasks(userID int, tasks []AsanaTask) {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+
+	asanaTaskCache[userID] = &TaskCache{
+		tasks:     tasks,
+		fetchedAt: time.Now(),
+	}
+	fmt.Printf("CACHE: Stored %d tasks for user %d\n", len(tasks), userID)
+}
+
 // GetTasks retrieves tasks from Asana using user settings with enhanced fields
+// Implements pagination to handle large result sets and caching
 func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
+	// Check cache first
+	if cachedTasks := s.getCachedTasks(userID); cachedTasks != nil {
+		return cachedTasks, nil
+	}
+
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
@@ -38,36 +98,75 @@ func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
 		return nil, fmt.Errorf("asana credentials not configured")
 	}
 
-	// Enhanced fields including assignee, created_at, custom fields, html_notes, and attachments
-	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,html_notes,completed_at,created_at,modified_at,assignee.name,assignee.gid,memberships.section.gid,memberships.section.name,tags.gid,tags.name,custom_fields.name,custom_fields.display_value,custom_fields.text_value,custom_fields.number_value,custom_fields.enum_value.name,attachments.gid,attachments.name,attachments.download_url,attachments.view_url,attachments.resource_type,attachments.host,attachments.size",
+	var allTasks []AsanaTask
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	// Base URL with enhanced fields and pagination limit
+	baseURL := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,html_notes,completed_at,created_at,modified_at,assignee.name,assignee.gid,memberships.section.gid,memberships.section.name,tags.gid,tags.name,custom_fields.name,custom_fields.display_value,custom_fields.text_value,custom_fields.number_value,custom_fields.enum_value.name,attachments.gid,attachments.name,attachments.download_url,attachments.view_url,attachments.resource_type,attachments.host,attachments.size&limit=100",
 		settings.AsanaProjectID)
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+	nextPageURL := baseURL
+	pageCount := 0
+	maxPages := 50 // Safety limit to prevent infinite loops
+
+	for nextPageURL != "" && pageCount < maxPages {
+		pageCount++
+		fmt.Printf("PAGINATION: Fetching page %d for user %d\n", pageCount, userID)
+
+		req, err := http.NewRequest("GET", nextPageURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("API request failed: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return nil, fmt.Errorf("asana API error: %d - %s", resp.StatusCode, string(body))
+		}
+
+		var asanaResp AsanaResponseWithPagination
+		if err := json.NewDecoder(resp.Body).Decode(&asanaResp); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+		resp.Body.Close()
+
+		fmt.Printf("PAGINATION: Page %d returned %d tasks\n", pageCount, len(asanaResp.Data))
+		allTasks = append(allTasks, asanaResp.Data...)
+
+		// Check for next page
+		if asanaResp.NextPage != nil && asanaResp.NextPage.URI != "" {
+			// Asana returns relative URIs, need to make them absolute
+			if strings.HasPrefix(asanaResp.NextPage.URI, "/") {
+				nextPageURL = "https://app.asana.com" + asanaResp.NextPage.URI
+			} else {
+				nextPageURL = asanaResp.NextPage.URI
+			}
+			fmt.Printf("PAGINATION: Next page URL: %s\n", nextPageURL)
+		} else {
+			fmt.Printf("PAGINATION: No more pages\n")
+			nextPageURL = ""
+		}
 	}
 
-	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
-	req.Header.Set("Accept", "application/json")
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("API request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("asana API error: %d - %s", resp.StatusCode, string(body))
+	if pageCount >= maxPages {
+		fmt.Printf("WARNING: Hit max page limit (%d) for user %d, may have more tasks\n", maxPages, userID)
 	}
 
-	var asanaResp AsanaResponse
-	if err := json.NewDecoder(resp.Body).Decode(&asanaResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
+	fmt.Printf("Retrieved %d total Asana tasks for user %d (across %d pages)\n", len(allTasks), userID, pageCount)
 
-	return asanaResp.Data, nil
+	// Store in cache for future requests
+	s.setCachedTasks(userID, allTasks)
+
+	return allTasks, nil
 }
 
 // GetPriority extracts priority from custom fields based on user mapping
@@ -711,44 +810,66 @@ func (s *AsanaService) UploadAttachment(userID int, taskID, filename string, fil
 	return nil
 }
 
-// GetAllTasks fetches all tasks from an Asana project
+// GetAllTasks fetches all tasks from an Asana project with pagination support
 func (s *AsanaService) GetAllTasks(userID int, projectID string) ([]AsanaTask, error) {
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
 	}
 
-	url := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes", projectID)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
-	req.Header.Set("Accept", "application/json")
-
+	var allTasks []AsanaTask
 	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("asana API error: %d - %s", resp.StatusCode, string(body))
+	baseURL := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes&limit=100", projectID)
+	nextPageURL := baseURL
+	pageCount := 0
+	maxPages := 50 // Safety limit
+
+	for nextPageURL != "" && pageCount < maxPages {
+		pageCount++
+
+		req, err := http.NewRequest("GET", nextPageURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("request failed: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return nil, fmt.Errorf("asana API error: %d - %s", resp.StatusCode, string(body))
+		}
+
+		var response AsanaResponseWithPagination
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+		resp.Body.Close()
+
+		allTasks = append(allTasks, response.Data...)
+
+		// Check for next page
+		if response.NextPage != nil && response.NextPage.URI != "" {
+			// Asana returns relative URIs, need to make them absolute
+			if strings.HasPrefix(response.NextPage.URI, "/") {
+				nextPageURL = "https://app.asana.com" + response.NextPage.URI
+			} else {
+				nextPageURL = response.NextPage.URI
+			}
+		} else {
+			nextPageURL = ""
+		}
 	}
 
-	var response struct {
-		Data []AsanaTask `json:"data"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return response.Data, nil
+	return allTasks, nil
 }
 
 // GetProjectSections gets all sections in an Asana project

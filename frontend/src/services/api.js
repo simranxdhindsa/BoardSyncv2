@@ -374,17 +374,32 @@ export const analyzeTickets = async (columnFilter = '') => {
   if (columnFilter) {
     url += `?column=${encodeURIComponent(columnFilter)}`;
   }
-  
-  const response = await fetch(url, {
-    headers: getAuthHeaders()
-  });
-  
-  if (!response.ok) {
-    handleAuthError(response);
-    throw new Error(`Analysis failed: ${response.status}`);
+
+  // Use AbortController with 2 minute timeout for large datasets
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
+
+  try {
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      handleAuthError(response);
+      throw new Error(`Analysis failed: ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Analysis timed out - please try again');
+    }
+    throw error;
   }
-  
-  return response.json();
 };
 
 export const createMissingTickets = async (column = '') => {
@@ -758,18 +773,33 @@ export const getFilterOptions = async (column = '') => {
 
 // NEW: Get enhanced analysis with filters and sorting
 export const getEnhancedAnalysis = async (requestBody) => {
-  const response = await fetch(`${API_BASE}/analyze/enhanced`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(requestBody)
-  });
-  
-  if (!response.ok) {
-    handleAuthError(response);
-    throw new Error(`Enhanced analysis failed: ${response.status}`);
+  // Use AbortController with 2 minute timeout for large datasets
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
+
+  try {
+    const response = await fetch(`${API_BASE}/analyze/enhanced`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      handleAuthError(response);
+      throw new Error(`Enhanced analysis failed: ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Analysis timed out - please try again');
+    }
+    throw error;
   }
-  
-  return response.json();
 };
 
 // NEW: Get changed mappings
