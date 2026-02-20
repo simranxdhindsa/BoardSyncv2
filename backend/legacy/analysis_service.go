@@ -433,6 +433,10 @@ func (s *AnalysisService) isSyncableSection(sectionName string) bool {
 			if strings.Contains(sectionLower, "ready") && strings.Contains(sectionLower, "stage") {
 				return true
 			}
+		case "prod":
+			if strings.Contains(sectionLower, "prod") {
+				return true
+			}
 		default:
 			if strings.Contains(sectionLower, colLower) {
 				return true
@@ -458,6 +462,7 @@ func (s *AnalysisService) GetTicketsByType(userID int, ticketType string, column
 			"in_progress":     "in progress",
 			"dev":             "dev",
 			"stage":           "stage",
+			"prod":            "prod",
 			"blocked":         "blocked",
 			"ready_for_stage": "ready for stage",
 			"findings":        "findings",

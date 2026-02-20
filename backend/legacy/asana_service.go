@@ -426,6 +426,8 @@ func (s *AsanaService) FilterTasksByColumns(tasks []AsanaTask, selectedColumns [
 					matches = strings.Contains(sectionName, "ready") && strings.Contains(sectionName, "stage")
 				case "findings":
 					matches = strings.Contains(sectionName, "findings")
+				case "prod":
+					matches = strings.Contains(sectionName, "prod")
 				default:
 					matches = strings.Contains(sectionName, selectedColLower)
 				}

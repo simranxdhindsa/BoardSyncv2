@@ -249,7 +249,7 @@ type TagMapping struct {
 }
 
 // Column definitions
-var SyncableColumns = []string{"backlog", "in progress", "dev", "stage", "blocked", "ready for stage"}
+var SyncableColumns = []string{"backlog", "in progress", "dev", "stage", "prod", "blocked", "ready for stage"}
 var DisplayOnlyColumns = []string{"findings"}
 var AllColumns = append(SyncableColumns, DisplayOnlyColumns...)
 

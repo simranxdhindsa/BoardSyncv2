@@ -23,8 +23,7 @@ const TicketDetailView = ({
   onCreateSingle,
   onCreateMissing,
   setNavBarSlots,
-  onTicketMoved,
-  onSilentRefresh
+  onTicketMoved
 }) => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,9 +72,6 @@ const TicketDetailView = ({
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedTicketForHistory, setSelectedTicketForHistory] = useState(null);
 
-  // Debounce timer ref for analysis refresh only
-  const analysisRefreshTimerRef = useRef(null);
-
   // Load column mappings on mount
   useEffect(() => {
     const loadColumnMappings = async () => {
@@ -98,31 +94,6 @@ const TicketDetailView = ({
     };
     loadColumnMappings();
   }, [column]);
-
-  // Cleanup analysis refresh timer on unmount
-  useEffect(() => {
-    return () => {
-      if (analysisRefreshTimerRef.current) {
-        clearTimeout(analysisRefreshTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Debounced analysis refresh - only refresh once after 4 seconds
-  const debouncedAnalysisRefresh = () => {
-    if (!onSilentRefresh) return;
-
-    // Clear existing timer
-    if (analysisRefreshTimerRef.current) {
-      clearTimeout(analysisRefreshTimerRef.current);
-    }
-
-    // Set new timer for 4 seconds
-    analysisRefreshTimerRef.current = setTimeout(() => {
-      onSilentRefresh();
-      analysisRefreshTimerRef.current = null;
-    }, 4000);
-  };
 
   const getTypeInfo = useCallback(() => {
     const typeConfig = {
@@ -517,8 +488,6 @@ const TicketDetailView = ({
         }
       });
 
-      // Debounced analysis refresh
-      debouncedAnalysisRefresh();
     } catch (err) {
       console.error('Failed to create all tickets:', err);
       alert('Failed to create all tickets: ' + err.message);
@@ -581,8 +550,6 @@ const TicketDetailView = ({
         onTicketMoved(ticketId, 'mismatched');
       }
 
-      // Debounced analysis refresh - only refresh once after 4 seconds
-      debouncedAnalysisRefresh();
     } catch (err) {
       console.error('Failed to sync ticket:', err);
       alert('Failed to sync ticket: ' + err.message);
@@ -610,8 +577,6 @@ const TicketDetailView = ({
       // Clear all tickets from view
       setTickets([]);
 
-      // Debounced analysis refresh
-      debouncedAnalysisRefresh();
     } catch (err) {
       console.error('Failed to sync all tickets:', err);
       alert('Failed to sync all tickets: ' + err.message);
@@ -632,8 +597,6 @@ const TicketDetailView = ({
         onTicketMoved(taskId, 'missing');
       }
 
-      // Debounced analysis refresh
-      debouncedAnalysisRefresh();
     } catch (err) {
       console.error('Failed to create ticket:', err);
       alert('Failed to create ticket: ' + err.message);
@@ -725,10 +688,6 @@ const TicketDetailView = ({
       setTimeout(() => {
         alert(`Delete Operation Complete:\n${summary}\n\nSuccessful: ${successCount}\nFailed: ${failureCount}`);
       }, 100);
-
-      if (onSilentRefresh) {
-        onSilentRefresh();
-      }
 
     } catch (err) {
       console.error('Delete operation failed:', err);

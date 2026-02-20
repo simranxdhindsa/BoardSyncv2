@@ -125,59 +125,37 @@ function AppContent() {
     setAnalysisData(null);
   };
 
-  // Handle sync
+  // Handle sync - no re-analysis, caller handles optimistic UI update
   const handleSync = async (ticketId) => {
-    setLoading(true);
     try {
-      await syncSingleTicket(ticketId);
-      await refreshAnalysis();
+      await syncSingleTicket(ticketId, selectedColumn);
     } catch (error) {
       throw new Error('Sync failed: ' + error.message);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Handle create single
+  // Handle create single - no re-analysis, caller handles optimistic UI update
   const handleCreateSingle = async (taskId) => {
-    setLoading(true);
     try {
-      await createSingleTicket(taskId);
-      await refreshAnalysis();
+      const result = await createSingleTicket(taskId);
+      return result;
     } catch (error) {
       console.error('Create single failed:', error);
       throw new Error('Create failed: ' + error.message);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Handle create missing
+  // Handle create missing - no re-analysis, caller handles optimistic UI update
   const handleCreateMissing = async () => {
-  setLoading(true);
-  try {
-    // Pass the selectedColumn to the API call
-    await createMissingTickets(selectedColumn);
-    await refreshAnalysis();
-  } catch (error) {
-    throw new Error('Bulk create failed: ' + error.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  // Refresh analysis data
-  const refreshAnalysis = async () => {
     try {
-      const data = await analyzeTickets(selectedColumn);
-      setAnalysisData({
-        ...data,
-        analyzedColumn: selectedColumn
-      });
+      const result = await createMissingTickets(selectedColumn);
+      return result;
     } catch (error) {
-      console.error('Failed to refresh analysis:', error);
+      throw new Error('Bulk create failed: ' + error.message);
     }
   };
+
+
 
   // Get navigation content based on current view
   const getNavigationContent = () => {

@@ -225,25 +225,24 @@ func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]
 }
 
 // SyncMismatchedTickets synchronizes mismatched tickets
+// Optimized: Uses DB mappings + cached Asana tasks instead of full PerformAnalysis
 func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest, column ...string) (map[string]interface{}, error) {
-	var columnsToAnalyze []string
-
+	columnInfo := "all_syncable"
 	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
-		columnsToAnalyze = []string{column[0]}
-		fmt.Printf("SYNC: Syncing tickets for specific column: %s (user %d)\n", column[0], userID)
-	} else {
-		columnsToAnalyze = SyncableColumns
-		fmt.Printf("SYNC: Syncing tickets for all syncable columns (user %d)\n", userID)
+		columnInfo = column[0]
 	}
+	fmt.Printf("SYNC: Syncing %d tickets for column: %s (user %d) — using DB mappings, no full analysis\n", len(requests), columnInfo, userID)
 
-	analysis, err := s.analysisService.PerformAnalysis(userID, columnsToAnalyze)
+	// Get all Asana tasks (cached — no API call if cache is fresh)
+	allTasks, err := s.asanaService.GetTasks(userID)
 	if err != nil {
-		return nil, fmt.Errorf("analysis failed: %w", err)
+		return nil, fmt.Errorf("failed to get Asana tasks: %w", err)
 	}
 
-	mismatchMap := make(map[string]MismatchedTicket)
-	for _, ticket := range analysis.Mismatched {
-		mismatchMap[ticket.AsanaTask.GID] = ticket
+	// Build a quick lookup map: Asana GID -> AsanaTask
+	taskMap := make(map[string]AsanaTask)
+	for _, task := range allTasks {
+		taskMap[task.GID] = task
 	}
 
 	results := []map[string]interface{}{}
@@ -255,44 +254,94 @@ func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest, 
 			"action":    req.Action,
 		}
 
-		ticket, exists := mismatchMap[req.TicketID]
-		if !exists {
-			result["status"] = "failed"
-			result["error"] = "Ticket not found in mismatched list for this column"
-			results = append(results, result)
-			continue
-		}
-
 		switch req.Action {
 		case "sync":
 			if s.ignoreService.IsIgnored(userID, req.TicketID) {
 				result["status"] = "skipped"
 				result["reason"] = "Ticket is ignored"
-			} else {
-				err := s.youtrackService.UpdateIssue(userID, ticket.YouTrackIssue.ID, ticket.AsanaTask)
-				if err != nil {
-					result["status"] = "failed"
-					result["error"] = err.Error()
-				} else {
-					result["status"] = "synced"
-					result["status_change"] = map[string]string{
-						"from": ticket.YouTrackStatus,
-						"to":   ticket.AsanaStatus,
-					}
+				results = append(results, result)
+				continue
+			}
 
-					asanaTags := s.asanaService.GetTags(ticket.AsanaTask)
-					if len(asanaTags) > 0 {
-						tagMapper := NewTagMapperForUser(userID, s.configService)
-						primaryTag := asanaTags[0]
-						mappedSubsystem := tagMapper.MapTagToSubsystem(primaryTag)
-						result["tag_sync"] = map[string]interface{}{
-							"asana_tags":         asanaTags,
-							"mapped_subsystem":   mappedSubsystem,
-							"previous_subsystem": ticket.YouTrackSubsystem,
+			// Look up the Asana task from cache
+			asanaTask, taskExists := taskMap[req.TicketID]
+			if !taskExists {
+				result["status"] = "failed"
+				result["error"] = "Asana task not found in cache"
+				results = append(results, result)
+				continue
+			}
+
+			// Look up the YouTrack issue ID — try DB mapping first, then description, then title
+			var youtrackIssueID string
+
+			// Priority 1: DB mapping (instant)
+			mapping, mappingErr := s.db.GetTicketMappingByAsanaID(userID, req.TicketID)
+			if mappingErr == nil {
+				youtrackIssueID = mapping.YouTrackIssueID
+				fmt.Printf("SYNC: Found YouTrack ID '%s' via DB mapping for Asana task '%s'\n", youtrackIssueID, req.TicketID)
+			} else {
+				// Priority 2: Search YouTrack by Asana ID in description (fetches YT issues once)
+				fmt.Printf("SYNC: No DB mapping for '%s', falling back to YouTrack search\n", req.TicketID)
+				foundID, searchErr := s.youtrackService.FindIssueByAsanaID(userID, req.TicketID)
+				if searchErr == nil {
+					youtrackIssueID = foundID
+					fmt.Printf("SYNC: Found YouTrack ID '%s' via description search for Asana task '%s'\n", youtrackIssueID, req.TicketID)
+
+					// Save the mapping for next time
+					settings, _ := s.configService.GetSettings(userID)
+					if settings != nil {
+						s.db.CreateTicketMapping(userID, settings.AsanaProjectID, req.TicketID, settings.YouTrackProjectID, youtrackIssueID)
+					}
+				} else {
+					// Priority 3: Title matching
+					youtrackIssues, ytErr := s.youtrackService.GetIssues(userID)
+					if ytErr == nil {
+						for _, issue := range youtrackIssues {
+							if titlesMatch(asanaTask.Name, issue.Summary) {
+								youtrackIssueID = issue.ID
+								fmt.Printf("SYNC: Found YouTrack ID '%s' via title match for Asana task '%s' ('%s' ≈ '%s')\n",
+									youtrackIssueID, req.TicketID, issue.Summary, asanaTask.Name)
+
+								// Save the mapping for next time
+								settings, _ := s.configService.GetSettings(userID)
+								if settings != nil {
+									s.db.CreateTicketMapping(userID, settings.AsanaProjectID, req.TicketID, settings.YouTrackProjectID, youtrackIssueID)
+								}
+								break
+							}
 						}
 					}
-					synced++
 				}
+			}
+
+			if youtrackIssueID == "" {
+				result["status"] = "failed"
+				result["error"] = "Could not find matching YouTrack issue (no DB mapping, description match, or title match)"
+				results = append(results, result)
+				continue
+			}
+
+			// Update the YouTrack issue directly
+			err = s.youtrackService.UpdateIssue(userID, youtrackIssueID, asanaTask)
+			if err != nil {
+				result["status"] = "failed"
+				result["error"] = err.Error()
+			} else {
+				result["status"] = "synced"
+				result["youtrack_issue_id"] = youtrackIssueID
+
+				asanaTags := s.asanaService.GetTags(asanaTask)
+				if len(asanaTags) > 0 {
+					tagMapper := NewTagMapperForUser(userID, s.configService)
+					primaryTag := asanaTags[0]
+					mappedSubsystem := tagMapper.MapTagToSubsystem(primaryTag)
+					result["tag_sync"] = map[string]interface{}{
+						"asana_tags":       asanaTags,
+						"mapped_subsystem": mappedSubsystem,
+					}
+				}
+				synced++
 			}
 
 		case "ignore_temp":
@@ -325,9 +374,8 @@ func (s *SyncService) SyncMismatchedTickets(userID int, requests []SyncRequest, 
 		"status":  "completed",
 		"synced":  synced,
 		"total":   len(requests),
-		"column":  columnsToAnalyze,
+		"column":  columnInfo,
 		"results": results,
-		"note":    "Sync operations now include both status and tag/subsystem updates",
 	}, nil
 }
 
@@ -467,6 +515,7 @@ func (s *SyncService) SyncTicketsByColumn(userID int, column string) (map[string
 			"in_progress":     "in progress",
 			"dev":             "dev",
 			"stage":           "stage",
+			"prod":            "prod",
 			"blocked":         "blocked",
 			"ready_for_stage": "ready for stage",
 			"findings":        "findings",
@@ -535,6 +584,7 @@ func (s *SyncService) CreateTicketsByColumn(userID int, column string) (map[stri
 			"in_progress": "in progress",
 			"dev":         "dev",
 			"stage":       "stage",
+			"prod":        "prod",
 			"blocked":     "blocked",
 		}
 

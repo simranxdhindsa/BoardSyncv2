@@ -434,22 +434,42 @@ export const createSingleTicket = async (taskId) => {
   return response.json();
 };
 
-export const syncTickets = async (tickets) => {
-  const response = await fetch(`${API_BASE}/sync`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(tickets),
-  });
-  
-  if (!response.ok) {
-    handleAuthError(response);
-    throw new Error(`Sync failed: ${response.status}`);
+export const syncTickets = async (tickets, column = '') => {
+  let url = `${API_BASE}/sync`;
+  if (column) {
+    url += `?column=${encodeURIComponent(column)}`;
   }
-  return response.json();
+
+  // Use AbortController with 2 minute timeout for large datasets
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(tickets),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      handleAuthError(response);
+      throw new Error(`Sync failed: ${response.status}`);
+    }
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Sync timed out - please try again');
+    }
+    throw error;
+  }
 };
 
-export const syncSingleTicket = async (ticketId) => {
-  return syncTickets([{ ticket_id: ticketId, action: 'sync' }]);
+export const syncSingleTicket = async (ticketId, column = '') => {
+  return syncTickets([{ ticket_id: ticketId, action: 'sync' }], column);
 };
 
 export const getTicketsByType = async (type, column = '') => {
