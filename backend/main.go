@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 
 	"asana-youtrack-sync/auth"
 	"asana-youtrack-sync/cache"
@@ -30,6 +31,9 @@ var (
 )
 
 func main() {
+	// Load .env file if present (silently ignored if missing)
+	godotenv.Load()
+
 	log.Println("Starting Enhanced Asana YouTrack Sync Service v4.1 - Full Feature Set")
 	log.Println("Features: Enhanced Analysis, Filtering, Sorting, Change Detection, Auto-Sync")
 
