@@ -1,323 +1,284 @@
 package database
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 )
 
-// Rollback Snapshot Operations
+// ─── Rollback Snapshot Operations ────────────────────────────────────────────
 
-// CreateRollbackSnapshot creates a new rollback snapshot
 func (db *DB) CreateRollbackSnapshot(snapshot *RollbackSnapshot) (*RollbackSnapshot, error) {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
+	ctx := context.Background()
 
-	snapshot.ID = db.nextSnapshotID
 	snapshot.CreatedAt = time.Now()
-	snapshot.ExpiresAt = time.Now().Add(24 * time.Hour) // 24-hour expiration
+	snapshot.ExpiresAt = time.Now().Add(24 * time.Hour)
 
-	db.rollbackSnapshots[snapshot.ID] = snapshot
-	db.nextSnapshotID++
-
-	// Enforce maximum 15 snapshots per user
-	db.enforceSnapshotLimit(snapshot.UserID, 15)
-
-	if err := db.saveData(); err != nil {
+	dataJSON, err := json.Marshal(snapshot.SnapshotData)
+	if err != nil {
 		return nil, err
 	}
+
+	err = db.pool.QueryRow(ctx,
+		`INSERT INTO rollback_snapshots (operation_id, user_id, snapshot_data, created_at, expires_at)
+		 VALUES ($1, $2, $3, $4, $5)
+		 RETURNING id`,
+		snapshot.OperationID, snapshot.UserID, dataJSON, snapshot.CreatedAt, snapshot.ExpiresAt,
+	).Scan(&snapshot.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enforce 15-snapshot limit per user (delete oldest beyond limit)
+	db.enforceSnapshotLimit(ctx, snapshot.UserID, 15)
 
 	log.Printf("DB: Created rollback snapshot ID %d for operation %d\n", snapshot.ID, snapshot.OperationID)
 	return snapshot, nil
 }
 
-// enforceSnapshotLimit ensures max 15 snapshots per user (FIFO deletion)
-func (db *DB) enforceSnapshotLimit(userID int, maxSnapshots int) {
-	// Get all snapshots for this user sorted by creation time
-	userSnapshots := []*RollbackSnapshot{}
-	for _, snapshot := range db.rollbackSnapshots {
-		if snapshot.UserID == userID {
-			userSnapshots = append(userSnapshots, snapshot)
-		}
-	}
-
-	// If we're over the limit, delete oldest ones
-	if len(userSnapshots) > maxSnapshots {
-		// Sort by CreatedAt (oldest first)
-		for i := 0; i < len(userSnapshots)-1; i++ {
-			for j := i + 1; j < len(userSnapshots); j++ {
-				if userSnapshots[i].CreatedAt.After(userSnapshots[j].CreatedAt) {
-					userSnapshots[i], userSnapshots[j] = userSnapshots[j], userSnapshots[i]
-				}
-			}
-		}
-
-		// Delete oldest snapshots
-		deleteCount := len(userSnapshots) - maxSnapshots
-		for i := 0; i < deleteCount; i++ {
-			delete(db.rollbackSnapshots, userSnapshots[i].ID)
-			log.Printf("DB: Deleted old snapshot ID %d (FIFO limit enforcement)\n", userSnapshots[i].ID)
-		}
+func (db *DB) enforceSnapshotLimit(ctx context.Context, userID int, maxSnapshots int) {
+	_, err := db.pool.Exec(ctx,
+		`DELETE FROM rollback_snapshots
+		 WHERE id IN (
+		   SELECT id FROM rollback_snapshots
+		   WHERE user_id = $1
+		   ORDER BY created_at DESC
+		   OFFSET $2
+		 )`,
+		userID, maxSnapshots,
+	)
+	if err != nil {
+		log.Printf("DB: Warning: failed to enforce snapshot limit: %v\n", err)
 	}
 }
 
-// GetSnapshotByOperationID retrieves a snapshot by operation ID
 func (db *DB) GetSnapshotByOperationID(operationID int) (*RollbackSnapshot, error) {
-	db.mutex.RLock()
-	defer db.mutex.RUnlock()
-
-	for _, snapshot := range db.rollbackSnapshots {
-		if snapshot.OperationID == operationID {
-			return snapshot, nil
-		}
+	ctx := context.Background()
+	s := &RollbackSnapshot{}
+	var dataJSON []byte
+	err := db.pool.QueryRow(ctx,
+		`SELECT id, operation_id, user_id, snapshot_data, created_at, expires_at
+		 FROM rollback_snapshots WHERE operation_id=$1`,
+		operationID,
+	).Scan(&s.ID, &s.OperationID, &s.UserID, &dataJSON, &s.CreatedAt, &s.ExpiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("snapshot not found for operation %d", operationID)
 	}
-
-	return nil, fmt.Errorf("snapshot not found for operation %d", operationID)
+	json.Unmarshal(dataJSON, &s.SnapshotData)
+	return s, nil
 }
 
-// GetSnapshotByID retrieves a snapshot by its ID
 func (db *DB) GetSnapshotByID(snapshotID int) (*RollbackSnapshot, error) {
-	db.mutex.RLock()
-	defer db.mutex.RUnlock()
-
-	if snapshot, exists := db.rollbackSnapshots[snapshotID]; exists {
-		return snapshot, nil
+	ctx := context.Background()
+	s := &RollbackSnapshot{}
+	var dataJSON []byte
+	err := db.pool.QueryRow(ctx,
+		`SELECT id, operation_id, user_id, snapshot_data, created_at, expires_at
+		 FROM rollback_snapshots WHERE id=$1`,
+		snapshotID,
+	).Scan(&s.ID, &s.OperationID, &s.UserID, &dataJSON, &s.CreatedAt, &s.ExpiresAt)
+	if err != nil {
+		return nil, fmt.Errorf("snapshot not found")
 	}
-
-	return nil, fmt.Errorf("snapshot not found")
+	json.Unmarshal(dataJSON, &s.SnapshotData)
+	return s, nil
 }
 
-// GetUserSnapshots retrieves all snapshots for a user (most recent first)
 func (db *DB) GetUserSnapshots(userID int, limit int) ([]*RollbackSnapshot, error) {
-	db.mutex.RLock()
-	defer db.mutex.RUnlock()
+	ctx := context.Background()
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, operation_id, user_id, snapshot_data, created_at, expires_at
+		 FROM rollback_snapshots WHERE user_id=$1 ORDER BY created_at DESC LIMIT $2`,
+		userID, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	snapshots := []*RollbackSnapshot{}
-	for _, snapshot := range db.rollbackSnapshots {
-		if snapshot.UserID == userID {
-			snapshots = append(snapshots, snapshot)
+	var snapshots []*RollbackSnapshot
+	for rows.Next() {
+		s := &RollbackSnapshot{}
+		var dataJSON []byte
+		if err := rows.Scan(&s.ID, &s.OperationID, &s.UserID, &dataJSON, &s.CreatedAt, &s.ExpiresAt); err != nil {
+			continue
 		}
+		json.Unmarshal(dataJSON, &s.SnapshotData)
+		snapshots = append(snapshots, s)
 	}
-
-	// Sort by CreatedAt (most recent first)
-	for i := 0; i < len(snapshots)-1; i++ {
-		for j := i + 1; j < len(snapshots); j++ {
-			if snapshots[i].CreatedAt.Before(snapshots[j].CreatedAt) {
-				snapshots[i], snapshots[j] = snapshots[j], snapshots[i]
-			}
-		}
-	}
-
-	// Apply limit
-	if limit > 0 && len(snapshots) > limit {
-		snapshots = snapshots[:limit]
-	}
-
 	return snapshots, nil
 }
 
-// UpdateRollbackSnapshot updates an existing snapshot
 func (db *DB) UpdateRollbackSnapshot(snapshot *RollbackSnapshot) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
-	if _, exists := db.rollbackSnapshots[snapshot.ID]; !exists {
-		return fmt.Errorf("snapshot not found")
-	}
-
-	db.rollbackSnapshots[snapshot.ID] = snapshot
-
-	if err := db.saveData(); err != nil {
+	ctx := context.Background()
+	dataJSON, err := json.Marshal(snapshot.SnapshotData)
+	if err != nil {
 		return err
 	}
-
+	result, err := db.pool.Exec(ctx,
+		`UPDATE rollback_snapshots SET snapshot_data=$1, expires_at=$2 WHERE id=$3`,
+		dataJSON, snapshot.ExpiresAt, snapshot.ID,
+	)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("snapshot not found")
+	}
 	log.Printf("DB: Updated rollback snapshot ID %d\n", snapshot.ID)
 	return nil
 }
 
-// DeleteSnapshot deletes a snapshot by ID
 func (db *DB) DeleteSnapshot(snapshotID int) error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
-	if _, exists := db.rollbackSnapshots[snapshotID]; !exists {
-		return fmt.Errorf("snapshot not found")
-	}
-
-	delete(db.rollbackSnapshots, snapshotID)
-
-	if err := db.saveData(); err != nil {
+	ctx := context.Background()
+	result, err := db.pool.Exec(ctx, `DELETE FROM rollback_snapshots WHERE id=$1`, snapshotID)
+	if err != nil {
 		return err
 	}
-
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("snapshot not found")
+	}
 	log.Printf("DB: Deleted rollback snapshot ID %d\n", snapshotID)
 	return nil
 }
 
-// CleanupExpiredSnapshots removes snapshots that have expired
 func (db *DB) CleanupExpiredSnapshots() error {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
-	now := time.Now()
-	deletedCount := 0
-
-	for id, snapshot := range db.rollbackSnapshots {
-		if now.After(snapshot.ExpiresAt) {
-			delete(db.rollbackSnapshots, id)
-			deletedCount++
-		}
+	ctx := context.Background()
+	result, err := db.pool.Exec(ctx, `DELETE FROM rollback_snapshots WHERE expires_at < NOW()`)
+	if err != nil {
+		return err
 	}
-
-	if deletedCount > 0 {
-		log.Printf("DB: Cleaned up %d expired snapshots\n", deletedCount)
-		return db.saveData()
+	if result.RowsAffected() > 0 {
+		log.Printf("DB: Cleaned up %d expired snapshots\n", result.RowsAffected())
 	}
-
 	return nil
 }
 
-// Audit Log Operations
+// ─── Audit Log Operations ─────────────────────────────────────────────────────
 
-// CreateAuditLogEntry creates a new audit log entry
 func (db *DB) CreateAuditLogEntry(entry *AuditLogEntry) (*AuditLogEntry, error) {
-	db.mutex.Lock()
-	defer db.mutex.Unlock()
-
-	entry.ID = db.nextAuditLogID
+	ctx := context.Background()
 	entry.Timestamp = time.Now()
-
-	db.auditLogs[entry.ID] = entry
-	db.nextAuditLogID++
-
-	if err := db.saveData(); err != nil {
+	err := db.pool.QueryRow(ctx,
+		`INSERT INTO audit_logs (operation_id, ticket_id, platform, action_type, user_email, old_value, new_value, field_name, timestamp)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		 RETURNING id`,
+		entry.OperationID, entry.TicketID, entry.Platform, entry.ActionType,
+		entry.UserEmail, entry.OldValue, entry.NewValue, entry.FieldName, entry.Timestamp,
+	).Scan(&entry.ID)
+	if err != nil {
 		return nil, err
 	}
-
-	log.Printf("DB: Created audit log entry ID %d for ticket %s (action: %s)\n",
-		entry.ID, entry.TicketID, entry.ActionType)
+	log.Printf("DB: Created audit log entry ID %d for ticket %s (action: %s)\n", entry.ID, entry.TicketID, entry.ActionType)
 	return entry, nil
 }
 
-// GetAuditLogsByOperationID retrieves all audit logs for a specific operation
 func (db *DB) GetAuditLogsByOperationID(operationID int) ([]*AuditLogEntry, error) {
-	db.mutex.RLock()
-	defer db.mutex.RUnlock()
-
-	logs := []*AuditLogEntry{}
-	for _, log := range db.auditLogs {
-		if log.OperationID == operationID {
-			logs = append(logs, log)
-		}
+	ctx := context.Background()
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, operation_id, ticket_id, platform, action_type, user_email, old_value, new_value, field_name, timestamp
+		 FROM audit_logs WHERE operation_id=$1 ORDER BY timestamp ASC`,
+		operationID,
+	)
+	if err != nil {
+		return nil, err
 	}
-
-	// Sort by timestamp
-	for i := 0; i < len(logs)-1; i++ {
-		for j := i + 1; j < len(logs); j++ {
-			if logs[i].Timestamp.After(logs[j].Timestamp) {
-				logs[i], logs[j] = logs[j], logs[i]
-			}
-		}
-	}
-
-	return logs, nil
+	defer rows.Close()
+	return scanAuditLogs(rows)
 }
 
-// GetAuditLogsByTicketID retrieves all audit logs for a specific ticket
 func (db *DB) GetAuditLogsByTicketID(ticketID string) ([]*AuditLogEntry, error) {
-	db.mutex.RLock()
-	defer db.mutex.RUnlock()
-
-	logs := []*AuditLogEntry{}
-	for _, log := range db.auditLogs {
-		if log.TicketID == ticketID {
-			logs = append(logs, log)
-		}
+	ctx := context.Background()
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, operation_id, ticket_id, platform, action_type, user_email, old_value, new_value, field_name, timestamp
+		 FROM audit_logs WHERE ticket_id=$1 ORDER BY timestamp DESC`,
+		ticketID,
+	)
+	if err != nil {
+		return nil, err
 	}
-
-	// Sort by timestamp (most recent first)
-	for i := 0; i < len(logs)-1; i++ {
-		for j := i + 1; j < len(logs); j++ {
-			if logs[i].Timestamp.Before(logs[j].Timestamp) {
-				logs[i], logs[j] = logs[j], logs[i]
-			}
-		}
-	}
-
-	return logs, nil
+	defer rows.Close()
+	return scanAuditLogs(rows)
 }
 
-// GetAuditLogsWithFilter retrieves audit logs with advanced filtering
 func (db *DB) GetAuditLogsWithFilter(filter AuditLogFilter) ([]*AuditLogEntry, error) {
-	db.mutex.RLock()
-	defer db.mutex.RUnlock()
+	ctx := context.Background()
 
-	logs := []*AuditLogEntry{}
+	query := `SELECT id, operation_id, ticket_id, platform, action_type, user_email, old_value, new_value, field_name, timestamp
+	          FROM audit_logs WHERE 1=1`
+	args := []interface{}{}
+	n := 1
 
-	for _, log := range db.auditLogs {
-		// Apply filters
-		if filter.UserEmail != "" && log.UserEmail != filter.UserEmail {
-			continue
-		}
-		if filter.TicketID != "" && log.TicketID != filter.TicketID {
-			continue
-		}
-		if filter.Platform != "" && log.Platform != filter.Platform {
-			continue
-		}
-		if filter.ActionType != "" && log.ActionType != filter.ActionType {
-			continue
-		}
-		if !filter.StartDate.IsZero() && log.Timestamp.Before(filter.StartDate) {
-			continue
-		}
-		if !filter.EndDate.IsZero() && log.Timestamp.After(filter.EndDate) {
-			continue
-		}
-
-		logs = append(logs, log)
+	if filter.UserEmail != "" {
+		query += fmt.Sprintf(` AND user_email=$%d`, n)
+		args = append(args, filter.UserEmail)
+		n++
+	}
+	if filter.TicketID != "" {
+		query += fmt.Sprintf(` AND ticket_id=$%d`, n)
+		args = append(args, filter.TicketID)
+		n++
+	}
+	if filter.Platform != "" {
+		query += fmt.Sprintf(` AND platform=$%d`, n)
+		args = append(args, filter.Platform)
+		n++
+	}
+	if filter.ActionType != "" {
+		query += fmt.Sprintf(` AND action_type=$%d`, n)
+		args = append(args, filter.ActionType)
+		n++
+	}
+	if !filter.StartDate.IsZero() {
+		query += fmt.Sprintf(` AND timestamp>=$%d`, n)
+		args = append(args, filter.StartDate)
+		n++
+	}
+	if !filter.EndDate.IsZero() {
+		query += fmt.Sprintf(` AND timestamp<=$%d`, n)
+		args = append(args, filter.EndDate)
+		n++
+	}
+	query += ` ORDER BY timestamp DESC`
+	if filter.Limit > 0 {
+		query += fmt.Sprintf(` LIMIT $%d`, n)
+		args = append(args, filter.Limit)
 	}
 
-	// Sort by timestamp (most recent first)
-	for i := 0; i < len(logs)-1; i++ {
-		for j := i + 1; j < len(logs); j++ {
-			if logs[i].Timestamp.Before(logs[j].Timestamp) {
-				logs[i], logs[j] = logs[j], logs[i]
-			}
-		}
+	rows, err := db.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
 	}
-
-	// Apply limit
-	if filter.Limit > 0 && len(logs) > filter.Limit {
-		logs = logs[:filter.Limit]
-	}
-
-	return logs, nil
+	defer rows.Close()
+	return scanAuditLogs(rows)
 }
 
-// GetRecentAuditLogs retrieves the most recent audit logs (all users)
 func (db *DB) GetRecentAuditLogs(limit int) ([]*AuditLogEntry, error) {
-	db.mutex.RLock()
-	defer db.mutex.RUnlock()
-
-	logs := []*AuditLogEntry{}
-	for _, log := range db.auditLogs {
-		logs = append(logs, log)
+	ctx := context.Background()
+	rows, err := db.pool.Query(ctx,
+		`SELECT id, operation_id, ticket_id, platform, action_type, user_email, old_value, new_value, field_name, timestamp
+		 FROM audit_logs ORDER BY timestamp DESC LIMIT $1`,
+		limit,
+	)
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
+	return scanAuditLogs(rows)
+}
 
-	// Sort by timestamp (most recent first)
-	for i := 0; i < len(logs)-1; i++ {
-		for j := i + 1; j < len(logs); j++ {
-			if logs[i].Timestamp.Before(logs[j].Timestamp) {
-				logs[i], logs[j] = logs[j], logs[i]
-			}
+// scanAuditLogs is a shared helper to scan audit log rows.
+func scanAuditLogs(rows interface{ Next() bool; Scan(...interface{}) error }) ([]*AuditLogEntry, error) {
+	var logs []*AuditLogEntry
+	for rows.Next() {
+		e := &AuditLogEntry{}
+		if err := rows.Scan(&e.ID, &e.OperationID, &e.TicketID, &e.Platform, &e.ActionType,
+			&e.UserEmail, &e.OldValue, &e.NewValue, &e.FieldName, &e.Timestamp); err != nil {
+			continue
 		}
+		logs = append(logs, e)
 	}
-
-	// Apply limit
-	if limit > 0 && len(logs) > limit {
-		logs = logs[:limit]
-	}
-
 	return logs, nil
 }

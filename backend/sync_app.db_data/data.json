@@ -15,6 +15,14 @@
       "password_hash": "AZIrPXTjE8+NIoLFQo+hRA==$Bwao303Pq7obeyAhoRBSSq/p9/nVEGFUwTecCcP7NA4=",
       "created_at": "2025-10-07T22:13:50.5484788+05:30",
       "updated_at": "2025-10-07T22:13:50.5484788+05:30"
+    },
+    "3": {
+      "id": 3,
+      "username": "youtrack",
+      "email": "youtrack@youtrack.com",
+      "password_hash": "M6+XpV8v4R1MJ5jNtmYadg==$wOE38amLEnYHNuXvQJ3SqzkohJebTLL3l5UIhGQHVDo=",
+      "created_at": "2026-02-22T02:28:14.3249795+05:30",
+      "updated_at": "2026-02-22T02:28:14.3249795+05:30"
     }
   },
   "settings": {
@@ -74,12 +82,30 @@
             "youtrack_status": "Prod",
             "display_only": false,
             "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "Ready for PROD",
+            "youtrack_status": "Prod",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "sprint 11 - 20",
+            "youtrack_status": "Backlog",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "QA Ready",
+            "youtrack_status": "In Progress",
+            "display_only": false,
+            "reverse_sync_priority": false
           }
         ],
         "youtrack_to_asana": []
       },
       "created_at": "2025-10-03T22:28:50.0268461+05:30",
-      "updated_at": "2026-02-13T00:33:25.0789425+05:30"
+      "updated_at": "2026-03-20T10:39:49.8319396+05:30"
     },
     "2": {
       "id": 2,
@@ -142,6 +168,95 @@
       },
       "created_at": "2025-10-07T22:13:50.5484788+05:30",
       "updated_at": "2026-02-08T22:08:10.1236739+05:30"
+    },
+    "3": {
+      "id": 3,
+      "user_id": 3,
+      "asana_pat": "2/1210448003360831/1211072669335360:f90e90671e1ace90afc7501d52263d9c",
+      "youtrack_base_url": "https://simran.youtrack.cloud",
+      "youtrack_token": "perm-YWRtaW4=.NDQtMQ==.zkB8wnZI6eSi0sR3qzD1l4v7tdmNwT",
+      "asana_project_id": "1207284744539269",
+      "youtrack_project_id": "ARD",
+      "youtrack_board_id": "193-5",
+      "custom_field_mappings": {
+        "tag_mapping": {},
+        "priority_mapping": {},
+        "status_mapping": {},
+        "custom_fields": {}
+      },
+      "column_mappings": {
+        "asana_to_youtrack": [
+          {
+            "asana_column": "Backlog",
+            "youtrack_status": "Backlog",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "In Progress",
+            "youtrack_status": "In Progress",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "DEV",
+            "youtrack_status": "DEV",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "Ready for Stage",
+            "youtrack_status": "Ready for Stage",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "Stage",
+            "youtrack_status": "STAGE",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "Ready for PROD",
+            "youtrack_status": "Ready for PROD",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "PROD",
+            "youtrack_status": "PROD",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "Mobile DONE",
+            "youtrack_status": "Mobile DONE",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "Blocked",
+            "youtrack_status": "Blocked",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "closed",
+            "youtrack_status": "Closed",
+            "display_only": false,
+            "reverse_sync_priority": false
+          },
+          {
+            "asana_column": "Findings",
+            "youtrack_status": "Findings",
+            "display_only": false,
+            "reverse_sync_priority": false
+          }
+        ],
+        "youtrack_to_asana": []
+      },
+      "created_at": "2026-02-22T02:28:14.3256278+05:30",
+      "updated_at": "2026-02-22T02:40:14.1824442+05:30"
     }
   },
   "operations": {
@@ -6257,6 +6372,44 @@
       "created_at": "2026-02-13T00:51:06.5628662+05:30",
       "completed_at": "2026-02-13T00:51:07.0880027+05:30"
     },
+    "467": {
+      "id": 467,
+      "user_id": 3,
+      "operation_type": "Ticket Creation",
+      "operation_data": {
+        "action": "create_missing_tickets",
+        "column": "backlog"
+      },
+      "status": "pending",
+      "created_at": "2026-02-22T02:42:35.6837154+05:30"
+    },
+    "468": {
+      "id": 468,
+      "user_id": 3,
+      "operation_type": "Ticket Creation",
+      "operation_data": {
+        "action": "create_missing_tickets",
+        "column": "backlog",
+        "created": 89,
+        "failed": 0,
+        "skipped": 7,
+        "total": 96
+      },
+      "status": "completed",
+      "created_at": "2026-02-22T02:47:51.8718825+05:30",
+      "completed_at": "2026-02-22T02:54:24.315397+05:30"
+    },
+    "469": {
+      "id": 469,
+      "user_id": 3,
+      "operation_type": "Ticket Creation",
+      "operation_data": {
+        "action": "create_missing_tickets",
+        "column": "backlog"
+      },
+      "status": "pending",
+      "created_at": "2026-02-22T02:54:24.3250394+05:30"
+    },
     "47": {
       "id": 47,
       "user_id": 1,
@@ -6271,6 +6424,161 @@
       "status": "completed",
       "created_at": "2025-11-17T01:09:39.9043835+05:30",
       "completed_at": "2025-11-17T01:09:44.5098085+05:30"
+    },
+    "470": {
+      "id": 470,
+      "user_id": 3,
+      "operation_type": "Ticket Creation",
+      "operation_data": {
+        "action": "create_missing_tickets",
+        "column": "backlog",
+        "created": 0,
+        "failed": 0,
+        "skipped": 0,
+        "total": 0
+      },
+      "status": "completed",
+      "created_at": "2026-02-22T02:55:28.3180528+05:30",
+      "completed_at": "2026-02-22T02:55:35.7386234+05:30"
+    },
+    "471": {
+      "id": 471,
+      "user_id": 3,
+      "operation_type": "Ticket Creation",
+      "operation_data": {
+        "action": "create_missing_tickets",
+        "column": "backlog",
+        "created": 0,
+        "failed": 0,
+        "skipped": 0,
+        "total": 0
+      },
+      "status": "completed",
+      "created_at": "2026-02-22T02:55:59.3073812+05:30",
+      "completed_at": "2026-02-22T02:56:06.7699838+05:30"
+    },
+    "472": {
+      "id": 472,
+      "user_id": 3,
+      "operation_type": "Ticket Creation",
+      "operation_data": {
+        "action": "create_missing_tickets",
+        "column": "in progress",
+        "created": 0,
+        "failed": 0,
+        "skipped": 0,
+        "total": 0
+      },
+      "status": "completed",
+      "created_at": "2026-02-22T02:57:41.2153023+05:30",
+      "completed_at": "2026-02-22T02:57:41.815046+05:30"
+    },
+    "473": {
+      "id": 473,
+      "user_id": 3,
+      "operation_type": "Ticket Creation",
+      "operation_data": {
+        "action": "create_missing_tickets",
+        "column": "backlog",
+        "created": 0,
+        "failed": 0,
+        "skipped": 0,
+        "total": 0
+      },
+      "status": "completed",
+      "created_at": "2026-02-22T02:58:22.1191906+05:30",
+      "completed_at": "2026-02-22T02:58:29.9708147+05:30"
+    },
+    "474": {
+      "id": 474,
+      "user_id": 3,
+      "operation_type": "Ticket Creation",
+      "operation_data": {
+        "action": "create_missing_tickets",
+        "column": "backlog",
+        "created": 0,
+        "failed": 0,
+        "skipped": 0,
+        "total": 0
+      },
+      "status": "completed",
+      "created_at": "2026-02-22T02:58:33.917009+05:30",
+      "completed_at": "2026-02-22T02:58:41.7647228+05:30"
+    },
+    "475": {
+      "id": 475,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "in progress",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-02-25T14:32:17.1415433+05:30",
+      "completed_at": "2026-02-25T14:32:20.0263933+05:30"
+    },
+    "476": {
+      "id": 476,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:06.8126352+05:30",
+      "completed_at": "2026-03-20T10:40:10.3477264+05:30"
+    },
+    "477": {
+      "id": 477,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:13.6808706+05:30",
+      "completed_at": "2026-03-20T10:40:16.3531423+05:30"
+    },
+    "478": {
+      "id": 478,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:14.5859729+05:30",
+      "completed_at": "2026-03-20T10:40:17.3103308+05:30"
+    },
+    "479": {
+      "id": 479,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:16.0449543+05:30",
+      "completed_at": "2026-03-20T10:40:16.5955914+05:30"
     },
     "48": {
       "id": 48,
@@ -6287,6 +6595,156 @@
       "created_at": "2025-11-17T01:09:39.9205792+05:30",
       "completed_at": "2025-11-17T01:09:44.8476961+05:30"
     },
+    "480": {
+      "id": 480,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:18.1734644+05:30",
+      "completed_at": "2026-03-20T10:40:20.7241719+05:30"
+    },
+    "481": {
+      "id": 481,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:20.5772972+05:30",
+      "completed_at": "2026-03-20T10:40:21.0708286+05:30"
+    },
+    "482": {
+      "id": 482,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:21.8417223+05:30",
+      "completed_at": "2026-03-20T10:40:22.4095151+05:30"
+    },
+    "483": {
+      "id": 483,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:24.4356369+05:30",
+      "completed_at": "2026-03-20T10:40:24.9387699+05:30"
+    },
+    "484": {
+      "id": 484,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:29.166089+05:30",
+      "completed_at": "2026-03-20T10:40:29.6826578+05:30"
+    },
+    "485": {
+      "id": 485,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:30.6545768+05:30",
+      "completed_at": "2026-03-20T10:40:31.1853837+05:30"
+    },
+    "486": {
+      "id": 486,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:32.4704833+05:30",
+      "completed_at": "2026-03-20T10:40:35.1806119+05:30"
+    },
+    "487": {
+      "id": 487,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:36.8594406+05:30",
+      "completed_at": "2026-03-20T10:40:39.4811912+05:30"
+    },
+    "488": {
+      "id": 488,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:38.2722523+05:30",
+      "completed_at": "2026-03-20T10:40:40.938779+05:30"
+    },
+    "489": {
+      "id": 489,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:40.6120051+05:30",
+      "completed_at": "2026-03-20T10:40:43.1474901+05:30"
+    },
     "49": {
       "id": 49,
       "user_id": 1,
@@ -6301,6 +6759,36 @@
       "status": "completed",
       "created_at": "2025-11-17T01:09:40.3656825+05:30",
       "completed_at": "2025-11-17T01:09:45.0719721+05:30"
+    },
+    "490": {
+      "id": 490,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:40:44.723841+05:30",
+      "completed_at": "2026-03-20T10:41:06.8204504+05:30"
+    },
+    "491": {
+      "id": 491,
+      "user_id": 1,
+      "operation_type": "Ticket Sync",
+      "operation_data": {
+        "action": "sync_mismatched_tickets",
+        "column": "prod",
+        "failed": 0,
+        "synced": 1,
+        "total": 1
+      },
+      "status": "completed",
+      "created_at": "2026-03-20T10:41:06.8443967+05:30",
+      "completed_at": "2026-03-20T10:41:07.3900702+05:30"
     },
     "5": {
       "id": 5,
@@ -12591,6 +13079,76 @@
       "created_at": "2026-02-13T00:53:36.5490731+05:30",
       "updated_at": "2026-02-13T00:53:36.5490731+05:30"
     },
+    "533": {
+      "id": 533,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213371673866857",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-654",
+      "created_at": "2026-02-22T02:41:43.8755527+05:30",
+      "updated_at": "2026-02-22T02:41:43.8755527+05:30"
+    },
+    "534": {
+      "id": 534,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213308017385958",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-655",
+      "created_at": "2026-02-22T02:42:36.279871+05:30",
+      "updated_at": "2026-02-22T02:42:36.279871+05:30"
+    },
+    "535": {
+      "id": 535,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213371591059941",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-656",
+      "created_at": "2026-02-22T02:42:36.745353+05:30",
+      "updated_at": "2026-02-22T02:42:36.745353+05:30"
+    },
+    "536": {
+      "id": 536,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213371673866845",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-657",
+      "created_at": "2026-02-22T02:42:37.2177523+05:30",
+      "updated_at": "2026-02-22T02:42:37.2177523+05:30"
+    },
+    "537": {
+      "id": 537,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213256735760162",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-658",
+      "created_at": "2026-02-22T02:42:40.2159777+05:30",
+      "updated_at": "2026-02-22T02:42:40.2159777+05:30"
+    },
+    "538": {
+      "id": 538,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213369134418405",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-659",
+      "created_at": "2026-02-22T02:42:44.5752649+05:30",
+      "updated_at": "2026-02-22T02:42:44.5752649+05:30"
+    },
+    "539": {
+      "id": 539,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213257332797645",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-662",
+      "created_at": "2026-02-22T02:47:57.2135156+05:30",
+      "updated_at": "2026-02-22T02:47:57.2135156+05:30"
+    },
     "54": {
       "id": 54,
       "user_id": 1,
@@ -12600,6 +13158,106 @@
       "youtrack_issue_id": "3-1265",
       "created_at": "2025-10-14T00:06:15.344929+05:30",
       "updated_at": "2025-10-14T00:06:15.344929+05:30"
+    },
+    "540": {
+      "id": 540,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213256788849902",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-665",
+      "created_at": "2026-02-22T02:48:00.2823104+05:30",
+      "updated_at": "2026-02-22T02:48:01.5036583+05:30"
+    },
+    "541": {
+      "id": 541,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213335866713376",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-661",
+      "created_at": "2026-02-22T02:48:00.8665647+05:30",
+      "updated_at": "2026-02-22T02:48:00.8665647+05:30"
+    },
+    "542": {
+      "id": 542,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213094809141077",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-666",
+      "created_at": "2026-02-22T02:48:18.1753326+05:30",
+      "updated_at": "2026-02-22T02:48:19.9362219+05:30"
+    },
+    "543": {
+      "id": 543,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211669298236844",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-672",
+      "created_at": "2026-02-22T02:48:19.6128057+05:30",
+      "updated_at": "2026-02-22T02:48:21.0405199+05:30"
+    },
+    "544": {
+      "id": 544,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212688116086032",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-674",
+      "created_at": "2026-02-22T02:48:20.2351112+05:30",
+      "updated_at": "2026-02-22T02:48:21.6352836+05:30"
+    },
+    "545": {
+      "id": 545,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213120526110883",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-671",
+      "created_at": "2026-02-22T02:48:20.8268368+05:30",
+      "updated_at": "2026-02-22T02:48:20.8268368+05:30"
+    },
+    "546": {
+      "id": 546,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213307670785163",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-676",
+      "created_at": "2026-02-22T02:48:21.4326054+05:30",
+      "updated_at": "2026-02-22T02:48:22.3543492+05:30"
+    },
+    "547": {
+      "id": 547,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213307670785161",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-678",
+      "created_at": "2026-02-22T02:48:22.0010494+05:30",
+      "updated_at": "2026-02-22T02:48:22.8937359+05:30"
+    },
+    "548": {
+      "id": 548,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213307670284816",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-677",
+      "created_at": "2026-02-22T02:48:24.1788928+05:30",
+      "updated_at": "2026-02-22T02:48:24.1788928+05:30"
+    },
+    "549": {
+      "id": 549,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213307670284810",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-680",
+      "created_at": "2026-02-22T02:48:25.083287+05:30",
+      "updated_at": "2026-02-22T02:48:26.2040321+05:30"
     },
     "55": {
       "id": 55,
@@ -12611,6 +13269,106 @@
       "created_at": "2025-10-14T00:07:19.2781195+05:30",
       "updated_at": "2025-10-14T00:07:19.2781195+05:30"
     },
+    "550": {
+      "id": 550,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213307670284806",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-682",
+      "created_at": "2026-02-22T02:48:27.62324+05:30",
+      "updated_at": "2026-02-22T02:48:28.587184+05:30"
+    },
+    "551": {
+      "id": 551,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212380781700462",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-685",
+      "created_at": "2026-02-22T02:48:28.167779+05:30",
+      "updated_at": "2026-02-22T02:48:29.123084+05:30"
+    },
+    "552": {
+      "id": 552,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213257332797649",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-684",
+      "created_at": "2026-02-22T02:48:28.7089064+05:30",
+      "updated_at": "2026-02-22T02:48:28.7089064+05:30"
+    },
+    "553": {
+      "id": 553,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213187728703401",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-687",
+      "created_at": "2026-02-22T02:48:33.612317+05:30",
+      "updated_at": "2026-02-22T02:48:35.0560865+05:30"
+    },
+    "554": {
+      "id": 554,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213257332797647",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-688",
+      "created_at": "2026-02-22T02:48:34.2491156+05:30",
+      "updated_at": "2026-02-22T02:48:34.2491156+05:30"
+    },
+    "555": {
+      "id": 555,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213307670284820",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-690",
+      "created_at": "2026-02-22T02:48:37.4093785+05:30",
+      "updated_at": "2026-02-22T02:48:37.8759157+05:30"
+    },
+    "556": {
+      "id": 556,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212614626377314",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-692",
+      "created_at": "2026-02-22T02:48:41.912342+05:30",
+      "updated_at": "2026-02-22T02:48:42.2631901+05:30"
+    },
+    "557": {
+      "id": 557,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212224131852745",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-694",
+      "created_at": "2026-02-22T02:49:08.3086266+05:30",
+      "updated_at": "2026-02-22T02:49:08.5497314+05:30"
+    },
+    "558": {
+      "id": 558,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212782432818988",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-696",
+      "created_at": "2026-02-22T02:49:08.8893096+05:30",
+      "updated_at": "2026-02-22T02:49:09.082383+05:30"
+    },
+    "559": {
+      "id": 559,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213293861535521",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-698",
+      "created_at": "2026-02-22T02:49:10.9404739+05:30",
+      "updated_at": "2026-02-22T02:49:11.16958+05:30"
+    },
     "56": {
       "id": 56,
       "user_id": 1,
@@ -12620,6 +13378,106 @@
       "youtrack_issue_id": "3-1267",
       "created_at": "2025-10-14T00:07:20.2496694+05:30",
       "updated_at": "2025-10-14T00:07:20.2496694+05:30"
+    },
+    "560": {
+      "id": 560,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213292969475517",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-704",
+      "created_at": "2026-02-22T02:49:15.5674728+05:30",
+      "updated_at": "2026-02-22T02:49:16.0558115+05:30"
+    },
+    "561": {
+      "id": 561,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213294180700645",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-706",
+      "created_at": "2026-02-22T02:49:16.3804405+05:30",
+      "updated_at": "2026-02-22T02:49:16.7929549+05:30"
+    },
+    "562": {
+      "id": 562,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212494412162419",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-708",
+      "created_at": "2026-02-22T02:49:18.9724636+05:30",
+      "updated_at": "2026-02-22T02:49:19.3239727+05:30"
+    },
+    "563": {
+      "id": 563,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212494410879908",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-710",
+      "created_at": "2026-02-22T02:49:27.8149478+05:30",
+      "updated_at": "2026-02-22T02:49:28.3833337+05:30"
+    },
+    "564": {
+      "id": 564,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213197679244059",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-712",
+      "created_at": "2026-02-22T02:49:28.4228136+05:30",
+      "updated_at": "2026-02-22T02:49:28.9682533+05:30"
+    },
+    "565": {
+      "id": 565,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213210525217013",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-714",
+      "created_at": "2026-02-22T02:49:29.0438193+05:30",
+      "updated_at": "2026-02-22T02:49:29.5736728+05:30"
+    },
+    "566": {
+      "id": 566,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213210525217009",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-716",
+      "created_at": "2026-02-22T02:49:32.4046963+05:30",
+      "updated_at": "2026-02-22T02:49:32.8801152+05:30"
+    },
+    "567": {
+      "id": 567,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213188416236328",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-718",
+      "created_at": "2026-02-22T02:49:34.9171836+05:30",
+      "updated_at": "2026-02-22T02:49:35.2102115+05:30"
+    },
+    "568": {
+      "id": 568,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211820926317341",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-720",
+      "created_at": "2026-02-22T02:49:35.4463077+05:30",
+      "updated_at": "2026-02-22T02:49:35.747589+05:30"
+    },
+    "569": {
+      "id": 569,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212517429534540",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-722",
+      "created_at": "2026-02-22T02:49:35.9771093+05:30",
+      "updated_at": "2026-02-22T02:49:36.2833665+05:30"
     },
     "57": {
       "id": 57,
@@ -12631,6 +13489,106 @@
       "created_at": "2025-10-14T00:07:21.7937893+05:30",
       "updated_at": "2025-10-14T00:07:21.7937893+05:30"
     },
+    "570": {
+      "id": 570,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212478103879008",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-724",
+      "created_at": "2026-02-22T02:49:39.5410721+05:30",
+      "updated_at": "2026-02-22T02:49:39.7377889+05:30"
+    },
+    "571": {
+      "id": 571,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212442483719869",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-726",
+      "created_at": "2026-02-22T02:49:42.0344666+05:30",
+      "updated_at": "2026-02-22T02:49:42.364812+05:30"
+    },
+    "572": {
+      "id": 572,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211958882840372",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-727",
+      "created_at": "2026-02-22T02:49:59.2750296+05:30",
+      "updated_at": "2026-02-22T02:49:59.5722915+05:30"
+    },
+    "573": {
+      "id": 573,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211841375577194",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-730",
+      "created_at": "2026-02-22T02:49:59.8121308+05:30",
+      "updated_at": "2026-02-22T02:50:00.1039661+05:30"
+    },
+    "574": {
+      "id": 574,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213030145207585",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-734",
+      "created_at": "2026-02-22T02:50:02.9284672+05:30",
+      "updated_at": "2026-02-22T02:50:03.2874198+05:30"
+    },
+    "575": {
+      "id": 575,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212967641182837",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-736",
+      "created_at": "2026-02-22T02:50:04.9822694+05:30",
+      "updated_at": "2026-02-22T02:50:05.3787555+05:30"
+    },
+    "576": {
+      "id": 576,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212967641182842",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-738",
+      "created_at": "2026-02-22T02:50:05.5196143+05:30",
+      "updated_at": "2026-02-22T02:50:05.9117689+05:30"
+    },
+    "577": {
+      "id": 577,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212953032655736",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-742",
+      "created_at": "2026-02-22T02:50:08.6053389+05:30",
+      "updated_at": "2026-02-22T02:50:09.0403337+05:30"
+    },
+    "578": {
+      "id": 578,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212953032655726",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-744",
+      "created_at": "2026-02-22T02:50:13.5746122+05:30",
+      "updated_at": "2026-02-22T02:50:14.1920029+05:30"
+    },
+    "579": {
+      "id": 579,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212637027571131",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-746",
+      "created_at": "2026-02-22T02:50:44.6079979+05:30",
+      "updated_at": "2026-02-22T02:50:45.6867431+05:30"
+    },
     "58": {
       "id": 58,
       "user_id": 1,
@@ -12640,6 +13598,106 @@
       "youtrack_issue_id": "3-1269",
       "created_at": "2025-10-14T00:07:53.8501714+05:30",
       "updated_at": "2025-10-14T00:07:53.8501714+05:30"
+    },
+    "580": {
+      "id": 580,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212782432818994",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-748",
+      "created_at": "2026-02-22T02:50:45.9007336+05:30",
+      "updated_at": "2026-02-22T02:50:46.2312446+05:30"
+    },
+    "581": {
+      "id": 581,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212766555037922",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-752",
+      "created_at": "2026-02-22T02:50:46.8615738+05:30",
+      "updated_at": "2026-02-22T02:50:47.1784514+05:30"
+    },
+    "582": {
+      "id": 582,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212444200689527",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-754",
+      "created_at": "2026-02-22T02:50:51.9111375+05:30",
+      "updated_at": "2026-02-22T02:50:52.0655999+05:30"
+    },
+    "583": {
+      "id": 583,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212741799594786",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-756",
+      "created_at": "2026-02-22T02:50:52.4681928+05:30",
+      "updated_at": "2026-02-22T02:50:52.6032048+05:30"
+    },
+    "584": {
+      "id": 584,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212637027571155",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-764",
+      "created_at": "2026-02-22T02:50:54.2686676+05:30",
+      "updated_at": "2026-02-22T02:50:54.4173453+05:30"
+    },
+    "585": {
+      "id": 585,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212637027571150",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-766",
+      "created_at": "2026-02-22T02:50:54.8190272+05:30",
+      "updated_at": "2026-02-22T02:50:55.041101+05:30"
+    },
+    "586": {
+      "id": 586,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210845429289079",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-770",
+      "created_at": "2026-02-22T02:51:43.6835146+05:30",
+      "updated_at": "2026-02-22T02:51:46.0497629+05:30"
+    },
+    "587": {
+      "id": 587,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210844858044018",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-776",
+      "created_at": "2026-02-22T02:52:02.6201782+05:30",
+      "updated_at": "2026-02-22T02:52:03.0437954+05:30"
+    },
+    "588": {
+      "id": 588,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212218248267995",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-778",
+      "created_at": "2026-02-22T02:52:03.2401595+05:30",
+      "updated_at": "2026-02-22T02:52:03.5796085+05:30"
+    },
+    "589": {
+      "id": 589,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211113817069419",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-780",
+      "created_at": "2026-02-22T02:52:06.0010364+05:30",
+      "updated_at": "2026-02-22T02:52:06.1712271+05:30"
     },
     "59": {
       "id": 59,
@@ -12651,6 +13709,106 @@
       "created_at": "2025-10-14T00:07:55.9448359+05:30",
       "updated_at": "2025-10-14T00:07:55.9448359+05:30"
     },
+    "590": {
+      "id": 590,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211921892352484",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-782",
+      "created_at": "2026-02-22T02:52:06.5368269+05:30",
+      "updated_at": "2026-02-22T02:52:06.708637+05:30"
+    },
+    "591": {
+      "id": 591,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211919610014579",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-784",
+      "created_at": "2026-02-22T02:52:07.0695734+05:30",
+      "updated_at": "2026-02-22T02:52:07.2419944+05:30"
+    },
+    "592": {
+      "id": 592,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211765221291281",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-794",
+      "created_at": "2026-02-22T02:52:09.3394603+05:30",
+      "updated_at": "2026-02-22T02:52:09.5542266+05:30"
+    },
+    "593": {
+      "id": 593,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211765221291278",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-796",
+      "created_at": "2026-02-22T02:52:09.8736263+05:30",
+      "updated_at": "2026-02-22T02:52:10.0910884+05:30"
+    },
+    "594": {
+      "id": 594,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211765221291275",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-798",
+      "created_at": "2026-02-22T02:52:14.7458221+05:30",
+      "updated_at": "2026-02-22T02:52:16.9472875+05:30"
+    },
+    "595": {
+      "id": 595,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211765221291271",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-801",
+      "created_at": "2026-02-22T02:52:15.2941549+05:30",
+      "updated_at": "2026-02-22T02:52:17.4797788+05:30"
+    },
+    "596": {
+      "id": 596,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211765221291267",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-802",
+      "created_at": "2026-02-22T02:52:17.5737453+05:30",
+      "updated_at": "2026-02-22T02:52:19.7366807+05:30"
+    },
+    "597": {
+      "id": 597,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211765220850165",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-804",
+      "created_at": "2026-02-22T02:52:20.3283406+05:30",
+      "updated_at": "2026-02-22T02:52:22.3488994+05:30"
+    },
+    "598": {
+      "id": 598,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211669298236841",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-805",
+      "created_at": "2026-02-22T02:52:25.4072876+05:30",
+      "updated_at": "2026-02-22T02:52:25.4072876+05:30"
+    },
+    "599": {
+      "id": 599,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211606528315112",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-806",
+      "created_at": "2026-02-22T02:52:27.812851+05:30",
+      "updated_at": "2026-02-22T02:52:27.812851+05:30"
+    },
     "60": {
       "id": 60,
       "user_id": 1,
@@ -12660,6 +13818,106 @@
       "youtrack_issue_id": "3-1271",
       "created_at": "2025-10-14T00:07:56.6144749+05:30",
       "updated_at": "2025-10-14T00:07:56.6144749+05:30"
+    },
+    "600": {
+      "id": 600,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211555041484032",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-808",
+      "created_at": "2026-02-22T02:52:28.4603559+05:30",
+      "updated_at": "2026-02-22T02:52:28.4603559+05:30"
+    },
+    "601": {
+      "id": 601,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211557619655643",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-807",
+      "created_at": "2026-02-22T02:52:29.8189055+05:30",
+      "updated_at": "2026-02-22T02:52:29.8189055+05:30"
+    },
+    "602": {
+      "id": 602,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211462909205436",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-812",
+      "created_at": "2026-02-22T02:52:32.262518+05:30",
+      "updated_at": "2026-02-22T02:52:33.8727648+05:30"
+    },
+    "603": {
+      "id": 603,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211463432734394",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-814",
+      "created_at": "2026-02-22T02:52:36.0510008+05:30",
+      "updated_at": "2026-02-22T02:52:37.5742663+05:30"
+    },
+    "604": {
+      "id": 604,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211444265771760",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-817",
+      "created_at": "2026-02-22T02:52:36.6190292+05:30",
+      "updated_at": "2026-02-22T02:52:38.2016882+05:30"
+    },
+    "605": {
+      "id": 605,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211444264065622",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-818",
+      "created_at": "2026-02-22T02:52:42.9326318+05:30",
+      "updated_at": "2026-02-22T02:52:44.0787188+05:30"
+    },
+    "606": {
+      "id": 606,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211444264065618",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-820",
+      "created_at": "2026-02-22T02:52:45.2486006+05:30",
+      "updated_at": "2026-02-22T02:52:46.5673731+05:30"
+    },
+    "607": {
+      "id": 607,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211444264065614",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-823",
+      "created_at": "2026-02-22T02:52:45.7807855+05:30",
+      "updated_at": "2026-02-22T02:52:47.106438+05:30"
+    },
+    "608": {
+      "id": 608,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211425458138710",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-822",
+      "created_at": "2026-02-22T02:52:52.472529+05:30",
+      "updated_at": "2026-02-22T02:52:52.472529+05:30"
+    },
+    "609": {
+      "id": 609,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211135008475223",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-830",
+      "created_at": "2026-02-22T02:53:00.4357266+05:30",
+      "updated_at": "2026-02-22T02:53:05.8334108+05:30"
     },
     "61": {
       "id": 61,
@@ -12671,6 +13929,106 @@
       "created_at": "2025-10-14T00:09:13.9582225+05:30",
       "updated_at": "2025-10-14T00:09:13.9582225+05:30"
     },
+    "610": {
+      "id": 610,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210508120326620",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-827",
+      "created_at": "2026-02-22T02:53:04.1967152+05:30",
+      "updated_at": "2026-02-22T02:53:04.1967152+05:30"
+    },
+    "611": {
+      "id": 611,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211405514938671",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-824",
+      "created_at": "2026-02-22T02:53:04.3413543+05:30",
+      "updated_at": "2026-02-22T02:53:04.3413543+05:30"
+    },
+    "612": {
+      "id": 612,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211004317190209",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-831",
+      "created_at": "2026-02-22T02:53:06.9584564+05:30",
+      "updated_at": "2026-02-22T02:53:08.6524533+05:30"
+    },
+    "613": {
+      "id": 613,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210785734497713",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-833",
+      "created_at": "2026-02-22T02:53:10.2242832+05:30",
+      "updated_at": "2026-02-22T02:53:12.1679474+05:30"
+    },
+    "614": {
+      "id": 614,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210737584712814",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-837",
+      "created_at": "2026-02-22T02:53:10.7778519+05:30",
+      "updated_at": "2026-02-22T02:53:12.7763503+05:30"
+    },
+    "615": {
+      "id": 615,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210737584712811",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-839",
+      "created_at": "2026-02-22T02:53:11.3210393+05:30",
+      "updated_at": "2026-02-22T02:53:13.3898796+05:30"
+    },
+    "616": {
+      "id": 616,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210903162965072",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-840",
+      "created_at": "2026-02-22T02:53:12.2174525+05:30",
+      "updated_at": "2026-02-22T02:53:13.9461366+05:30"
+    },
+    "617": {
+      "id": 617,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210828968522721",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-838",
+      "created_at": "2026-02-22T02:53:16.2112446+05:30",
+      "updated_at": "2026-02-22T02:53:16.2112446+05:30"
+    },
+    "618": {
+      "id": 618,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210470160585503",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-842",
+      "created_at": "2026-02-22T02:53:20.6946695+05:30",
+      "updated_at": "2026-02-22T02:53:20.6946695+05:30"
+    },
+    "619": {
+      "id": 619,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1208268406189225",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-845",
+      "created_at": "2026-02-22T02:53:21.2616826+05:30",
+      "updated_at": "2026-02-22T02:53:22.287523+05:30"
+    },
     "62": {
       "id": 62,
       "user_id": 1,
@@ -12680,6 +14038,106 @@
       "youtrack_issue_id": "3-1273",
       "created_at": "2025-10-14T00:09:16.112851+05:30",
       "updated_at": "2025-10-14T00:09:16.112851+05:30"
+    },
+    "620": {
+      "id": 620,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210448532935239",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-841",
+      "created_at": "2026-02-22T02:53:21.6207408+05:30",
+      "updated_at": "2026-02-22T02:53:21.6207408+05:30"
+    },
+    "621": {
+      "id": 621,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210448622371596",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-846",
+      "created_at": "2026-02-22T02:53:28.3739267+05:30",
+      "updated_at": "2026-02-22T02:53:29.3882613+05:30"
+    },
+    "622": {
+      "id": 622,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1208329094811853",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-849",
+      "created_at": "2026-02-22T02:53:29.3158161+05:30",
+      "updated_at": "2026-02-22T02:53:29.9732258+05:30"
+    },
+    "623": {
+      "id": 623,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1208329096184650",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-851",
+      "created_at": "2026-02-22T02:53:29.6651036+05:30",
+      "updated_at": "2026-02-22T02:53:30.3284471+05:30"
+    },
+    "624": {
+      "id": 624,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210470162854317",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-852",
+      "created_at": "2026-02-22T02:53:33.7061372+05:30",
+      "updated_at": "2026-02-22T02:53:34.0472826+05:30"
+    },
+    "625": {
+      "id": 625,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210843486258917",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-854",
+      "created_at": "2026-02-22T02:53:34.3130112+05:30",
+      "updated_at": "2026-02-22T02:53:34.6361865+05:30"
+    },
+    "626": {
+      "id": 626,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213237434410942",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-856",
+      "created_at": "2026-02-22T02:53:34.9330887+05:30",
+      "updated_at": "2026-02-22T02:53:35.25572+05:30"
+    },
+    "627": {
+      "id": 627,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210903159509493",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-858",
+      "created_at": "2026-02-22T02:53:43.246825+05:30",
+      "updated_at": "2026-02-22T02:53:43.9920229+05:30"
+    },
+    "628": {
+      "id": 628,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210971857207740",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-860",
+      "created_at": "2026-02-22T02:53:49.1323125+05:30",
+      "updated_at": "2026-02-22T02:53:50.3365947+05:30"
+    },
+    "629": {
+      "id": 629,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1210971859680096",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-862",
+      "created_at": "2026-02-22T02:53:50.5604898+05:30",
+      "updated_at": "2026-02-22T02:53:50.8709246+05:30"
     },
     "63": {
       "id": 63,
@@ -12691,6 +14149,106 @@
       "created_at": "2025-10-14T00:10:24.3987187+05:30",
       "updated_at": "2025-10-14T00:10:24.3987187+05:30"
     },
+    "630": {
+      "id": 630,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211087708057010",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-864",
+      "created_at": "2026-02-22T02:53:53.385445+05:30",
+      "updated_at": "2026-02-22T02:53:53.6135077+05:30"
+    },
+    "631": {
+      "id": 631,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211168825506758",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-866",
+      "created_at": "2026-02-22T02:54:04.9103091+05:30",
+      "updated_at": "2026-02-22T02:54:06.2141677+05:30"
+    },
+    "632": {
+      "id": 632,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211168825506770",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-869",
+      "created_at": "2026-02-22T02:54:05.4405641+05:30",
+      "updated_at": "2026-02-22T02:54:06.7435407+05:30"
+    },
+    "633": {
+      "id": 633,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211168825506772",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-870",
+      "created_at": "2026-02-22T02:54:11.8853392+05:30",
+      "updated_at": "2026-02-22T02:54:12.7838248+05:30"
+    },
+    "634": {
+      "id": 634,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211357696538263",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-871",
+      "created_at": "2026-02-22T02:54:12.4034238+05:30",
+      "updated_at": "2026-02-22T02:54:12.4034238+05:30"
+    },
+    "635": {
+      "id": 635,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212675528470488",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-879",
+      "created_at": "2026-02-22T02:54:17.2986948+05:30",
+      "updated_at": "2026-02-22T02:54:17.7688343+05:30"
+    },
+    "636": {
+      "id": 636,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212675505559347",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-881",
+      "created_at": "2026-02-22T02:54:19.9905151+05:30",
+      "updated_at": "2026-02-22T02:54:20.5155814+05:30"
+    },
+    "637": {
+      "id": 637,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212675530816104",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-883",
+      "created_at": "2026-02-22T02:54:23.5885299+05:30",
+      "updated_at": "2026-02-22T02:54:24.309665+05:30"
+    },
+    "638": {
+      "id": 638,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213352439759168",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-884",
+      "created_at": "2026-02-22T02:54:24.2821117+05:30",
+      "updated_at": "2026-02-22T02:54:24.2821117+05:30"
+    },
+    "639": {
+      "id": 639,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213349521768869",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-885",
+      "created_at": "2026-02-22T02:54:24.8722435+05:30",
+      "updated_at": "2026-02-22T02:54:24.8722435+05:30"
+    },
     "64": {
       "id": 64,
       "user_id": 1,
@@ -12700,6 +14258,106 @@
       "youtrack_issue_id": "3-1275",
       "created_at": "2025-10-14T00:13:42.413382+05:30",
       "updated_at": "2025-10-14T00:13:42.413382+05:30"
+    },
+    "640": {
+      "id": 640,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213349521768865",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-886",
+      "created_at": "2026-02-22T02:54:25.4667635+05:30",
+      "updated_at": "2026-02-22T02:54:25.4667635+05:30"
+    },
+    "641": {
+      "id": 641,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212637026019246",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-887",
+      "created_at": "2026-02-22T02:54:27.5988205+05:30",
+      "updated_at": "2026-02-22T02:54:27.5988205+05:30"
+    },
+    "642": {
+      "id": 642,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213326697722003",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-889",
+      "created_at": "2026-02-22T02:54:37.5002757+05:30",
+      "updated_at": "2026-02-22T02:54:37.5002757+05:30"
+    },
+    "643": {
+      "id": 643,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212508370102200",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-890",
+      "created_at": "2026-02-22T02:54:38.0386549+05:30",
+      "updated_at": "2026-02-22T02:54:38.0386549+05:30"
+    },
+    "644": {
+      "id": 644,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213293555115053",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-891",
+      "created_at": "2026-02-22T02:54:38.5992146+05:30",
+      "updated_at": "2026-02-22T02:54:38.5992146+05:30"
+    },
+    "645": {
+      "id": 645,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213371591059943",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-892",
+      "created_at": "2026-02-22T02:54:39.1638837+05:30",
+      "updated_at": "2026-02-22T02:54:39.1638837+05:30"
+    },
+    "646": {
+      "id": 646,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213120526110873",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-893",
+      "created_at": "2026-02-22T02:54:43.3526357+05:30",
+      "updated_at": "2026-02-22T02:54:43.3526357+05:30"
+    },
+    "647": {
+      "id": 647,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213192636431610",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-896",
+      "created_at": "2026-02-22T02:54:43.8781047+05:30",
+      "updated_at": "2026-02-22T02:54:43.8781047+05:30"
+    },
+    "648": {
+      "id": 648,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213307670284800",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-898",
+      "created_at": "2026-02-22T02:54:44.3861928+05:30",
+      "updated_at": "2026-02-22T02:54:44.3861928+05:30"
+    },
+    "649": {
+      "id": 649,
+      "user_id": 3,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213307670284797",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-901",
+      "created_at": "2026-02-22T02:54:44.9051587+05:30",
+      "updated_at": "2026-02-22T02:54:44.9051587+05:30"
     },
     "65": {
       "id": 65,
@@ -12711,6 +14369,106 @@
       "created_at": "2025-10-14T00:19:51.0647096+05:30",
       "updated_at": "2025-10-14T00:19:51.0647096+05:30"
     },
+    "650": {
+      "id": 650,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213414500781121",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-2267",
+      "created_at": "2026-02-25T12:42:00.9445104+05:30",
+      "updated_at": "2026-02-25T12:42:00.9445104+05:30"
+    },
+    "651": {
+      "id": 651,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213395342697954",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-2268",
+      "created_at": "2026-02-25T14:32:04.0470082+05:30",
+      "updated_at": "2026-02-25T14:32:04.0470082+05:30"
+    },
+    "652": {
+      "id": 652,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1212782432818994",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-2060",
+      "created_at": "2026-02-25T14:32:19.5608047+05:30",
+      "updated_at": "2026-02-25T14:32:19.5608047+05:30"
+    },
+    "653": {
+      "id": 653,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213369134418405",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-2020",
+      "created_at": "2026-03-20T10:40:08.8974165+05:30",
+      "updated_at": "2026-03-20T10:40:08.8974165+05:30"
+    },
+    "654": {
+      "id": 654,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213349521768865",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1979",
+      "created_at": "2026-03-20T10:40:15.8533403+05:30",
+      "updated_at": "2026-03-20T10:40:15.8533403+05:30"
+    },
+    "655": {
+      "id": 655,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213307670284806",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-2034",
+      "created_at": "2026-03-20T10:40:16.7852116+05:30",
+      "updated_at": "2026-03-20T10:40:16.7852116+05:30"
+    },
+    "656": {
+      "id": 656,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211168825506758",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-2085",
+      "created_at": "2026-03-20T10:40:20.2480673+05:30",
+      "updated_at": "2026-03-20T10:40:20.2480673+05:30"
+    },
+    "657": {
+      "id": 657,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213188416236328",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-2050",
+      "created_at": "2026-03-20T10:40:34.648865+05:30",
+      "updated_at": "2026-03-20T10:40:34.648865+05:30"
+    },
+    "658": {
+      "id": 658,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213210525217013",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-2048",
+      "created_at": "2026-03-20T10:40:38.9455473+05:30",
+      "updated_at": "2026-03-20T10:40:38.9455473+05:30"
+    },
+    "659": {
+      "id": 659,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1213349521768869",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-1976",
+      "created_at": "2026-03-20T10:40:40.4257813+05:30",
+      "updated_at": "2026-03-20T10:40:40.4257813+05:30"
+    },
     "66": {
       "id": 66,
       "user_id": 1,
@@ -12720,6 +14478,16 @@
       "youtrack_issue_id": "3-1280",
       "created_at": "2025-10-14T00:20:34.3001085+05:30",
       "updated_at": "2025-10-14T00:20:34.3001085+05:30"
+    },
+    "660": {
+      "id": 660,
+      "user_id": 1,
+      "asana_project_id": "1207284744539269",
+      "asana_task_id": "1211444264065622",
+      "youtrack_project_id": "ARD",
+      "youtrack_issue_id": "3-2077",
+      "created_at": "2026-03-20T10:40:42.679406+05:30",
+      "updated_at": "2026-03-20T10:40:42.679406+05:30"
     },
     "67": {
       "id": 67,
@@ -13111,10 +14879,10 @@
       "created_at": "2025-10-19T03:39:03.6020353+05:30",
       "expires_at": "2025-10-20T03:39:03.6020353+05:30"
     },
-    "447": {
-      "id": 447,
-      "operation_id": 452,
-      "user_id": 1,
+    "462": {
+      "id": 462,
+      "operation_id": 467,
+      "user_id": 3,
       "snapshot_data": {
         "original_tickets": [],
         "created_tickets": [],
@@ -13124,51 +14892,81 @@
           "asana_to_youtrack": [
             {
               "asana_column": "Backlog",
-              "youtrack_status": "Backlog",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
             },
             {
               "asana_column": "In Progress",
-              "youtrack_status": "In Progress",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
             },
             {
               "asana_column": "DEV",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "DEV"
             },
             {
               "asana_column": "Ready for Stage",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for Stage"
             },
             {
               "asana_column": "Stage",
-              "youtrack_status": "Stage",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "STAGE"
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for PROD"
             },
             {
               "asana_column": "PROD",
-              "youtrack_status": "Prod",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "PROD"
+            },
+            {
+              "asana_column": "Mobile DONE",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Mobile DONE"
+            },
+            {
+              "asana_column": "Blocked",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Blocked"
+            },
+            {
+              "asana_column": "closed",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Closed"
+            },
+            {
+              "asana_column": "Findings",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Findings"
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:47:30.0670095+05:30",
-      "expires_at": "2026-02-14T00:47:30.0670095+05:30"
+      "created_at": "2026-02-22T02:42:35.6977122+05:30",
+      "expires_at": "2026-02-23T02:42:35.6977122+05:30"
     },
-    "448": {
-      "id": 448,
-      "operation_id": 453,
-      "user_id": 1,
+    "463": {
+      "id": 463,
+      "operation_id": 468,
+      "user_id": 3,
       "snapshot_data": {
         "original_tickets": [],
         "created_tickets": [],
@@ -13178,51 +14976,81 @@
           "asana_to_youtrack": [
             {
               "asana_column": "Backlog",
-              "youtrack_status": "Backlog",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
             },
             {
               "asana_column": "In Progress",
-              "youtrack_status": "In Progress",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
             },
             {
               "asana_column": "DEV",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "DEV"
             },
             {
               "asana_column": "Ready for Stage",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for Stage"
             },
             {
               "asana_column": "Stage",
-              "youtrack_status": "Stage",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "STAGE"
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for PROD"
             },
             {
               "asana_column": "PROD",
-              "youtrack_status": "Prod",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "PROD"
+            },
+            {
+              "asana_column": "Mobile DONE",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Mobile DONE"
+            },
+            {
+              "asana_column": "Blocked",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Blocked"
+            },
+            {
+              "asana_column": "closed",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Closed"
+            },
+            {
+              "asana_column": "Findings",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Findings"
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:47:30.3554131+05:30",
-      "expires_at": "2026-02-14T00:47:30.3554131+05:30"
+      "created_at": "2026-02-22T02:47:51.8803482+05:30",
+      "expires_at": "2026-02-23T02:47:51.8803482+05:30"
     },
-    "449": {
-      "id": 449,
-      "operation_id": 454,
-      "user_id": 1,
+    "464": {
+      "id": 464,
+      "operation_id": 469,
+      "user_id": 3,
       "snapshot_data": {
         "original_tickets": [],
         "created_tickets": [],
@@ -13232,51 +15060,81 @@
           "asana_to_youtrack": [
             {
               "asana_column": "Backlog",
-              "youtrack_status": "Backlog",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
             },
             {
               "asana_column": "In Progress",
-              "youtrack_status": "In Progress",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
             },
             {
               "asana_column": "DEV",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "DEV"
             },
             {
               "asana_column": "Ready for Stage",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for Stage"
             },
             {
               "asana_column": "Stage",
-              "youtrack_status": "Stage",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "STAGE"
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for PROD"
             },
             {
               "asana_column": "PROD",
-              "youtrack_status": "Prod",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "PROD"
+            },
+            {
+              "asana_column": "Mobile DONE",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Mobile DONE"
+            },
+            {
+              "asana_column": "Blocked",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Blocked"
+            },
+            {
+              "asana_column": "closed",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Closed"
+            },
+            {
+              "asana_column": "Findings",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Findings"
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:47:30.5436765+05:30",
-      "expires_at": "2026-02-14T00:47:30.5436765+05:30"
+      "created_at": "2026-02-22T02:54:24.3338581+05:30",
+      "expires_at": "2026-02-23T02:54:24.3338581+05:30"
     },
-    "450": {
-      "id": 450,
-      "operation_id": 455,
-      "user_id": 1,
+    "465": {
+      "id": 465,
+      "operation_id": 470,
+      "user_id": 3,
       "snapshot_data": {
         "original_tickets": [],
         "created_tickets": [],
@@ -13286,51 +15144,81 @@
           "asana_to_youtrack": [
             {
               "asana_column": "Backlog",
-              "youtrack_status": "Backlog",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
             },
             {
               "asana_column": "In Progress",
-              "youtrack_status": "In Progress",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
             },
             {
               "asana_column": "DEV",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "DEV"
             },
             {
               "asana_column": "Ready for Stage",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for Stage"
             },
             {
               "asana_column": "Stage",
-              "youtrack_status": "Stage",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "STAGE"
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for PROD"
             },
             {
               "asana_column": "PROD",
-              "youtrack_status": "Prod",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "PROD"
+            },
+            {
+              "asana_column": "Mobile DONE",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Mobile DONE"
+            },
+            {
+              "asana_column": "Blocked",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Blocked"
+            },
+            {
+              "asana_column": "closed",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Closed"
+            },
+            {
+              "asana_column": "Findings",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Findings"
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:47:30.7053687+05:30",
-      "expires_at": "2026-02-14T00:47:30.7053687+05:30"
+      "created_at": "2026-02-22T02:55:28.330162+05:30",
+      "expires_at": "2026-02-23T02:55:28.330162+05:30"
     },
-    "451": {
-      "id": 451,
-      "operation_id": 456,
-      "user_id": 1,
+    "466": {
+      "id": 466,
+      "operation_id": 471,
+      "user_id": 3,
       "snapshot_data": {
         "original_tickets": [],
         "created_tickets": [],
@@ -13340,51 +15228,81 @@
           "asana_to_youtrack": [
             {
               "asana_column": "Backlog",
-              "youtrack_status": "Backlog",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
             },
             {
               "asana_column": "In Progress",
-              "youtrack_status": "In Progress",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
             },
             {
               "asana_column": "DEV",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "DEV"
             },
             {
               "asana_column": "Ready for Stage",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for Stage"
             },
             {
               "asana_column": "Stage",
-              "youtrack_status": "Stage",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "STAGE"
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for PROD"
             },
             {
               "asana_column": "PROD",
-              "youtrack_status": "Prod",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "PROD"
+            },
+            {
+              "asana_column": "Mobile DONE",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Mobile DONE"
+            },
+            {
+              "asana_column": "Blocked",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Blocked"
+            },
+            {
+              "asana_column": "closed",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Closed"
+            },
+            {
+              "asana_column": "Findings",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Findings"
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:47:31.0918618+05:30",
-      "expires_at": "2026-02-14T00:47:31.0918618+05:30"
+      "created_at": "2026-02-22T02:55:59.3186192+05:30",
+      "expires_at": "2026-02-23T02:55:59.3186192+05:30"
     },
-    "452": {
-      "id": 452,
-      "operation_id": 457,
-      "user_id": 1,
+    "467": {
+      "id": 467,
+      "operation_id": 472,
+      "user_id": 3,
       "snapshot_data": {
         "original_tickets": [],
         "created_tickets": [],
@@ -13394,51 +15312,81 @@
           "asana_to_youtrack": [
             {
               "asana_column": "Backlog",
-              "youtrack_status": "Backlog",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
             },
             {
               "asana_column": "In Progress",
-              "youtrack_status": "In Progress",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
             },
             {
               "asana_column": "DEV",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "DEV"
             },
             {
               "asana_column": "Ready for Stage",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for Stage"
             },
             {
               "asana_column": "Stage",
-              "youtrack_status": "Stage",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "STAGE"
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for PROD"
             },
             {
               "asana_column": "PROD",
-              "youtrack_status": "Prod",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "PROD"
+            },
+            {
+              "asana_column": "Mobile DONE",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Mobile DONE"
+            },
+            {
+              "asana_column": "Blocked",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Blocked"
+            },
+            {
+              "asana_column": "closed",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Closed"
+            },
+            {
+              "asana_column": "Findings",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Findings"
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:48:00.5127601+05:30",
-      "expires_at": "2026-02-14T00:48:00.5127601+05:30"
+      "created_at": "2026-02-22T02:57:41.2279858+05:30",
+      "expires_at": "2026-02-23T02:57:41.2279858+05:30"
     },
-    "453": {
-      "id": 453,
-      "operation_id": 458,
-      "user_id": 1,
+    "468": {
+      "id": 468,
+      "operation_id": 473,
+      "user_id": 3,
       "snapshot_data": {
         "original_tickets": [],
         "created_tickets": [],
@@ -13448,51 +15396,81 @@
           "asana_to_youtrack": [
             {
               "asana_column": "Backlog",
-              "youtrack_status": "Backlog",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
             },
             {
               "asana_column": "In Progress",
-              "youtrack_status": "In Progress",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
             },
             {
               "asana_column": "DEV",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "DEV"
             },
             {
               "asana_column": "Ready for Stage",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for Stage"
             },
             {
               "asana_column": "Stage",
-              "youtrack_status": "Stage",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "STAGE"
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for PROD"
             },
             {
               "asana_column": "PROD",
-              "youtrack_status": "Prod",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "PROD"
+            },
+            {
+              "asana_column": "Mobile DONE",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Mobile DONE"
+            },
+            {
+              "asana_column": "Blocked",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Blocked"
+            },
+            {
+              "asana_column": "closed",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Closed"
+            },
+            {
+              "asana_column": "Findings",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Findings"
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:48:00.6635255+05:30",
-      "expires_at": "2026-02-14T00:48:00.6635255+05:30"
+      "created_at": "2026-02-22T02:58:22.1282303+05:30",
+      "expires_at": "2026-02-23T02:58:22.1282303+05:30"
     },
-    "454": {
-      "id": 454,
-      "operation_id": 459,
-      "user_id": 1,
+    "469": {
+      "id": 469,
+      "operation_id": 474,
+      "user_id": 3,
       "snapshot_data": {
         "original_tickets": [],
         "created_tickets": [],
@@ -13502,50 +15480,80 @@
           "asana_to_youtrack": [
             {
               "asana_column": "Backlog",
-              "youtrack_status": "Backlog",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Backlog"
             },
             {
               "asana_column": "In Progress",
-              "youtrack_status": "In Progress",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "In Progress"
             },
             {
               "asana_column": "DEV",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "DEV"
             },
             {
               "asana_column": "Ready for Stage",
-              "youtrack_status": "Dev",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for Stage"
             },
             {
               "asana_column": "Stage",
-              "youtrack_status": "Stage",
               "display_only": false,
-              "reverse_sync_priority": true
+              "reverse_sync_priority": false,
+              "youtrack_status": "STAGE"
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Ready for PROD"
             },
             {
               "asana_column": "PROD",
-              "youtrack_status": "Prod",
               "display_only": false,
-              "reverse_sync_priority": false
+              "reverse_sync_priority": false,
+              "youtrack_status": "PROD"
+            },
+            {
+              "asana_column": "Mobile DONE",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Mobile DONE"
+            },
+            {
+              "asana_column": "Blocked",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Blocked"
+            },
+            {
+              "asana_column": "closed",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Closed"
+            },
+            {
+              "asana_column": "Findings",
+              "display_only": false,
+              "reverse_sync_priority": false,
+              "youtrack_status": "Findings"
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:48:00.6846407+05:30",
-      "expires_at": "2026-02-14T00:48:00.6846407+05:30"
+      "created_at": "2026-02-22T02:58:33.9272497+05:30",
+      "expires_at": "2026-02-23T02:58:33.9272497+05:30"
     },
-    "455": {
-      "id": 455,
-      "operation_id": 460,
+    "472": {
+      "id": 472,
+      "operation_id": 477,
       "user_id": 1,
       "snapshot_data": {
         "original_tickets": [],
@@ -13589,17 +15597,35 @@
               "youtrack_status": "Prod",
               "display_only": false,
               "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:48:00.7014022+05:30",
-      "expires_at": "2026-02-14T00:48:00.7014022+05:30"
+      "created_at": "2026-03-20T10:40:13.7039054+05:30",
+      "expires_at": "2026-03-21T10:40:13.7039054+05:30"
     },
-    "456": {
-      "id": 456,
-      "operation_id": 461,
+    "473": {
+      "id": 473,
+      "operation_id": 478,
       "user_id": 1,
       "snapshot_data": {
         "original_tickets": [],
@@ -13643,17 +15669,35 @@
               "youtrack_status": "Prod",
               "display_only": false,
               "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:48:00.7208007+05:30",
-      "expires_at": "2026-02-14T00:48:00.7208007+05:30"
+      "created_at": "2026-03-20T10:40:14.6027062+05:30",
+      "expires_at": "2026-03-21T10:40:14.6027062+05:30"
     },
-    "457": {
-      "id": 457,
-      "operation_id": 462,
+    "474": {
+      "id": 474,
+      "operation_id": 479,
       "user_id": 1,
       "snapshot_data": {
         "original_tickets": [],
@@ -13697,17 +15741,35 @@
               "youtrack_status": "Prod",
               "display_only": false,
               "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:48:00.7413638+05:30",
-      "expires_at": "2026-02-14T00:48:00.7413638+05:30"
+      "created_at": "2026-03-20T10:40:16.0610375+05:30",
+      "expires_at": "2026-03-21T10:40:16.0610375+05:30"
     },
-    "458": {
-      "id": 458,
-      "operation_id": 463,
+    "475": {
+      "id": 475,
+      "operation_id": 480,
       "user_id": 1,
       "snapshot_data": {
         "original_tickets": [],
@@ -13751,17 +15813,35 @@
               "youtrack_status": "Prod",
               "display_only": false,
               "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:48:01.4277637+05:30",
-      "expires_at": "2026-02-14T00:48:01.4277637+05:30"
+      "created_at": "2026-03-20T10:40:18.1963984+05:30",
+      "expires_at": "2026-03-21T10:40:18.1963984+05:30"
     },
-    "459": {
-      "id": 459,
-      "operation_id": 464,
+    "476": {
+      "id": 476,
+      "operation_id": 481,
       "user_id": 1,
       "snapshot_data": {
         "original_tickets": [],
@@ -13805,17 +15885,35 @@
               "youtrack_status": "Prod",
               "display_only": false,
               "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:48:01.4664067+05:30",
-      "expires_at": "2026-02-14T00:48:01.4664067+05:30"
+      "created_at": "2026-03-20T10:40:20.599336+05:30",
+      "expires_at": "2026-03-21T10:40:20.599336+05:30"
     },
-    "460": {
-      "id": 460,
-      "operation_id": 465,
+    "477": {
+      "id": 477,
+      "operation_id": 482,
       "user_id": 1,
       "snapshot_data": {
         "original_tickets": [],
@@ -13859,17 +15957,35 @@
               "youtrack_status": "Prod",
               "display_only": false,
               "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:50:44.5626671+05:30",
-      "expires_at": "2026-02-14T00:50:44.5626671+05:30"
+      "created_at": "2026-03-20T10:40:21.8712354+05:30",
+      "expires_at": "2026-03-21T10:40:21.8712354+05:30"
     },
-    "461": {
-      "id": 461,
-      "operation_id": 466,
+    "478": {
+      "id": 478,
+      "operation_id": 483,
       "user_id": 1,
       "snapshot_data": {
         "original_tickets": [],
@@ -13913,13 +16029,607 @@
               "youtrack_status": "Prod",
               "display_only": false,
               "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
             }
           ],
           "youtrack_to_asana": []
         }
       },
-      "created_at": "2026-02-13T00:51:06.5948259+05:30",
-      "expires_at": "2026-02-14T00:51:06.5948259+05:30"
+      "created_at": "2026-03-20T10:40:24.4539125+05:30",
+      "expires_at": "2026-03-21T10:40:24.4539125+05:30"
+    },
+    "479": {
+      "id": 479,
+      "operation_id": 484,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "In Progress",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "DEV",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Stage",
+              "youtrack_status": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2026-03-20T10:40:29.1851757+05:30",
+      "expires_at": "2026-03-21T10:40:29.1851757+05:30"
+    },
+    "480": {
+      "id": 480,
+      "operation_id": 485,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "In Progress",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "DEV",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Stage",
+              "youtrack_status": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2026-03-20T10:40:30.6704918+05:30",
+      "expires_at": "2026-03-21T10:40:30.6704918+05:30"
+    },
+    "481": {
+      "id": 481,
+      "operation_id": 486,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "In Progress",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "DEV",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Stage",
+              "youtrack_status": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2026-03-20T10:40:32.502833+05:30",
+      "expires_at": "2026-03-21T10:40:32.502833+05:30"
+    },
+    "482": {
+      "id": 482,
+      "operation_id": 487,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "In Progress",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "DEV",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Stage",
+              "youtrack_status": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2026-03-20T10:40:36.8820683+05:30",
+      "expires_at": "2026-03-21T10:40:36.8820683+05:30"
+    },
+    "483": {
+      "id": 483,
+      "operation_id": 488,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "In Progress",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "DEV",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Stage",
+              "youtrack_status": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2026-03-20T10:40:38.3023276+05:30",
+      "expires_at": "2026-03-21T10:40:38.3023276+05:30"
+    },
+    "484": {
+      "id": 484,
+      "operation_id": 489,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "In Progress",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "DEV",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Stage",
+              "youtrack_status": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2026-03-20T10:40:40.6339153+05:30",
+      "expires_at": "2026-03-21T10:40:40.6339153+05:30"
+    },
+    "485": {
+      "id": 485,
+      "operation_id": 490,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "In Progress",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "DEV",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Stage",
+              "youtrack_status": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2026-03-20T10:40:44.7480078+05:30",
+      "expires_at": "2026-03-21T10:40:44.7480078+05:30"
+    },
+    "486": {
+      "id": 486,
+      "operation_id": 491,
+      "user_id": 1,
+      "snapshot_data": {
+        "original_tickets": [],
+        "created_tickets": [],
+        "updated_mappings": [],
+        "ignore_changes": [],
+        "column_mappings": {
+          "asana_to_youtrack": [
+            {
+              "asana_column": "Backlog",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "In Progress",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "DEV",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "Ready for Stage",
+              "youtrack_status": "Dev",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Stage",
+              "youtrack_status": "Stage",
+              "display_only": false,
+              "reverse_sync_priority": true
+            },
+            {
+              "asana_column": "PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "Ready for PROD",
+              "youtrack_status": "Prod",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "sprint 11 - 20",
+              "youtrack_status": "Backlog",
+              "display_only": false,
+              "reverse_sync_priority": false
+            },
+            {
+              "asana_column": "QA Ready",
+              "youtrack_status": "In Progress",
+              "display_only": false,
+              "reverse_sync_priority": false
+            }
+          ],
+          "youtrack_to_asana": []
+        }
+      },
+      "created_at": "2026-03-20T10:41:06.8784041+05:30",
+      "expires_at": "2026-03-21T10:41:06.8784041+05:30"
     }
   },
   "audit_logs": {
@@ -13937,12 +16647,12 @@
   },
   "reverse_ignored_tickets": {},
   "reverse_auto_create_settings": {},
-  "next_user_id": 3,
-  "next_settings_id": 3,
-  "next_operation_id": 467,
+  "next_user_id": 4,
+  "next_settings_id": 4,
+  "next_operation_id": 492,
   "next_ignored_id": 92,
-  "next_mapping_id": 533,
-  "next_snapshot_id": 462,
+  "next_mapping_id": 661,
+  "next_snapshot_id": 487,
   "next_audit_log_id": 1,
   "next_reverse_ignored_id": 0,
   "next_reverse_auto_create_id": 0
