@@ -102,18 +102,33 @@ type YouTrackUser struct {
 	Email    string `json:"email"`
 }
 
+// FieldDiff holds Asana vs YouTrack value comparison for a single field
+type FieldDiff struct {
+	AsanaValue    string `json:"asana_value"`
+	YouTrackValue string `json:"youtrack_value"`
+	HasDiff       bool   `json:"has_diff"`
+}
+
+// AlreadyExistsTicket represents an Asana task that exists in YT but isn't mapped
+type AlreadyExistsTicket struct {
+	AsanaTask     AsanaTask     `json:"asana_task"`
+	YouTrackIssue YouTrackIssue `json:"youtrack_issue"`
+	MatchMethod   string        `json:"match_method"` // "title" or "description"
+}
+
 // Analysis result structures
 type TicketAnalysis struct {
-	SelectedColumn   string             `json:"selected_column"`
-	Matched          []MatchedTicket    `json:"matched"`
-	Mismatched       []MismatchedTicket `json:"mismatched"`
-	MissingYouTrack  []AsanaTask        `json:"missing_youtrack"`
-	FindingsTickets  []AsanaTask        `json:"findings_tickets"`
-	FindingsAlerts   []FindingsAlert    `json:"findings_alerts"`
-	ReadyForStage    []AsanaTask        `json:"ready_for_stage"`
-	BlockedTickets   []MatchedTicket    `json:"blocked_tickets"`
-	OrphanedYouTrack []YouTrackIssue    `json:"orphaned_youtrack"`
-	Ignored          []string           `json:"ignored"`
+	SelectedColumn   string                `json:"selected_column"`
+	Matched          []MatchedTicket       `json:"matched"`
+	Mismatched       []MismatchedTicket    `json:"mismatched"`
+	MissingYouTrack  []AsanaTask           `json:"missing_youtrack"`
+	FindingsTickets  []AsanaTask           `json:"findings_tickets"`
+	FindingsAlerts   []FindingsAlert       `json:"findings_alerts"`
+	ReadyForStage    []AsanaTask           `json:"ready_for_stage"`
+	BlockedTickets   []MatchedTicket       `json:"blocked_tickets"`
+	OrphanedYouTrack []YouTrackIssue       `json:"orphaned_youtrack"`
+	Ignored          []string              `json:"ignored"`
+	AlreadyExists    []AlreadyExistsTicket `json:"already_exists"`
 }
 
 type MatchedTicket struct {
@@ -124,9 +139,11 @@ type MatchedTicket struct {
 	YouTrackSubsystem string        `json:"youtrack_subsystem"`
 	TagMismatch       bool          `json:"tag_mismatch"`
 	// Enhanced fields
-	AssigneeName string    `json:"assignee_name"`
-	Priority     string    `json:"priority"`
-	CreatedAt    time.Time `json:"created_at"`
+	AssigneeName    string     `json:"assignee_name"`
+	Priority        string     `json:"priority"`
+	CreatedAt       time.Time  `json:"created_at"`
+	TitleDiff       *FieldDiff `json:"title_diff,omitempty"`
+	DescriptionDiff *FieldDiff `json:"description_diff,omitempty"`
 }
 
 type MismatchedTicket struct {
@@ -138,9 +155,11 @@ type MismatchedTicket struct {
 	YouTrackSubsystem string        `json:"youtrack_subsystem"`
 	TagMismatch       bool          `json:"tag_mismatch"`
 	// Enhanced fields
-	AssigneeName      string    `json:"assignee_name"`
-	Priority          string    `json:"priority"`
-	CreatedAt         time.Time `json:"created_at"`
+	AssigneeName    string     `json:"assignee_name"`
+	Priority        string     `json:"priority"`
+	CreatedAt       time.Time  `json:"created_at"`
+	TitleDiff       *FieldDiff `json:"title_diff,omitempty"`
+	DescriptionDiff *FieldDiff `json:"description_diff,omitempty"`
 }
 
 type FindingsAlert struct {

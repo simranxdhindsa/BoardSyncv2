@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"asana-youtrack-sync/config"
@@ -15,20 +16,57 @@ import (
 	"asana-youtrack-sync/utils"
 )
 
+const youTrackCacheTTL = 2 * time.Minute
+
 // YouTrackService handles YouTrack API operations with user-specific settings
 type YouTrackService struct {
 	configService *config.Service
+	cachedIssues  map[int][]YouTrackIssue
+	cacheExpiry   map[int]time.Time
+	cacheMutex    sync.RWMutex
 }
 
 // NewYouTrackService creates a new YouTrack service
 func NewYouTrackService(configService *config.Service) *YouTrackService {
 	return &YouTrackService{
 		configService: configService,
+		cachedIssues:  make(map[int][]YouTrackIssue),
+		cacheExpiry:   make(map[int]time.Time),
 	}
 }
 
-// GetIssues retrieves issues from YouTrack using user settings
+func (s *YouTrackService) getCachedIssues(userID int) ([]YouTrackIssue, bool) {
+	s.cacheMutex.RLock()
+	defer s.cacheMutex.RUnlock()
+	expiry, ok := s.cacheExpiry[userID]
+	if !ok || time.Now().After(expiry) {
+		return nil, false
+	}
+	return s.cachedIssues[userID], true
+}
+
+func (s *YouTrackService) setCachedIssues(userID int, issues []YouTrackIssue) {
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+	s.cachedIssues[userID] = issues
+	s.cacheExpiry[userID] = time.Now().Add(youTrackCacheTTL)
+}
+
+// InvalidateIssueCache clears cached issues for a user (call after create/update)
+func (s *YouTrackService) InvalidateIssueCache(userID int) {
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+	delete(s.cachedIssues, userID)
+	delete(s.cacheExpiry, userID)
+}
+
+// GetIssues retrieves issues from YouTrack using user settings (with 2-min cache)
 func (s *YouTrackService) GetIssues(userID int) ([]YouTrackIssue, error) {
+	if cached, ok := s.getCachedIssues(userID); ok {
+		fmt.Printf("YT-CACHE: Returning %d cached issues for user %d\n", len(cached), userID)
+		return cached, nil
+	}
+
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
@@ -53,6 +91,7 @@ func (s *YouTrackService) GetIssues(userID int) ([]YouTrackIssue, error) {
 		issues, err := approach(settings)
 		if err == nil && len(issues) >= 0 {
 			fmt.Printf("Approach %d succeeded! Found %d issues for user %d\n", i+1, len(issues), userID)
+			s.setCachedIssues(userID, issues)
 			return issues, nil
 		}
 		fmt.Printf("Approach %d failed: %v\n", i+1, err)
@@ -70,10 +109,10 @@ func (s *YouTrackService) getIssuesWithProjectKey(settings *config.UserSettings)
 	encodedQuery = strings.ReplaceAll(encodedQuery, "{", "%7B")
 	encodedQuery = strings.ReplaceAll(encodedQuery, "}", "%7D")
 
-	url := fmt.Sprintf("%s/api/issues?fields=%s&query=%s&top=200",
+	baseURL := fmt.Sprintf("%s/api/issues?fields=%s&query=%s",
 		settings.YouTrackBaseURL, fields, encodedQuery)
 
-	return s.makeRequest(settings, url)
+	return s.makeRequestPaginated(settings, baseURL)
 }
 
 // getIssuesWithQuery tries query-based approach
@@ -94,10 +133,10 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 			encodedQuery = strings.ReplaceAll(encodedQuery, "}", "%7D")
 		}
 
-		url := fmt.Sprintf("%s/api/issues?fields=%s&query=%s&top=200",
+		baseURL := fmt.Sprintf("%s/api/issues?fields=%s&query=%s",
 			settings.YouTrackBaseURL, fields, encodedQuery)
 
-		if issues, err := s.makeRequest(settings, url); err == nil {
+		if issues, err := s.makeRequestPaginated(settings, baseURL); err == nil {
 			return issues, nil
 		}
 	}
@@ -107,10 +146,10 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 
 // getIssuesSimpleCloud tries simple issues endpoint
 func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([]YouTrackIssue, error) {
-	url := fmt.Sprintf("%s/api/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)&top=200",
+	baseURL := fmt.Sprintf("%s/api/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)",
 		settings.YouTrackBaseURL)
 
-	allIssues, err := s.makeRequest(settings, url)
+	allIssues, err := s.makeRequestPaginated(settings, baseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -128,20 +167,44 @@ func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([
 
 // getIssuesViaProjects tries project-specific endpoint
 func (s *YouTrackService) getIssuesViaProjects(settings *config.UserSettings) ([]YouTrackIssue, error) {
-	urls := []string{
-		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
+	baseURLs := []string{
+		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)",
 			settings.YouTrackBaseURL, settings.YouTrackProjectID),
-		fmt.Sprintf("%s/api/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)&top=200",
+		fmt.Sprintf("%s/api/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)",
 			settings.YouTrackBaseURL, settings.YouTrackProjectID),
 	}
 
-	for _, url := range urls {
-		if issues, err := s.makeRequest(settings, url); err == nil {
+	for _, baseURL := range baseURLs {
+		if issues, err := s.makeRequestPaginated(settings, baseURL); err == nil {
 			return issues, nil
 		}
 	}
 
 	return nil, fmt.Errorf("project endpoint approach failed")
+}
+
+// makeRequestPaginated fetches all pages from a YouTrack issues endpoint using $skip
+func (s *YouTrackService) makeRequestPaginated(settings *config.UserSettings, baseURL string) ([]YouTrackIssue, error) {
+	var all []YouTrackIssue
+	pageSize := 100
+	skip := 0
+	for {
+		url := fmt.Sprintf("%s&$top=%d&$skip=%d", baseURL, pageSize, skip)
+		page, err := s.makeRequest(settings, url)
+		if err != nil {
+			if skip == 0 {
+				return nil, err // first page failed — real error
+			}
+			break // partial results OK
+		}
+		fmt.Printf("YT-PAGINATION: skip=%d got %d issues\n", skip, len(page))
+		all = append(all, page...)
+		if len(page) < pageSize {
+			break
+		}
+		skip += pageSize
+	}
+	return all, nil
 }
 
 // makeRequest makes HTTP request to YouTrack API
@@ -393,6 +456,9 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 	}
 
 	fmt.Printf("Created YouTrack issue: %s for Asana task: %s\n", issueID, task.GID)
+
+	// Invalidate cache so next analysis sees the new issue
+	s.InvalidateIssueCache(userID)
 
 	// Auto-assign agile board if configured
 	if settings.YouTrackBoardID != "" {
@@ -679,7 +745,12 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 		payload["fields"] = customFields
 	}
 
-	return s.createOrUpdateIssue(settings, issueID, payload)
+	if err := s.createOrUpdateIssue(settings, issueID, payload); err != nil {
+		return err
+	}
+	// Invalidate cache so next analysis picks up the updated content
+	s.InvalidateIssueCache(userID)
+	return nil
 }
 
 // UpdateIssueStatus updates only the status of a YouTrack issue (for rollback)
@@ -1142,13 +1213,61 @@ func (s *YouTrackService) UploadAttachment(userID int, issueID string, filename 
 	return nil
 }
 
-// ProcessAttachments downloads attachments from Asana and uploads them to YouTrack
+// getExistingAttachmentNames fetches the set of filenames already attached to a YT issue
+func (s *YouTrackService) getExistingAttachmentNames(settings *config.UserSettings, issueID string) map[string]bool {
+	url := fmt.Sprintf("%s/api/issues/%s/attachments?fields=name", settings.YouTrackBaseURL, issueID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+
+	var atts []struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(body, &atts); err != nil {
+		return nil
+	}
+
+	names := make(map[string]bool, len(atts))
+	for _, a := range atts {
+		names[a.Name] = true
+	}
+	return names
+}
+
+// ProcessAttachments downloads attachments from Asana and uploads them to YouTrack (deduped by filename)
 func (s *YouTrackService) ProcessAttachments(userID int, issueID string, task AsanaTask, asanaService *AsanaService) error {
 	if len(task.Attachments) == 0 {
 		return nil
 	}
 
 	fmt.Printf("Processing %d attachments for issue %s\n", len(task.Attachments), issueID)
+
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		fmt.Printf("Warning: Failed to get settings for attachment dedup: %v\n", err)
+		settings = nil
+	}
+
+	// Fetch existing attachment names for dedup
+	var existingNames map[string]bool
+	if settings != nil {
+		existingNames = s.getExistingAttachmentNames(settings, issueID)
+	}
 
 	successCount := 0
 	failCount := 0
@@ -1164,6 +1283,12 @@ func (s *YouTrackService) ProcessAttachments(userID int, issueID string, task As
 		if attachment.Size > 50*1024*1024 {
 			fmt.Printf("Skipping attachment '%s' - file too large (%d bytes)\n", attachment.Name, attachment.Size)
 			failCount++
+			continue
+		}
+
+		// Skip if already uploaded (dedup by filename)
+		if existingNames != nil && existingNames[attachment.Name] {
+			fmt.Printf("Skipping attachment '%s' - already exists in YouTrack issue %s\n", attachment.Name, issueID)
 			continue
 		}
 

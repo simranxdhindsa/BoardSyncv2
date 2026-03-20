@@ -2,12 +2,16 @@ package legacy
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/database"
+	"asana-youtrack-sync/utils"
 )
+
+var nonAlphanumRe = regexp.MustCompile(`[^a-z0-9\s]`)
 
 // AnalysisService handles comprehensive ticket analysis operations
 type AnalysisService struct {
@@ -29,44 +33,52 @@ func NewAnalysisService(db *database.DB, configService *configpkg.Service) *Anal
 	}
 }
 
-// normalizeTitle normalizes a title for fuzzy matching
+// normalizeTitle normalizes a title for fuzzy matching (strips all non-alphanumeric chars)
 func normalizeTitle(title string) string {
-	// Convert to lowercase
-	normalized := strings.ToLower(title)
-
-	// Remove special characters and extra spaces
-	normalized = strings.ReplaceAll(normalized, "/", " ")
-	normalized = strings.ReplaceAll(normalized, "-", " ")
-	normalized = strings.ReplaceAll(normalized, "_", " ")
-	normalized = strings.ReplaceAll(normalized, "  ", " ")
-	normalized = strings.TrimSpace(normalized)
-
-	return normalized
+	s := strings.ToLower(title)
+	s = nonAlphanumRe.ReplaceAllString(s, " ")
+	return strings.Join(strings.Fields(s), " ") // collapse whitespace
 }
 
-// titlesMatch checks if two titles match (with fuzzy matching)
+// titlesMatch checks if two titles match using 85% word overlap threshold
 func titlesMatch(title1, title2 string) bool {
-	norm1 := normalizeTitle(title1)
-	norm2 := normalizeTitle(title2)
-
-	// Exact match after normalization
-	if norm1 == norm2 {
+	n1 := normalizeTitle(title1)
+	n2 := normalizeTitle(title2)
+	if n1 == n2 {
 		return true
 	}
 
-	// Check if one contains the other (for partial matches)
-	if len(norm1) > 10 && len(norm2) > 10 {
-		if strings.Contains(norm1, norm2) || strings.Contains(norm2, norm1) {
-			return true
+	words1 := strings.Fields(n1)
+	words2 := strings.Fields(n2)
+	if len(words1) == 0 || len(words2) == 0 {
+		return false
+	}
+
+	wordSet := make(map[string]bool, len(words1))
+	for _, w := range words1 {
+		wordSet[w] = true
+	}
+
+	overlap := 0
+	for _, w := range words2 {
+		if wordSet[w] {
+			overlap++
 		}
 	}
 
-	return false
+	shorter := len(words1)
+	if len(words2) < shorter {
+		shorter = len(words2)
+	}
+	return float64(overlap)/float64(shorter) >= 0.85
 }
 
 // PerformAnalysis performs comprehensive ticket analysis for a user
 func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) (*TicketAnalysis, error) {
 	fmt.Printf("ANALYSIS: Starting analysis for user %d with columns: %v\n", userID, selectedColumns)
+
+	// Load settings once for self-healing mapping persistence
+	userSettings, settingsErr := s.configService.GetSettings(userID)
 
 	// Step 1: Get all Asana tasks for the user
 	allAsanaTasks, err := s.asanaService.GetTasks(userID)
@@ -117,6 +129,11 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 			youTrackMap[asanaID] = issue
 			usedYouTrackIssues[issue.ID] = true
 			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana ID '%s' via DESCRIPTION\n", issue.ID, asanaID)
+			// Self-heal: persist mapping so future analyses use DB (O(1) lookup)
+			if settingsErr == nil {
+				s.db.CreateTicketMapping(userID, userSettings.AsanaProjectID, asanaID, userSettings.YouTrackProjectID, issue.ID)
+				fmt.Printf("ANALYSIS: Self-healed mapping via DESCRIPTION: Asana %s <-> YT %s\n", asanaID, issue.ID)
+			}
 		}
 	}
 
@@ -145,6 +162,11 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 				titleMatchCount++
 				fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana task '%s' via TITLE matching ('%s' ≈ '%s')\n",
 					issue.ID, task.GID, issue.Summary, task.Name)
+				// Self-heal: persist mapping so future analyses use DB (O(1) lookup)
+				if settingsErr == nil {
+					s.db.CreateTicketMapping(userID, userSettings.AsanaProjectID, task.GID, userSettings.YouTrackProjectID, issue.ID)
+					fmt.Printf("ANALYSIS: Self-healed mapping via TITLE: Asana %s <-> YT %s\n", task.GID, issue.ID)
+				}
 				break
 			}
 		}
@@ -172,6 +194,7 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 		BlockedTickets:   []MatchedTicket{},
 		OrphanedYouTrack: []YouTrackIssue{},
 		Ignored:          s.ignoreService.GetIgnoredTickets(userID),
+		AlreadyExists:    []AlreadyExistsTicket{},
 	}
 
 	// Step 6: Process filtered Asana tasks
@@ -243,6 +266,33 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 		}
 	}
 
+	// Step 6.5: Detect already_exists — missing tasks that have an unmapped YT issue by title
+	// These are pre-existing YT issues that were never linked via mapping/description
+	stillMissing := []AsanaTask{}
+	for _, task := range analysis.MissingYouTrack {
+		found := false
+		for _, issue := range youTrackIssues {
+			if usedYouTrackIssues[issue.ID] {
+				continue // already mapped to another Asana task
+			}
+			if titlesMatch(task.Name, issue.Summary) {
+				analysis.AlreadyExists = append(analysis.AlreadyExists, AlreadyExistsTicket{
+					AsanaTask:     task,
+					YouTrackIssue: issue,
+					MatchMethod:   "title",
+				})
+				usedYouTrackIssues[issue.ID] = true
+				found = true
+				fmt.Printf("ANALYSIS: already_exists — Asana '%s' <-> YT '%s' (title match, no mapping)\n", task.GID, issue.ID)
+				break
+			}
+		}
+		if !found {
+			stillMissing = append(stillMissing, task)
+		}
+	}
+	analysis.MissingYouTrack = stillMissing
+
 	// Step 7: Handle orphaned YouTrack issues
 	s.processOrphanedIssues(allAsanaTasks, asanaTasks, youTrackIssues, analysis)
 
@@ -311,6 +361,35 @@ func (s *AnalysisService) processReadyForStageTicket(userID int, task AsanaTask,
 	}
 }
 
+// computeDiffs computes title and description diffs between Asana and YouTrack
+func computeDiffs(task AsanaTask, issue YouTrackIssue) (titleDiff *FieldDiff, descDiff *FieldDiff) {
+	// Title diff
+	asanaTitle := task.Name
+	ytTitle := issue.Summary
+	if !strings.EqualFold(normalizeTitle(asanaTitle), normalizeTitle(ytTitle)) {
+		titleDiff = &FieldDiff{
+			AsanaValue:    asanaTitle,
+			YouTrackValue: ytTitle,
+			HasDiff:       true,
+		}
+	}
+
+	// Description diff — convert Asana HTML to markdown for fair comparison
+	asanaDesc := task.Notes
+	if task.HTMLNotes != "" {
+		asanaDesc = utils.ConvertAsanaHTMLToYouTrackMarkdown(task.HTMLNotes)
+	}
+	ytDesc := issue.Description
+	if strings.TrimSpace(asanaDesc) != strings.TrimSpace(ytDesc) && strings.TrimSpace(asanaDesc) != "" {
+		descDiff = &FieldDiff{
+			AsanaValue:    asanaDesc,
+			YouTrackValue: ytDesc,
+			HasDiff:       true,
+		}
+	}
+	return
+}
+
 // processExistingTicket processes tickets that exist in both systems
 func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, sectionName string, analysis *TicketAnalysis) {
 	if existingIssue.ID == "" {
@@ -324,6 +403,8 @@ func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, exis
 	asanaStatus := s.asanaService.MapStateToYouTrackWithSettings(userID, task)
 	youtrackStatus := s.youtrackService.GetStatus(existingIssue)
 
+	titleDiff, descDiff := computeDiffs(task, existingIssue)
+
 	matchedTicket := MatchedTicket{
 		AsanaTask:         task,
 		YouTrackIssue:     existingIssue,
@@ -331,6 +412,8 @@ func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, exis
 		AsanaTags:         asanaTags,
 		YouTrackSubsystem: "",
 		TagMismatch:       false,
+		TitleDiff:         titleDiff,
+		DescriptionDiff:   descDiff,
 	}
 
 	if strings.Contains(sectionName, "blocked") {
@@ -350,6 +433,8 @@ func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, exis
 			AsanaTags:         asanaTags,
 			YouTrackSubsystem: "",
 			TagMismatch:       false,
+			TitleDiff:         titleDiff,
+			DescriptionDiff:   descDiff,
 		}
 		analysis.Mismatched = append(analysis.Mismatched, mismatchedTicket)
 	}

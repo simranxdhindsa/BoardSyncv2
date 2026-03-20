@@ -2,10 +2,25 @@ package legacy
 
 import (
 	"fmt"
+	"time"
 
 	configpkg "asana-youtrack-sync/config"
 	"asana-youtrack-sync/database"
 )
+
+const ticketStabilityWindow = 10 * time.Minute
+
+// isTicketStable returns true if the ticket hasn't been modified in the last 10 minutes
+func isTicketStable(task AsanaTask) bool {
+	if task.ModifiedAt == "" {
+		return true // no modified_at means treat as stable
+	}
+	modifiedAt, err := time.Parse(time.RFC3339, task.ModifiedAt)
+	if err != nil {
+		return true // can't parse — treat as stable
+	}
+	return time.Since(modifiedAt) >= ticketStabilityWindow
+}
 
 // SyncService handles synchronization operations
 type SyncService struct {
@@ -74,10 +89,35 @@ func (s *SyncService) CreateMissingTickets(userID int, column ...string) (map[st
 			"asana_tags": asanaTags,
 		}
 
-		if s.youtrackService.IsDuplicateTicket(userID, task.Name) {
+		// STABILITY GUARD: skip if ticket was modified less than 10 minutes ago
+		if !isTicketStable(task) {
 			result["status"] = "skipped"
-			result["reason"] = "Duplicate ticket already exists"
+			result["reason"] = fmt.Sprintf("Ticket modified recently — waiting for stability (modified_at: %s)", task.ModifiedAt)
 			skipped++
+			results = append(results, result)
+			continue
+		}
+
+		if s.youtrackService.IsDuplicateTicket(userID, task.Name) {
+			// Find the actual matching YT issue to present to user
+			allIssues, issErr := s.youtrackService.GetIssues(userID) // cached — fast
+			if issErr == nil {
+				for _, issue := range allIssues {
+					if titlesMatch(task.Name, issue.Summary) {
+						result["status"] = "already_exists"
+						result["youtrack_issue_id"] = issue.ID
+						result["youtrack_summary"] = issue.Summary
+						break
+					}
+				}
+			}
+			if result["status"] == nil {
+				result["status"] = "skipped"
+				result["reason"] = "Duplicate ticket exists but no title match found"
+			}
+			skipped++
+			results = append(results, result)
+			continue
 		} else if s.ignoreService.IsIgnored(userID, task.GID) {
 			result["status"] = "skipped"
 			result["reason"] = "Ticket is ignored"

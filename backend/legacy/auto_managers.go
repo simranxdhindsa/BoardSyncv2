@@ -9,6 +9,23 @@ import (
 	"asana-youtrack-sync/database"
 )
 
+const defaultAutoInterval = 600 // 10 minutes in seconds
+
+// Per-user operation mutex — prevents create and sync from running simultaneously for same user
+var (
+	operationMapMu sync.Mutex
+	operationLocks = make(map[int]*sync.Mutex)
+)
+
+func getUserMutex(userID int) *sync.Mutex {
+	operationMapMu.Lock()
+	defer operationMapMu.Unlock()
+	if _, ok := operationLocks[userID]; !ok {
+		operationLocks[userID] = &sync.Mutex{}
+	}
+	return operationLocks[userID]
+}
+
 // AutoSyncManager manages automatic synchronization
 type AutoSyncManager struct {
 	db            *database.DB
@@ -84,7 +101,7 @@ func (asm *AutoSyncManager) StartAutoSync(userID int, intervalSeconds int) error
 
 	// Set default interval if not provided
 	if intervalSeconds <= 0 {
-		intervalSeconds = 15
+		intervalSeconds = defaultAutoInterval
 	}
 
 	// Create stop channel
@@ -95,8 +112,16 @@ func (asm *AutoSyncManager) StartAutoSync(userID int, intervalSeconds int) error
 
 	fmt.Printf("AUTO-SYNC: Starting for user %d with %d second interval\n", userID, intervalSeconds)
 
-	// Start the auto-sync goroutine
-	go asm.autoSyncLoop(userID, intervalSeconds, stopChan)
+	// Stagger sync by 10 min if auto-create is already running for this user
+	if autoCreateManager != nil && autoCreateManager.IsRunning(userID) {
+		fmt.Printf("AUTO-SYNC: Auto-create running for user %d — delaying sync start by 10 min\n", userID)
+		go func() {
+			time.Sleep(10 * time.Minute)
+			asm.autoSyncLoop(userID, intervalSeconds, stopChan)
+		}()
+	} else {
+		go asm.autoSyncLoop(userID, intervalSeconds, stopChan)
+	}
 
 	return nil
 }
@@ -165,7 +190,13 @@ func (asm *AutoSyncManager) autoSyncLoop(userID int, intervalSeconds int, stopCh
 
 // performAutoSync performs the actual sync operation
 func (asm *AutoSyncManager) performAutoSync(userID int) error {
-	// Perform auto-sync for mismatched tickets
+	mu := getUserMutex(userID)
+	if !mu.TryLock() {
+		fmt.Printf("AUTO-SYNC: Skipping user %d — operation already in progress\n", userID)
+		return nil
+	}
+	defer mu.Unlock()
+
 	err := asm.syncService.AutoSync(userID)
 	if err != nil {
 		return fmt.Errorf("auto-sync failed: %w", err)
@@ -241,7 +272,7 @@ func (acm *AutoCreateManager) StartAutoCreate(userID int, intervalSeconds int) e
 
 	// Set default interval if not provided
 	if intervalSeconds <= 0 {
-		intervalSeconds = 15
+		intervalSeconds = defaultAutoInterval
 	}
 
 	// Create stop channel
@@ -322,7 +353,13 @@ func (acm *AutoCreateManager) autoCreateLoop(userID int, intervalSeconds int, st
 
 // performAutoCreate performs the actual ticket creation operation
 func (acm *AutoCreateManager) performAutoCreate(userID int) error {
-	// Create missing tickets
+	mu := getUserMutex(userID)
+	if !mu.TryLock() {
+		fmt.Printf("AUTO-CREATE: Skipping user %d — operation already in progress\n", userID)
+		return nil
+	}
+	defer mu.Unlock()
+
 	result, err := acm.syncService.CreateMissingTickets(userID)
 	if err != nil {
 		return fmt.Errorf("create operation failed: %w", err)
@@ -374,4 +411,11 @@ func GetAutoSyncManager() *AutoSyncManager {
 // GetAutoCreateManager returns the global auto-create manager
 func GetAutoCreateManager() *AutoCreateManager {
 	return autoCreateManager
+}
+
+// IsRunning returns true if auto-create is currently running for the given user
+func (acm *AutoCreateManager) IsRunning(userID int) bool {
+	acm.mutex.RLock()
+	defer acm.mutex.RUnlock()
+	return acm.running[userID]
 }

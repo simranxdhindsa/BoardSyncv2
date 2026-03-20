@@ -1037,6 +1037,44 @@ func (h *Handler) GetYouTrackStatesRaw(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccess(w, result, "Raw YouTrack state information retrieved")
 }
 
+// MapTicket saves a mapping between an existing Asana task and a YouTrack issue
+func (h *Handler) MapTicket(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	var req struct {
+		AsanaTaskID     string `json:"asana_task_id"`
+		YouTrackIssueID string `json:"youtrack_issue_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendBadRequest(w, "Invalid request body")
+		return
+	}
+	if req.AsanaTaskID == "" || req.YouTrackIssueID == "" {
+		utils.SendBadRequest(w, "asana_task_id and youtrack_issue_id are required")
+		return
+	}
+
+	settings, err := h.configService.GetSettings(user.UserID)
+	if err != nil {
+		utils.SendInternalError(w, "Failed to get settings")
+		return
+	}
+
+	_, err = h.db.CreateTicketMapping(user.UserID, settings.AsanaProjectID,
+		req.AsanaTaskID, settings.YouTrackProjectID, req.YouTrackIssueID)
+	if err != nil {
+		utils.SendInternalError(w, fmt.Sprintf("Failed to create mapping: %v", err))
+		return
+	}
+
+	fmt.Printf("MAP-TICKET: Mapped Asana %s <-> YT %s for user %d\n", req.AsanaTaskID, req.YouTrackIssueID, user.UserID)
+	utils.SendSuccess(w, map[string]interface{}{"success": true, "message": "Mapping saved"}, "Mapping created successfully")
+}
+
 // Then in your route registration (usually in main.go or handlers.go RegisterRoutes):
 
 // Column verification endpoints
