@@ -5,14 +5,16 @@ import SyncHistory from './SyncHistory';
 import { analyzeTickets, getUserSettings, getSyncHistory, rollbackSync } from '../services/api';
 import '../styles/sync-history-glass.css';
 
-const AnalysisResults = ({ 
-  analysisData, 
-  selectedColumn, 
-  onBack, 
-  onSync, 
-  onCreateSingle, 
-  onCreateMissing, 
-  setNavBarSlots 
+const AnalysisResults = ({
+  analysisData,
+  selectedColumn,
+  onBack,
+  onSync,
+  onCreateSingle,
+  onCreateMissing,
+  onMapTicket,
+  onMapTicketIgnore,
+  setNavBarSlots
 }) => {
   const [syncing, setSyncing] = useState({});
   const [creating, setCreating] = useState({});
@@ -20,6 +22,8 @@ const AnalysisResults = ({
   const [createAllLoading, setCreateAllLoading] = useState(false);
   const [syncedTickets, setSyncedTickets] = useState(new Set());
   const [createdTickets, setCreatedTickets] = useState(new Set());
+  const [mapping, setMapping] = useState({});
+  const [mappingDone, setMappingDone] = useState(new Set());
   
   // Detail view state
   const [detailView, setDetailView] = useState(null);
@@ -800,6 +804,83 @@ const AnalysisResults = ({
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Already Exists (Unmapped) section */}
+        {(safeAnalysis?.already_exists || []).length > 0 && (
+          <div className="glass-panel border border-gray-200 rounded-lg p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                Already Exists (Unmapped)
+                <span className="ml-2 bg-yellow-100 text-yellow-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
+                  {(safeAnalysis.already_exists || []).length}
+                </span>
+              </h2>
+              <p className="text-sm text-gray-500">
+                These tickets exist in both systems but aren't linked. Map them or skip.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(safeAnalysis.already_exists || []).map((item) => {
+                const taskGid = item.asana_task?.gid;
+                const ytIssueId = item.youtrack_issue?.id;
+                const isMappingLoading = mapping[taskGid];
+                const isMappingDone = mappingDone.has(taskGid);
+                return (
+                  <div
+                    key={taskGid}
+                    className="glass-panel border border-yellow-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <h3 className="font-medium text-gray-900 mb-1 text-sm">{item.asana_task?.name}</h3>
+                    <div className="text-xs text-gray-500 mb-1">
+                      ↳ <span className="font-medium text-gray-700">{ytIssueId}</span>{' '}
+                      {item.youtrack_issue?.summary}
+                    </div>
+                    <div className="text-xs text-gray-400 mb-3">via: {item.match_method}</div>
+                    {isMappingDone ? (
+                      <div className="text-green-600 text-sm font-medium text-center py-1">✓ Mapped</div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            setMapping(prev => ({ ...prev, [taskGid]: true }));
+                            try {
+                              await onMapTicket(taskGid, ytIssueId);
+                              setMappingDone(prev => new Set([...prev, taskGid]));
+                            } catch (err) {
+                              alert('Map failed: ' + err.message);
+                            } finally {
+                              setMapping(prev => ({ ...prev, [taskGid]: false }));
+                            }
+                          }}
+                          disabled={isMappingLoading}
+                          className="flex-1 bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 text-sm transition-colors disabled:opacity-50 flex items-center justify-center"
+                        >
+                          {isMappingLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Map It'}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setMapping(prev => ({ ...prev, [taskGid]: true }));
+                            try {
+                              await onMapTicketIgnore(taskGid);
+                            } catch (err) {
+                              alert('Ignore failed: ' + err.message);
+                            } finally {
+                              setMapping(prev => ({ ...prev, [taskGid]: false }));
+                            }
+                          }}
+                          disabled={isMappingLoading}
+                          className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 text-sm transition-colors disabled:opacity-50"
+                        >
+                          Skip Forever
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

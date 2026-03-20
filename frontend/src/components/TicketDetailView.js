@@ -936,6 +936,44 @@ const TicketDetailView = ({
                 </div>
               </div>
             )}
+
+            {/* Title / Description diff panel */}
+            {(ticket.title_diff?.has_diff || ticket.description_diff?.has_diff) && (
+              <div className="mt-3 border-t border-gray-100 pt-3">
+                <div className="text-xs font-semibold text-gray-500 mb-2 flex items-center">
+                  <FileText className="w-3 h-3 mr-1" />
+                  Content differs from YouTrack
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-gray-50 rounded p-2">
+                    <div className="text-xs font-semibold text-gray-600 mb-1">Asana</div>
+                    {ticket.title_diff?.has_diff && (
+                      <p className="text-xs text-gray-800 mb-1 font-medium line-clamp-2">
+                        {ticket.title_diff.asana_value}
+                      </p>
+                    )}
+                    {ticket.description_diff?.has_diff && (
+                      <p className="text-xs text-gray-600 line-clamp-3">
+                        {ticket.description_diff.asana_value}
+                      </p>
+                    )}
+                  </div>
+                  <div className="bg-blue-50 rounded p-2">
+                    <div className="text-xs font-semibold text-blue-700 mb-1">YouTrack</div>
+                    {ticket.title_diff?.has_diff && (
+                      <p className="text-xs text-gray-800 mb-1 font-medium line-clamp-2">
+                        {ticket.title_diff.youtrack_value}
+                      </p>
+                    )}
+                    {ticket.description_diff?.has_diff && (
+                      <p className="text-xs text-gray-600 line-clamp-3">
+                        {ticket.description_diff.youtrack_value}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {!deleteMode && (

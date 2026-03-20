@@ -10,7 +10,7 @@ import UserSettings from './components/settings/UserSettings';
 import SyncHistory from './components/SyncHistory';
 import AuditLogs from './components/AuditLogs';
 import ReverseSyncPage from './components/ReverseSync/ReverseSyncPage';
-import { analyzeTickets, syncSingleTicket, createSingleTicket, createMissingTickets } from './services/api';
+import { analyzeTickets, syncSingleTicket, createSingleTicket, createMissingTickets, mapTicket, ignoreTicket } from './services/api';
 import './styles/glass-theme.css';
 import { Settings, History, FileText, RefreshCw } from 'lucide-react';
 
@@ -156,6 +156,26 @@ function AppContent() {
   };
 
 
+
+  // Handle map ticket (already_exists → save mapping)
+  const handleMapTicket = async (asanaTaskId, youtrackIssueId) => {
+    try {
+      await mapTicket(asanaTaskId, youtrackIssueId);
+      await handleReAnalyze(selectedColumn);
+    } catch (error) {
+      throw new Error('Map ticket failed: ' + error.message);
+    }
+  };
+
+  // Handle skip forever (already_exists → add to ignored)
+  const handleMapTicketIgnore = async (asanaTaskId) => {
+    try {
+      await ignoreTicket(asanaTaskId, 'forever');
+      await handleReAnalyze(selectedColumn);
+    } catch (error) {
+      throw new Error('Ignore failed: ' + error.message);
+    }
+  };
 
   // Get navigation content based on current view
   const getNavigationContent = () => {
@@ -333,6 +353,8 @@ function AppContent() {
               onCreateSingle={handleCreateSingle}
               onCreateMissing={handleCreateMissing}
               onReAnalyze={handleReAnalyze}
+              onMapTicket={handleMapTicket}
+              onMapTicketIgnore={handleMapTicketIgnore}
               loading={loading}
               setNavBarSlots={(left, right) => { setNavLeft(left); setNavRight(right); }}
             />

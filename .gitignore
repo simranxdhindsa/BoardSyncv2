@@ -1,3 +1,7 @@
+# Environment files - NEVER commit these
+.env
+.env.*
+!.env.example
 */node_modules/
 # */ignored_tickets.json
 */backup/

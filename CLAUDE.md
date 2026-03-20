@@ -85,3 +85,4 @@ When a match is found via fallback (2 or 3), it is saved to the DB mapping table
 ### Column Mapping for Status Sync
 
 Asana section names → YouTrack state strings are configured per-user in `UserSettings.ColumnMappings.AsanaToYouTrack`. The `MapStateToYouTrackWithSettings` function uses this; if no mapping is found for a section, it logs a warning and returns `""` (ticket treated as unresolvable).
+

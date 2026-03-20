@@ -555,6 +555,22 @@ export const unignoreTicket = async (ticketId, type = 'forever') => {
   return response.json();
 };
 
+export const mapTicket = async (asanaTaskId, youtrackIssueId) => {
+  const response = await fetch(`${API_BASE}/map-ticket`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      asana_task_id: asanaTaskId,
+      youtrack_issue_id: youtrackIssueId,
+    }),
+  });
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Map ticket failed: ${response.status}`);
+  }
+  return response.json();
+};
+
 export const getAutoSyncStatus = async () => {
   const response = await fetch(`${API_BASE}/auto-sync`, {
     headers: getAuthHeaders()
