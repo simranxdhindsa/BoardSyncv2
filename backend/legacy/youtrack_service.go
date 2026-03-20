@@ -186,7 +186,7 @@ func (s *YouTrackService) getIssuesViaProjects(settings *config.UserSettings) ([
 // makeRequestPaginated fetches all pages from a YouTrack issues endpoint using $skip
 func (s *YouTrackService) makeRequestPaginated(settings *config.UserSettings, baseURL string) ([]YouTrackIssue, error) {
 	var all []YouTrackIssue
-	pageSize := 100
+	pageSize := 500
 	skip := 0
 	for {
 		url := fmt.Sprintf("%s&$top=%d&$skip=%d", baseURL, pageSize, skip)

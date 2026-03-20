@@ -44,49 +44,56 @@ func NewSyncService(db *database.DB, configService *configpkg.Service) *SyncServ
 	}
 }
 
-// CreateMissingTickets creates missing tickets in YouTrack
+// CreateMissingTickets creates missing tickets in YouTrack.
+// Optimized: skips full PerformAnalysis — fetches Asana tasks, checks DB mappings, creates only truly new ones.
 func (s *SyncService) CreateMissingTickets(userID int, column ...string) (map[string]interface{}, error) {
-	var columnsToAnalyze []string
-
+	var columnsToProcess []string
 	if len(column) > 0 && column[0] != "" && column[0] != "all_syncable" {
-		columnsToAnalyze = []string{column[0]}
+		columnsToProcess = []string{column[0]}
 		fmt.Printf("CREATE: Creating tickets for specific column: %s (user %d)\n", column[0], userID)
 	} else {
-		columnsToAnalyze = SyncableColumns
+		columnsToProcess = SyncableColumns
 		fmt.Printf("CREATE: Creating tickets for all syncable columns (user %d)\n", userID)
 	}
 
-	analysis, err := s.analysisService.PerformAnalysis(userID, columnsToAnalyze)
+	// Fetch and filter Asana tasks (cached — fast)
+	allTasks, err := s.asanaService.GetTasks(userID)
 	if err != nil {
-		return nil, fmt.Errorf("analysis failed: %w", err)
+		return nil, fmt.Errorf("failed to get Asana tasks: %w", err)
 	}
+	filteredTasks := s.asanaService.FilterTasksByColumns(allTasks, columnsToProcess)
 
-	if len(analysis.MissingYouTrack) == 0 {
-		return map[string]interface{}{
-			"status":  "success",
-			"message": "No missing tickets to create",
-			"created": 0,
-			"column":  columnsToAnalyze,
-		}, nil
-	}
-
-	// Get user settings for project IDs
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get settings: %w", err)
+	}
+
+	// Build a set of all already-mapped Asana GIDs for O(1) lookup
+	existingMappings, _ := s.db.GetAllTicketMappings(userID)
+	mappedGIDs := make(map[string]bool, len(existingMappings))
+	for _, m := range existingMappings {
+		mappedGIDs[m.AsanaTaskID] = true
 	}
 
 	results := []map[string]interface{}{}
 	created := 0
 	skipped := 0
 
-	for _, task := range analysis.MissingYouTrack {
+	for _, task := range filteredTasks {
 		asanaTags := s.asanaService.GetTags(task)
-
 		result := map[string]interface{}{
 			"task_id":    task.GID,
 			"task_name":  task.Name,
 			"asana_tags": asanaTags,
+		}
+
+		// Skip if already mapped in DB (prevents double-create)
+		if mappedGIDs[task.GID] {
+			result["status"] = "skipped"
+			result["reason"] = "Already mapped"
+			skipped++
+			results = append(results, result)
+			continue
 		}
 
 		// STABILITY GUARD: skip if ticket was modified less than 10 minutes ago
@@ -98,65 +105,61 @@ func (s *SyncService) CreateMissingTickets(userID int, column ...string) (map[st
 			continue
 		}
 
-		if s.youtrackService.IsDuplicateTicket(userID, task.Name) {
-			// Find the actual matching YT issue to present to user
-			allIssues, issErr := s.youtrackService.GetIssues(userID) // cached — fast
-			if issErr == nil {
-				for _, issue := range allIssues {
-					if titlesMatch(task.Name, issue.Summary) {
-						result["status"] = "already_exists"
-						result["youtrack_issue_id"] = issue.ID
-						result["youtrack_summary"] = issue.Summary
-						break
-					}
-				}
-			}
-			if result["status"] == nil {
-				result["status"] = "skipped"
-				result["reason"] = "Duplicate ticket exists but no title match found"
-			}
-			skipped++
-			results = append(results, result)
-			continue
-		} else if s.ignoreService.IsIgnored(userID, task.GID) {
+		if s.ignoreService.IsIgnored(userID, task.GID) {
 			result["status"] = "skipped"
 			result["reason"] = "Ticket is ignored"
 			skipped++
-		} else {
-			// Create issue in YouTrack and get the issue ID
-			createdIssueID, err := s.youtrackService.CreateIssueWithReturn(userID, task)
-			if err != nil {
+			results = append(results, result)
+			continue
+		}
+
+		// Check if a matching YT issue already exists (title match) — cached, fast
+		allIssues, issErr := s.youtrackService.GetIssues(userID)
+		if issErr == nil {
+			for _, issue := range allIssues {
+				if titlesMatch(task.Name, issue.Summary) {
+					// Title match found — save mapping and report already_exists
+					s.db.CreateTicketMapping(userID, settings.AsanaProjectID, task.GID, settings.YouTrackProjectID, issue.ID)
+					mappedGIDs[task.GID] = true // prevent further processing
+					result["status"] = "already_exists"
+					result["youtrack_issue_id"] = issue.ID
+					result["youtrack_summary"] = issue.Summary
+					skipped++
+					results = append(results, result)
+					goto nextTask
+				}
+			}
+		}
+
+		// No existing match — create it
+		{
+			createdIssueID, createErr := s.youtrackService.CreateIssueWithReturn(userID, task)
+			if createErr != nil {
 				result["status"] = "failed"
-				result["error"] = err.Error()
+				result["error"] = createErr.Error()
 			} else {
 				result["status"] = "created"
 				result["youtrack_issue_id"] = createdIssueID
 
-				// Create mapping in database
 				_, mappingErr := s.db.CreateTicketMapping(
-					userID,
-					settings.AsanaProjectID,
-					task.GID,
-					settings.YouTrackProjectID,
-					createdIssueID,
+					userID, settings.AsanaProjectID, task.GID, settings.YouTrackProjectID, createdIssueID,
 				)
-
 				if mappingErr != nil {
 					fmt.Printf("WARNING: Created ticket but failed to create mapping: %v\n", mappingErr)
 				} else {
 					result["mapping_created"] = true
+					mappedGIDs[task.GID] = true
 					fmt.Printf("Created mapping: Asana %s <-> YouTrack %s\n", task.GID, createdIssueID)
 				}
 
 				if len(asanaTags) > 0 {
 					tagMapper := NewTagMapperForUser(userID, s.configService)
-					primaryTag := asanaTags[0]
-					mappedSubsystem := tagMapper.MapTagToSubsystem(primaryTag)
-					result["mapped_subsystem"] = mappedSubsystem
+					result["mapped_subsystem"] = tagMapper.MapTagToSubsystem(asanaTags[0])
 				}
 				created++
 			}
 		}
+	nextTask:
 		results = append(results, result)
 	}
 
@@ -164,60 +167,67 @@ func (s *SyncService) CreateMissingTickets(userID int, column ...string) (map[st
 		"status":  "completed",
 		"created": created,
 		"skipped": skipped,
-		"total":   len(analysis.MissingYouTrack),
-		"column":  columnsToAnalyze,
+		"total":   len(filteredTasks),
+		"column":  columnsToProcess,
 		"results": results,
 	}, nil
 }
 
-// CreateSingleTicket creates a single ticket in YouTrack
+// CreateSingleTicket creates a single ticket in YouTrack.
+// Optimized: fetches only the one Asana task by GID, uses cached YT issues for duplicate check.
 func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]interface{}, error) {
-	allTasks, err := s.asanaService.GetTasks(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Asana tasks: %w", err)
-	}
-
-	var targetTask *AsanaTask
-	for _, task := range allTasks {
-		if task.GID == taskID {
-			targetTask = &task
-			break
-		}
-	}
-
-	if targetTask == nil {
-		return nil, fmt.Errorf("task not found: %s", taskID)
-	}
-
-	asanaTags := s.asanaService.GetTags(*targetTask)
-
-	if s.youtrackService.IsDuplicateTicket(userID, targetTask.Name) {
+	// Check DB mapping first — instant skip if already created
+	if _, mappingErr := s.db.GetTicketMappingByAsanaID(userID, taskID); mappingErr == nil {
 		return map[string]interface{}{
-			"status":     "skipped",
-			"reason":     "Duplicate ticket already exists",
-			"task_id":    taskID,
-			"task_name":  targetTask.Name,
-			"asana_tags": asanaTags,
+			"status":  "skipped",
+			"reason":  "Already mapped",
+			"task_id": taskID,
 		}, nil
 	}
 
 	if s.ignoreService.IsIgnored(userID, taskID) {
 		return map[string]interface{}{
-			"status":     "skipped",
-			"reason":     "Ticket is ignored",
-			"task_id":    taskID,
-			"task_name":  targetTask.Name,
-			"asana_tags": asanaTags,
+			"status":  "skipped",
+			"reason":  "Ticket is ignored",
+			"task_id": taskID,
 		}, nil
 	}
 
-	// Get user settings for project IDs
+	// Fetch single task directly — no full project fetch
+	targetTask, err := s.asanaService.GetTaskByGID(userID, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Asana task: %w", err)
+	}
+
+	asanaTags := s.asanaService.GetTags(*targetTask)
+
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get settings: %w", err)
 	}
 
-	// Create issue and get the created issue ID
+	// Duplicate check using cached YT issues — no extra API call
+	allIssues, issErr := s.youtrackService.GetIssues(userID)
+	if issErr == nil {
+		for _, issue := range allIssues {
+			if titlesMatch(targetTask.Name, issue.Summary) {
+				// Save mapping so future calls skip instantly
+				s.db.CreateTicketMapping(userID, settings.AsanaProjectID, taskID, settings.YouTrackProjectID, issue.ID)
+				return map[string]interface{}{
+					"status":              "already_exists",
+					"reason":              "Matching YouTrack issue found",
+					"task_id":             taskID,
+					"task_name":           targetTask.Name,
+					"youtrack_issue_id":   issue.ID,
+					"youtrack_summary":    issue.Summary,
+					"asana_tags":          asanaTags,
+					"mapping_created":     true,
+				}, nil
+			}
+		}
+	}
+
+	// Create issue in YouTrack
 	createdIssueID, err := s.youtrackService.CreateIssueWithReturn(userID, *targetTask)
 	if err != nil {
 		return map[string]interface{}{
@@ -237,15 +247,9 @@ func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]
 		"youtrack_issue_id": createdIssueID,
 	}
 
-	// Create mapping in database
 	_, mappingErr := s.db.CreateTicketMapping(
-		userID,
-		settings.AsanaProjectID,
-		taskID,
-		settings.YouTrackProjectID,
-		createdIssueID,
+		userID, settings.AsanaProjectID, taskID, settings.YouTrackProjectID, createdIssueID,
 	)
-
 	if mappingErr != nil {
 		fmt.Printf("WARNING: Created ticket but failed to create mapping: %v\n", mappingErr)
 		response["mapping_error"] = mappingErr.Error()
@@ -256,9 +260,7 @@ func (s *SyncService) CreateSingleTicket(userID int, taskID string) (map[string]
 
 	if len(asanaTags) > 0 {
 		tagMapper := NewTagMapperForUser(userID, s.configService)
-		primaryTag := asanaTags[0]
-		mappedSubsystem := tagMapper.MapTagToSubsystem(primaryTag)
-		response["mapped_subsystem"] = mappedSubsystem
+		response["mapped_subsystem"] = tagMapper.MapTagToSubsystem(asanaTags[0])
 	}
 
 	return response, nil
@@ -613,98 +615,11 @@ func (s *SyncService) SyncTicketsByColumn(userID int, column string) (map[string
 	}, nil
 }
 
-// CreateTicketsByColumn creates missing tickets from a specific column
+// CreateTicketsByColumn creates missing tickets from a specific column.
+// Optimized: skips full PerformAnalysis — uses DB mappings to avoid double-creates.
 func (s *SyncService) CreateTicketsByColumn(userID int, column string) (map[string]interface{}, error) {
-	var columnsToAnalyze []string
-	if column == "" || column == "all_syncable" {
-		columnsToAnalyze = SyncableColumns
-	} else {
-		columnMap := map[string]string{
-			"backlog":     "backlog",
-			"in_progress": "in progress",
-			"dev":         "dev",
-			"stage":       "stage",
-			"prod":        "prod",
-			"blocked":     "blocked",
-		}
-
-		if mappedColumn, exists := columnMap[column]; exists {
-			columnsToAnalyze = []string{mappedColumn}
-		} else {
-			return nil, fmt.Errorf("invalid column: %s", column)
-		}
-	}
-
-	analysis, err := s.analysisService.PerformAnalysis(userID, columnsToAnalyze)
-	if err != nil {
-		return nil, fmt.Errorf("analysis failed: %w", err)
-	}
-
-	// Get user settings for project IDs
-	settings, err := s.configService.GetSettings(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get settings: %w", err)
-	}
-
-	created := 0
-	skipped := 0
-	errors := 0
-	results := []map[string]interface{}{}
-
-	for _, task := range analysis.MissingYouTrack {
-		result := map[string]interface{}{
-			"task_id":   task.GID,
-			"task_name": task.Name,
-		}
-
-		if s.youtrackService.IsDuplicateTicket(userID, task.Name) {
-			result["status"] = "skipped"
-			result["reason"] = "Duplicate ticket already exists"
-			skipped++
-		} else if s.ignoreService.IsIgnored(userID, task.GID) {
-			result["status"] = "skipped"
-			result["reason"] = "Ticket is ignored"
-			skipped++
-		} else {
-			createdIssueID, err := s.youtrackService.CreateIssueWithReturn(userID, task)
-			if err != nil {
-				result["status"] = "failed"
-				result["error"] = err.Error()
-				errors++
-			} else {
-				result["status"] = "created"
-				result["youtrack_issue_id"] = createdIssueID
-
-				// Create mapping in database
-				_, mappingErr := s.db.CreateTicketMapping(
-					userID,
-					settings.AsanaProjectID,
-					task.GID,
-					settings.YouTrackProjectID,
-					createdIssueID,
-				)
-
-				if mappingErr != nil {
-					fmt.Printf("WARNING: Created ticket but failed to create mapping: %v\n", mappingErr)
-				} else {
-					result["mapping_created"] = true
-				}
-
-				created++
-			}
-		}
-
-		results = append(results, result)
-	}
-
-	return map[string]interface{}{
-		"column":  column,
-		"created": created,
-		"skipped": skipped,
-		"errors":  errors,
-		"total":   len(analysis.MissingYouTrack),
-		"results": results,
-	}, nil
+	// Delegate to CreateMissingTickets which now has the optimized path
+	return s.CreateMissingTickets(userID, column)
 }
 
 // GetSyncPreview provides a preview of what would be synced

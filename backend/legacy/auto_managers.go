@@ -37,6 +37,7 @@ type AutoSyncManager struct {
 	mutex         sync.RWMutex
 	lastSync      map[int]time.Time // userID -> last sync time
 	syncCount     map[int]int       // userID -> total sync count
+	lastSyncCount map[int]int       // userID -> mismatched count from last sync run
 }
 
 // AutoCreateManager manages automatic ticket creation
@@ -71,6 +72,7 @@ func InitializeAutoManagers(db *database.DB, configService *configpkg.Service) {
 			intervals:     make(map[int]int),
 			lastSync:      make(map[int]time.Time),
 			syncCount:     make(map[int]int),
+			lastSyncCount: make(map[int]int),
 		}
 
 		autoCreateManager = &AutoCreateManager{
@@ -205,22 +207,10 @@ func (asm *AutoSyncManager) performAutoSync(userID int) error {
 	return nil
 }
 
-// GetAutoSyncStatusDetailed returns detailed auto-sync status
+// GetAutoSyncStatusDetailed returns detailed auto-sync status.
+// Does NOT run analysis — returns only in-memory state for fast response.
 func (asm *AutoSyncManager) GetAutoSyncStatusDetailed(userID int) map[string]interface{} {
-	asm.mutex.RLock()
-	defer asm.mutex.RUnlock()
-
 	baseStatus := asm.GetAutoSyncStatus(userID)
-
-	// Get current mismatched tickets to show what would be synced
-	result, err := asm.syncService.GetMismatchedTickets(userID)
-
-	pendingCount := 0
-	if err == nil {
-		if count, ok := result["count"].(int); ok {
-			pendingCount = count
-		}
-	}
 
 	return map[string]interface{}{
 		"running":        baseStatus.Running,
@@ -229,7 +219,7 @@ func (asm *AutoSyncManager) GetAutoSyncStatusDetailed(userID int) map[string]int
 		"next_sync":      baseStatus.NextSync,
 		"sync_count":     baseStatus.SyncCount,
 		"last_sync_info": baseStatus.LastSyncInfo,
-		"pending_count":  pendingCount,
+		"pending_count":  asm.lastSyncCount[userID],
 	}
 }
 

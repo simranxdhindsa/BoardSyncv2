@@ -878,3 +878,57 @@ func (s *AsanaService) GetAllTasks(userID int, projectID string) ([]AsanaTask, e
 func (s *AsanaService) GetProjectSections(userID int, projectID string) ([]database.AsanaSection, error) {
 	return s.GetSections(userID)
 }
+
+// GetTaskByGID fetches a single Asana task by GID directly from the API.
+// First checks the in-memory task cache to avoid an extra API call.
+func (s *AsanaService) GetTaskByGID(userID int, taskGID string) (*AsanaTask, error) {
+	// Check cache first — avoids API call if tasks were recently fetched
+	if cached := s.getCachedTasks(userID); cached != nil {
+		for _, t := range cached {
+			if t.GID == taskGID {
+				return &t, nil
+			}
+		}
+	}
+
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user settings: %w", err)
+	}
+	if settings.AsanaPAT == "" {
+		return nil, fmt.Errorf("asana PAT not configured")
+	}
+
+	url := fmt.Sprintf(
+		"https://app.asana.com/api/1.0/tasks/%s?opt_fields=gid,name,notes,html_notes,completed_at,created_at,modified_at,assignee.name,assignee.gid,memberships.section.gid,memberships.section.name,tags.gid,tags.name,custom_fields.name,custom_fields.display_value,custom_fields.text_value,custom_fields.number_value,custom_fields.enum_value.name,attachments.gid,attachments.name,attachments.download_url,attachments.view_url,attachments.resource_type,attachments.host,attachments.size",
+		taskGID,
+	)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("asana request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("asana error %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Data AsanaTask `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &result.Data, nil
+}
