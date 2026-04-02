@@ -21,20 +21,26 @@ const youTrackCacheTTL = 2 * time.Minute
 // YouTrackService handles YouTrack API operations with user-specific settings
 type YouTrackService struct {
 	configService        *config.Service
+	asanaService         *AsanaService // optional; used for email-based assignee lookup
 	cachedIssues         map[int][]YouTrackIssue
 	cacheExpiry          map[int]time.Time
 	cacheMutex           sync.RWMutex
 	assigneeFieldIDCache map[int]string
 }
 
-// NewYouTrackService creates a new YouTrack service
-func NewYouTrackService(configService *config.Service) *YouTrackService {
-	return &YouTrackService{
+// NewYouTrackService creates a new YouTrack service.
+// Pass an *AsanaService as the second argument to enable email-based assignee matching.
+func NewYouTrackService(configService *config.Service, asanaService ...*AsanaService) *YouTrackService {
+	svc := &YouTrackService{
 		configService:        configService,
 		cachedIssues:         make(map[int][]YouTrackIssue),
 		cacheExpiry:          make(map[int]time.Time),
 		assigneeFieldIDCache: make(map[int]string),
 	}
+	if len(asanaService) > 0 {
+		svc.asanaService = asanaService[0]
+	}
+	return svc
 }
 
 func (s *YouTrackService) getCachedIssues(userID int) ([]YouTrackIssue, bool) {
@@ -430,7 +436,7 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 
 	// Set assignee from Asana task (best-effort)
 	if task.Assignee.Name != "" {
-		ytUser, resolveErr := s.ResolveYouTrackUserByName(userID, task.Assignee.Name)
+		ytUser, resolveErr := s.ResolveYouTrackUserByName(userID, task.Assignee.Name, task.Assignee.GID)
 		if resolveErr != nil {
 			fmt.Printf("Warning: Could not resolve assignee '%s': %v\n", task.Assignee.Name, resolveErr)
 		} else {
@@ -748,7 +754,7 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 
 	// Set assignee from Asana task (best-effort, mirrors subsystem pattern)
 	if task.Assignee.Name != "" {
-		ytUser, resolveErr := s.ResolveYouTrackUserByName(userID, task.Assignee.Name)
+		ytUser, resolveErr := s.ResolveYouTrackUserByName(userID, task.Assignee.Name, task.Assignee.GID)
 		if resolveErr != nil {
 			fmt.Printf("Warning: Could not resolve assignee '%s': %v\n", task.Assignee.Name, resolveErr)
 		} else {
@@ -1076,18 +1082,88 @@ func (s *YouTrackService) GetAssigneeFieldID(userID int) (string, error) {
 	return "", fmt.Errorf("Assignee custom field not found in any issue")
 }
 
-// ResolveYouTrackUserByName finds a YouTrack user by case-insensitive fullName match
-func (s *YouTrackService) ResolveYouTrackUserByName(userID int, asanaName string) (*YouTrackUser, error) {
+// assigneeNamesMatch checks if an Asana assignee name and a YouTrack fullName refer to
+// the same person. Tries exact case-insensitive full name first, then first-name match.
+func assigneeNamesMatch(asanaName, ytName string) bool {
+	a := strings.ToLower(strings.TrimSpace(asanaName))
+	y := strings.ToLower(strings.TrimSpace(ytName))
+	if a == "" || y == "" {
+		return false
+	}
+	if a == y {
+		return true
+	}
+	// First-name match: "Parv Bajaj" (Asana) vs "Parv" (YouTrack)
+	aFirst := strings.Fields(a)
+	yFirst := strings.Fields(y)
+	return len(aFirst) > 0 && len(yFirst) > 0 && aFirst[0] == yFirst[0]
+}
+
+// ResolveYouTrackUserByName finds a YouTrack user matching the given Asana assignee.
+// Match priority:
+//  1. Exact case-insensitive full name ("Parv Bajaj" == "Parv Bajaj")
+//  2. First-name match          ("Parv Bajaj" first word == "Parv" first word)
+//  3. Email match               (requires asanaGID so we can fetch email from Asana)
+func (s *YouTrackService) ResolveYouTrackUserByName(userID int, asanaName string, asanaGID ...string) (*YouTrackUser, error) {
 	users, err := s.GetAllUsers(userID)
 	if err != nil {
 		return nil, err
 	}
+
 	needle := strings.ToLower(strings.TrimSpace(asanaName))
+	asanaFirstName := ""
+	if parts := strings.Fields(needle); len(parts) > 0 {
+		asanaFirstName = parts[0]
+	}
+
+	var firstNameMatch *YouTrackUser
+
 	for i, u := range users {
-		if strings.ToLower(strings.TrimSpace(u.FullName)) == needle {
+		ytName := strings.ToLower(strings.TrimSpace(u.FullName))
+		// Priority 1: exact full name
+		if ytName == needle {
+			fmt.Printf("ASSIGNEE: exact match '%s' → YT user '%s'\n", asanaName, u.FullName)
 			return &users[i], nil
 		}
+		// Priority 2: first-name match (keep scanning for an exact match)
+		if firstNameMatch == nil && asanaFirstName != "" {
+			ytParts := strings.Fields(ytName)
+			if len(ytParts) > 0 && ytParts[0] == asanaFirstName {
+				firstNameMatch = &users[i]
+			}
+		}
 	}
+
+	if firstNameMatch != nil {
+		fmt.Printf("ASSIGNEE: first-name match '%s' → YT user '%s'\n", asanaName, firstNameMatch.FullName)
+		return firstNameMatch, nil
+	}
+
+	// Priority 3: email match (only if asanaGID supplied and asanaService available)
+	gid := ""
+	if len(asanaGID) > 0 {
+		gid = asanaGID[0]
+	}
+	if gid != "" && s.asanaService != nil {
+		asanaEmail := strings.ToLower(s.asanaService.GetUserEmail(userID, gid))
+		fmt.Printf("ASSIGNEE: name match failed for '%s', trying email (asana email: '%s', %d YT users)\n", asanaName, asanaEmail, len(users))
+		if asanaEmail != "" {
+			for i, u := range users {
+				if strings.ToLower(u.Email) == asanaEmail {
+					fmt.Printf("ASSIGNEE: email match '%s' → YT user '%s' (%s)\n", asanaEmail, u.FullName, u.Email)
+					return &users[i], nil
+				}
+			}
+			fmt.Printf("ASSIGNEE: email '%s' not found in any of %d YT users\n", asanaEmail, len(users))
+		} else {
+			fmt.Printf("ASSIGNEE: could not fetch Asana email for GID '%s'\n", gid)
+		}
+	} else if gid == "" {
+		fmt.Printf("ASSIGNEE: no GID provided for '%s', skipping email match\n", asanaName)
+	} else {
+		fmt.Printf("ASSIGNEE: asanaService is nil, skipping email match for '%s'\n", asanaName)
+	}
+
 	return nil, fmt.Errorf("no YouTrack user found matching '%s'", asanaName)
 }
 
@@ -1472,7 +1548,19 @@ func (s *YouTrackService) ProcessAttachments(userID int, issueID string, task As
 }
 
 // GetAllUsers fetches all users from YouTrack for the creator dropdown
+// usersCache holds cached YouTrack users per user (avoids repeated API calls during bulk sync)
+var usersCache = make(map[int][]YouTrackUser)
+var usersCacheMutex sync.RWMutex
+
 func (s *YouTrackService) GetAllUsers(userID int) ([]YouTrackUser, error) {
+	// Check cache first
+	usersCacheMutex.RLock()
+	if cached, ok := usersCache[userID]; ok {
+		usersCacheMutex.RUnlock()
+		return cached, nil
+	}
+	usersCacheMutex.RUnlock()
+
 	settings, err := s.configService.GetSettings(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user settings: %w", err)
@@ -1482,7 +1570,8 @@ func (s *YouTrackService) GetAllUsers(userID int) ([]YouTrackUser, error) {
 		return nil, fmt.Errorf("youtrack credentials not configured")
 	}
 
-	url := fmt.Sprintf("%s/api/users?fields=id,ringId,login,fullName,email", settings.YouTrackBaseURL)
+	// $top=-1 fetches all users; without it YouTrack defaults to 42
+	url := fmt.Sprintf("%s/api/users?fields=id,ringId,login,fullName,email&$top=-1", settings.YouTrackBaseURL)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -1509,6 +1598,11 @@ func (s *YouTrackService) GetAllUsers(userID int) ([]YouTrackUser, error) {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	usersCacheMutex.Lock()
+	usersCache[userID] = users
+	usersCacheMutex.Unlock()
+
+	fmt.Printf("USERS: Fetched and cached %d YouTrack users for user %d\n", len(users), userID)
 	return users, nil
 }
 

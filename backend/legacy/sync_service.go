@@ -34,11 +34,12 @@ type SyncService struct {
 
 // NewSyncService creates a new sync service
 func NewSyncService(db *database.DB, configService *configpkg.Service) *SyncService {
+	asanaSvc := NewAsanaService(configService)
 	return &SyncService{
 		db:              db,
 		configService:   configService,
-		asanaService:    NewAsanaService(configService),
-		youtrackService: NewYouTrackService(configService),
+		asanaService:    asanaSvc,
+		youtrackService: NewYouTrackService(configService, asanaSvc),
 		analysisService: NewAnalysisService(db, configService),
 		ignoreService:   NewIgnoreService(db, configService),
 	}

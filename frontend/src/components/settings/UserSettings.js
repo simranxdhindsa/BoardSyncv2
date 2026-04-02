@@ -48,6 +48,7 @@ const UserSettings = ({ onBack }) => {
     asana_project_id: '',
     youtrack_project_id: '',
     youtrack_board_id: '',
+    sync_board_membership: false,
     custom_field_mappings: {
       tag_mapping: {},
       priority_mapping: {},

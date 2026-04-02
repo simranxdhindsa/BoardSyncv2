@@ -28,6 +28,10 @@ var asanaTaskCache = make(map[int]*TaskCache)
 var cacheMutex sync.RWMutex
 var cacheTTL = 2 * time.Minute // Cache expires after 2 minutes
 
+// userEmailCache caches Asana user emails by (userID -> assigneeGID -> email)
+var userEmailCache = make(map[int]map[string]string)
+var emailCacheMutex sync.RWMutex
+
 // AsanaService handles Asana API operations with user-specific settings
 type AsanaService struct {
 	configService *configpkg.Service
@@ -38,6 +42,62 @@ func NewAsanaService(configService *configpkg.Service) *AsanaService {
 	return &AsanaService{
 		configService: configService,
 	}
+}
+
+// GetUserEmail fetches and caches the email for an Asana user GID.
+// Returns "" on any failure (best-effort).
+func (s *AsanaService) GetUserEmail(userID int, assigneeGID string) string {
+	if assigneeGID == "" {
+		return ""
+	}
+
+	emailCacheMutex.RLock()
+	if userMap, ok := userEmailCache[userID]; ok {
+		if email, cached := userMap[assigneeGID]; cached {
+			emailCacheMutex.RUnlock()
+			return email
+		}
+	}
+	emailCacheMutex.RUnlock()
+
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil || settings.AsanaPAT == "" {
+		return ""
+	}
+
+	url := fmt.Sprintf("https://app.asana.com/api/1.0/users/%s?opt_fields=email,name", assigneeGID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Data struct {
+			Email string `json:"email"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return ""
+	}
+
+	email := result.Data.Email
+
+	emailCacheMutex.Lock()
+	if userEmailCache[userID] == nil {
+		userEmailCache[userID] = make(map[string]string)
+	}
+	userEmailCache[userID][assigneeGID] = email
+	emailCacheMutex.Unlock()
+
+	return email
 }
 
 // InvalidateCache clears the cache for a specific user
@@ -99,7 +159,7 @@ func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
 	}
 
 	var allTasks []AsanaTask
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := &http.Client{Timeout: 60 * time.Second}
 
 	// Base URL with enhanced fields and pagination limit
 	baseURL := fmt.Sprintf("https://app.asana.com/api/1.0/projects/%s/tasks?opt_fields=gid,name,notes,html_notes,completed_at,created_at,modified_at,assignee.name,assignee.gid,memberships.section.gid,memberships.section.name,tags.gid,tags.name,custom_fields.name,custom_fields.display_value,custom_fields.text_value,custom_fields.number_value,custom_fields.enum_value.name,attachments.gid,attachments.name,attachments.download_url,attachments.view_url,attachments.resource_type,attachments.host,attachments.size&limit=100",
@@ -113,17 +173,31 @@ func (s *AsanaService) GetTasks(userID int) ([]AsanaTask, error) {
 		pageCount++
 		fmt.Printf("PAGINATION: Fetching page %d for user %d\n", pageCount, userID)
 
-		req, err := http.NewRequest("GET", nextPageURL, nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create request: %w", err)
+		// Retry up to 3 times on transient failures (timeouts, 5xx)
+		var resp *http.Response
+		var lastErr error
+		for attempt := 1; attempt <= 3; attempt++ {
+			if attempt > 1 {
+				fmt.Printf("PAGINATION: Retrying page %d (attempt %d/3) after error: %v\n", pageCount, attempt, lastErr)
+				time.Sleep(time.Duration(attempt) * 2 * time.Second)
+			}
+			req, err := http.NewRequest("GET", nextPageURL, nil)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create request: %w", err)
+			}
+			req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
+			req.Header.Set("Accept", "application/json")
+			resp, lastErr = client.Do(req)
+			if lastErr == nil && resp.StatusCode < 500 {
+				break // success or client error (don't retry 4xx)
+			}
+			if lastErr == nil {
+				resp.Body.Close()
+				lastErr = fmt.Errorf("server error: %d", resp.StatusCode)
+			}
 		}
-
-		req.Header.Set("Authorization", "Bearer "+settings.AsanaPAT)
-		req.Header.Set("Accept", "application/json")
-
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, fmt.Errorf("API request failed: %w", err)
+		if lastErr != nil {
+			return nil, fmt.Errorf("API request failed after 3 attempts: %w", lastErr)
 		}
 
 		if resp.StatusCode != http.StatusOK {

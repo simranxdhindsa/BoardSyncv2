@@ -24,11 +24,12 @@ type AnalysisService struct {
 
 // NewAnalysisService creates a new analysis service with all dependencies
 func NewAnalysisService(db *database.DB, configService *configpkg.Service) *AnalysisService {
+	asanaSvc := NewAsanaService(configService)
 	return &AnalysisService{
 		db:              db,
 		configService:   configService,
-		asanaService:    NewAsanaService(configService),
-		youtrackService: NewYouTrackService(configService),
+		asanaService:    asanaSvc,
+		youtrackService: NewYouTrackService(configService, asanaSvc),
 		ignoreService:   NewIgnoreService(db, configService),
 	}
 }
@@ -81,6 +82,12 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 
 	// Load settings once for self-healing mapping persistence
 	userSettings, settingsErr := s.configService.GetSettings(userID)
+	if settingsErr == nil {
+		fmt.Printf("ANALYSIS: settings loaded — boardID=%q syncBoardMembership=%v\n",
+			userSettings.YouTrackBoardID, userSettings.SyncBoardMembership)
+	} else {
+		fmt.Printf("ANALYSIS: failed to load settings: %v\n", settingsErr)
+	}
 
 	// Step 1: Get all Asana tasks for the user
 	allAsanaTasks, err := s.asanaService.GetTasks(userID)
@@ -357,13 +364,14 @@ func (s *AnalysisService) processReadyForStageTicket(userID int, task AsanaTask,
 	fmt.Printf("ANALYSIS: Processing Ready for Stage ticket '%s' - Expected YT: %s (mapped from Asana), Actual YT: %s\n",
 		task.Name, expectedYouTrackStatus, actualYouTrackStatus)
 
-	// Assignee comparison
+	// Assignee comparison — uses name heuristics (exact, first-name) to handle
+	// cases where Asana has "Parv Bajaj" but YouTrack has just "Parv".
 	ytAssignee := s.youtrackService.GetAssignee(existingIssue)
 	asanaAssignee := task.Assignee.Name
 	var assigneeDiff *FieldDiff
 	assigneeMismatch := false
 	if asanaAssignee != "" {
-		if !strings.EqualFold(strings.TrimSpace(asanaAssignee), strings.TrimSpace(ytAssignee)) {
+		if !assigneeNamesMatch(asanaAssignee, ytAssignee) {
 			assigneeMismatch = true
 			assigneeDiff = &FieldDiff{
 				AsanaValue:    asanaAssignee,
@@ -444,13 +452,14 @@ func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, exis
 
 	titleDiff, descDiff := computeDiffs(task, existingIssue)
 
-	// Assignee comparison
+	// Assignee comparison — uses name heuristics (exact, first-name) to handle
+	// cases where Asana has "Parv Bajaj" but YouTrack has just "Parv".
 	ytAssignee := s.youtrackService.GetAssignee(existingIssue)
 	asanaAssignee := task.Assignee.Name
 	var assigneeDiff *FieldDiff
 	assigneeMismatch := false
 	if asanaAssignee != "" {
-		if !strings.EqualFold(strings.TrimSpace(asanaAssignee), strings.TrimSpace(ytAssignee)) {
+		if !assigneeNamesMatch(asanaAssignee, ytAssignee) {
 			assigneeMismatch = true
 			assigneeDiff = &FieldDiff{
 				AsanaValue:    asanaAssignee,
