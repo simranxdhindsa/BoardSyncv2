@@ -299,6 +299,25 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 	fmt.Printf("ANALYSIS: Complete for user %d: %d matched, %d mismatched, %d missing, %d orphaned\n",
 		userID, len(analysis.Matched), len(analysis.Mismatched), len(analysis.MissingYouTrack), len(analysis.OrphanedYouTrack))
 
+	// Step 8: Populate MissingBoard — matched tickets not on the configured agile board
+	if settingsErr == nil && userSettings.SyncBoardMembership && userSettings.YouTrackBoardID != "" {
+		boardIDs, err := s.youtrackService.GetBoardIssueIDs(userID)
+		if err != nil {
+			fmt.Printf("ANALYSIS: Could not fetch board issue IDs: %v (skipping board check)\n", err)
+		} else {
+			for _, t := range analysis.Matched {
+				if !boardIDs[t.YouTrackIssue.ID] {
+					analysis.MissingBoard = append(analysis.MissingBoard, MissingBoardTicket{
+						AsanaTask:     t.AsanaTask,
+						YouTrackIssue: t.YouTrackIssue,
+						Status:        t.Status,
+					})
+				}
+			}
+			fmt.Printf("ANALYSIS: %d matched tickets not on configured board\n", len(analysis.MissingBoard))
+		}
+	}
+
 	return analysis, nil
 }
 

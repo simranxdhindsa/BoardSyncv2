@@ -20,6 +20,7 @@ type UserSettings struct {
 	AsanaProjectID      string                     `json:"asana_project_id"`
 	YouTrackProjectID   string                     `json:"youtrack_project_id"`
 	YouTrackBoardID     string                     `json:"youtrack_board_id"`
+	SyncBoardMembership bool                       `json:"sync_board_membership"`
 	CustomFieldMappings CustomFieldMappings        `json:"custom_field_mappings"`
 	ColumnMappings      database.ColumnMappings    `json:"column_mappings"`
 	CreatedAt           time.Time                  `json:"created_at"`
@@ -42,6 +43,7 @@ type UpdateSettingsRequest struct {
 	AsanaProjectID      string                   `json:"asana_project_id"`
 	YouTrackProjectID   string                   `json:"youtrack_project_id"`
 	YouTrackBoardID     string                   `json:"youtrack_board_id"`
+	SyncBoardMembership bool                     `json:"sync_board_membership"`
 	CustomFieldMappings CustomFieldMappings      `json:"custom_field_mappings"`
 	ColumnMappings      database.ColumnMappings  `json:"column_mappings"`
 }
@@ -92,7 +94,8 @@ func (s *Service) GetSettings(userID int) (*UserSettings, error) {
 		YouTrackToken:     settings.YouTrackToken,
 		AsanaProjectID:    settings.AsanaProjectID,
 		YouTrackProjectID: settings.YouTrackProjectID,
-		YouTrackBoardID:   settings.YouTrackBoardID,
+		YouTrackBoardID:     settings.YouTrackBoardID,
+		SyncBoardMembership: settings.SyncBoardMembership,
 		CustomFieldMappings: CustomFieldMappings{
 			TagMapping:      settings.CustomFieldMappings.TagMapping,
 			PriorityMapping: settings.CustomFieldMappings.PriorityMapping,
@@ -129,6 +132,7 @@ func (s *Service) UpdateSettings(userID int, req UpdateSettingsRequest) (*UserSe
 		req.AsanaProjectID,
 		req.YouTrackProjectID,
 		req.YouTrackBoardID,
+		req.SyncBoardMembership,
 		database.CustomFieldMappings{
 			TagMapping:      req.CustomFieldMappings.TagMapping,
 			PriorityMapping: req.CustomFieldMappings.PriorityMapping,
@@ -150,6 +154,7 @@ func (s *Service) UpdateSettings(userID int, req UpdateSettingsRequest) (*UserSe
 		AsanaProjectID:      updatedSettings.AsanaProjectID,
 		YouTrackProjectID:   updatedSettings.YouTrackProjectID,
 		YouTrackBoardID:     updatedSettings.YouTrackBoardID,
+		SyncBoardMembership: updatedSettings.SyncBoardMembership,
 		CustomFieldMappings: CustomFieldMappings{
 			TagMapping:      updatedSettings.CustomFieldMappings.TagMapping,
 			PriorityMapping: updatedSettings.CustomFieldMappings.PriorityMapping,

@@ -253,6 +253,7 @@ func registerRoutes(
 	// ENHANCED: Sync with change detection
 	legacyAPI.HandleFunc("/sync/enhanced", handleEnhancedSync).Methods("GET", "POST", "OPTIONS")
 
+	legacyAPI.HandleFunc("/add-to-board", legacyHandler.AddToBoard).Methods("POST", "OPTIONS")
 	legacyAPI.HandleFunc("/map-ticket", legacyHandler.MapTicket).Methods("POST", "OPTIONS")
 	legacyAPI.HandleFunc("/ignore", legacyHandler.ManageIgnoredTickets).Methods("GET", "POST", "OPTIONS")
 	legacyAPI.HandleFunc("/tickets", legacyHandler.GetTicketsByType).Methods("GET", "OPTIONS")

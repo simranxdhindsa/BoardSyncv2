@@ -26,6 +26,7 @@ type UserSettings struct {
 	AsanaProjectID      string              `json:"asana_project_id" db:"asana_project_id"`
 	YouTrackProjectID   string              `json:"youtrack_project_id" db:"youtrack_project_id"`
 	YouTrackBoardID     string              `json:"youtrack_board_id" db:"youtrack_board_id"`
+	SyncBoardMembership bool                `json:"sync_board_membership" db:"sync_board_membership"`
 	CustomFieldMappings CustomFieldMappings `json:"custom_field_mappings" db:"custom_field_mappings"`
 	ColumnMappings      ColumnMappings      `json:"column_mappings" db:"column_mappings"`
 	CreatedAt           time.Time           `json:"created_at" db:"created_at"`

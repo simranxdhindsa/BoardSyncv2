@@ -1066,6 +1066,42 @@ func (h *Handler) MapTicket(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccess(w, map[string]interface{}{"success": true, "message": "Mapping saved"}, "Mapping created successfully")
 }
 
+// AddToBoard adds a list of YouTrack issues to the configured agile board
+func (h *Handler) AddToBoard(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	var req struct {
+		IssueIDs []string `json:"issue_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.IssueIDs) == 0 {
+		utils.SendBadRequest(w, "issue_ids required")
+		return
+	}
+
+	settings, err := h.configService.GetSettings(user.UserID)
+	if err != nil || settings.YouTrackBoardID == "" {
+		utils.SendBadRequest(w, "Board not configured in settings")
+		return
+	}
+
+	ytService := NewYouTrackService(h.configService)
+	results := map[string]string{}
+	for _, issueID := range req.IssueIDs {
+		if err := ytService.AssignIssueToBoard(user.UserID, issueID); err != nil {
+			results[issueID] = "failed: " + err.Error()
+		} else {
+			results[issueID] = "ok"
+		}
+	}
+
+	fmt.Printf("ADD-TO-BOARD: Processed %d issues for user %d\n", len(req.IssueIDs), user.UserID)
+	utils.SendSuccess(w, results, fmt.Sprintf("Processed %d issues", len(req.IssueIDs)))
+}
+
 // Then in your route registration (usually in main.go or handlers.go RegisterRoutes):
 
 // Column verification endpoints

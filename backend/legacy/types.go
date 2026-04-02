@@ -120,6 +120,13 @@ type AlreadyExistsTicket struct {
 	MatchMethod   string        `json:"match_method"` // "title" or "description"
 }
 
+// MissingBoardTicket represents a ticket synced in both systems but not on the configured agile board
+type MissingBoardTicket struct {
+	AsanaTask     AsanaTask     `json:"asana_task"`
+	YouTrackIssue YouTrackIssue `json:"youtrack_issue"`
+	Status        string        `json:"status"`
+}
+
 // Analysis result structures
 type TicketAnalysis struct {
 	SelectedColumn   string                `json:"selected_column"`
@@ -133,6 +140,7 @@ type TicketAnalysis struct {
 	OrphanedYouTrack []YouTrackIssue       `json:"orphaned_youtrack"`
 	Ignored          []string              `json:"ignored"`
 	AlreadyExists    []AlreadyExistsTicket `json:"already_exists"`
+	MissingBoard     []MissingBoardTicket  `json:"missing_board"`
 }
 
 type MatchedTicket struct {

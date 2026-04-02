@@ -775,6 +775,14 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 	if err := s.createOrUpdateIssue(settings, issueID, payload); err != nil {
 		return err
 	}
+
+	// Add to configured board if sync_board_membership is enabled (additive, idempotent)
+	if settings.SyncBoardMembership && settings.YouTrackBoardID != "" {
+		if err := s.assignIssueToAgileBoard(settings, issueID); err != nil {
+			fmt.Printf("Warning: Failed to add issue %s to board: %v\n", issueID, err)
+		}
+	}
+
 	// Invalidate cache so next analysis picks up the updated content
 	s.InvalidateIssueCache(userID)
 	return nil
@@ -1237,6 +1245,66 @@ func (s *YouTrackService) GetBoards(userID int) ([]database.YouTrackBoard, error
 	}
 
 	return boards, nil
+}
+
+// GetBoardIssueIDs returns a set of YouTrack issue IDs currently on the configured agile board
+func (s *YouTrackService) GetBoardIssueIDs(userID int) (map[string]bool, error) {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil || settings.YouTrackBoardID == "" {
+		return nil, fmt.Errorf("board not configured")
+	}
+
+	url := fmt.Sprintf("%s/api/agiles/%s/sprints?fields=id,name,archived,issues(id)&$top=-1",
+		settings.YouTrackBaseURL, settings.YouTrackBoardID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("youtrack API error: %d - %s", resp.StatusCode, string(body))
+	}
+
+	var sprints []map[string]interface{}
+	if err := json.Unmarshal(body, &sprints); err != nil {
+		return nil, fmt.Errorf("failed to decode sprints: %w", err)
+	}
+
+	issueIDs := make(map[string]bool)
+	for _, sprint := range sprints {
+		issues, ok := sprint["issues"].([]interface{})
+		if !ok {
+			continue
+		}
+		for _, issueRaw := range issues {
+			if issue, ok := issueRaw.(map[string]interface{}); ok {
+				if id, ok := issue["id"].(string); ok && id != "" {
+					issueIDs[id] = true
+				}
+			}
+		}
+	}
+	return issueIDs, nil
+}
+
+// AssignIssueToBoard is a public wrapper that adds a single issue to the configured board
+func (s *YouTrackService) AssignIssueToBoard(userID int, issueID string) error {
+	settings, err := s.configService.GetSettings(userID)
+	if err != nil {
+		return fmt.Errorf("failed to get settings: %w", err)
+	}
+	return s.assignIssueToAgileBoard(settings, issueID)
 }
 
 // UploadAttachment uploads an attachment to a YouTrack issue

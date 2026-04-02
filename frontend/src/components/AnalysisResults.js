@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff, RotateCcw, History } from 'lucide-react';
 import TicketDetailView from './TicketDetailView';
 import SyncHistory from './SyncHistory';
-import { analyzeTickets, getUserSettings, getSyncHistory, rollbackSync } from '../services/api';
+import { analyzeTickets, getUserSettings, getSyncHistory, rollbackSync, addToBoard } from '../services/api';
 import '../styles/sync-history-glass.css';
 
 const AnalysisResults = ({
@@ -41,6 +41,8 @@ const AnalysisResults = ({
   const [showSyncHistory, setShowSyncHistory] = useState(false);
   const [lastOperationId, setLastOperationId] = useState(null);
   const [undoingSync, setUndoingSync] = useState(false);
+  const [addingToBoard, setAddingToBoard] = useState(false);
+  const [addedToBoard, setAddedToBoard] = useState(new Set());
 
 
 
@@ -262,6 +264,33 @@ const AnalysisResults = ({
       />
     );
   }
+
+  // BOARD HANDLERS
+  const handleAddAllToBoard = async () => {
+    setAddingToBoard(true);
+    try {
+      const issueIds = (safeAnalysis?.missing_board || [])
+        .map(t => t.youtrack_issue?.id)
+        .filter(Boolean);
+      await addToBoard(issueIds);
+      await handleReAnalyze();
+    } catch (err) {
+      alert('Failed to add to board: ' + err.message);
+    } finally {
+      setAddingToBoard(false);
+    }
+  };
+
+  const handleAddSingleToBoard = async (ytIssueId) => {
+    try {
+      await addToBoard([ytIssueId]);
+      setAddedToBoard(prev => new Set([...prev, ytIssueId]));
+      setTimeout(() => setAddedToBoard(prev => { const s = new Set(prev); s.delete(ytIssueId); return s; }), 2000);
+      await handleReAnalyze();
+    } catch (err) {
+      alert('Failed to add to board: ' + err.message);
+    }
+  };
 
   // SYNC HANDLER - Execute immediately, but debounce analysis refresh
   const handleSyncTicket = async (ticketId) => {
@@ -903,6 +932,75 @@ const AnalysisResults = ({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Not on Configured Board section */}
+        {(safeAnalysis?.missing_board || []).length > 0 && (
+          <div className="glass-panel border border-blue-200 rounded-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                Not on Configured Board
+                <span className="ml-2 bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
+                  {(safeAnalysis.missing_board || []).length}
+                </span>
+              </h2>
+              <button
+                onClick={handleAddAllToBoard}
+                disabled={addingToBoard}
+                className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center"
+              >
+                {addingToBoard ? (
+                  <><RefreshCw className="w-3 h-3 mr-1 animate-spin" />Adding...</>
+                ) : (
+                  <><Plus className="w-3 h-3 mr-1" />Add all to board</>
+                )}
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              These tickets are synced in YouTrack but are not on the configured agile board.
+            </p>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-3 font-medium text-gray-700">Ticket Name</th>
+                  <th className="text-left p-3 font-medium text-gray-700">Status</th>
+                  <th className="text-left p-3 font-medium text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(safeAnalysis.missing_board || []).map((ticket) => {
+                  const ticketId = ticket.asana_task?.gid;
+                  const ytId = ticket.youtrack_issue?.id;
+                  const isDone = addedToBoard.has(ytId);
+                  return (
+                    <tr key={ticketId} className="border-b hover:bg-gray-50">
+                      <td className="p-3">
+                        <div className="font-medium text-gray-900">{ticket.asana_task?.name}</div>
+                        <div className="text-sm text-gray-500">{ytId}</div>
+                      </td>
+                      <td className="p-3">
+                        <span className="status-badge matched text-xs">{ticket.status}</span>
+                      </td>
+                      <td className="p-3">
+                        {isDone ? (
+                          <div className="bg-green-100 text-green-800 px-3 py-1 rounded text-sm flex items-center">
+                            <CheckCircle className="w-4 h-4 mr-1" />Added!
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleAddSingleToBoard(ytId)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors flex items-center"
+                          >
+                            <Plus className="w-3 h-3 mr-1" />Add to board
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 

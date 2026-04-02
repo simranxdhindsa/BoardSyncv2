@@ -143,6 +143,7 @@ const UserSettings = ({ onBack }) => {
         asana_project_id: userSettings.asana_project_id || '',
         youtrack_project_id: userSettings.youtrack_project_id || '',
         youtrack_board_id: userSettings.youtrack_board_id || '',
+        sync_board_membership: userSettings.sync_board_membership || false,
         custom_field_mappings: userSettings.custom_field_mappings || {
           tag_mapping: {},
           priority_mapping: {},
@@ -158,6 +159,11 @@ const UserSettings = ({ onBack }) => {
       setSettings(loadedSettings);
       setInitialSettings(loadedSettings);
       setHasUnsavedChanges(false);
+
+      // If credentials are already saved, restore connection status so Save button is accessible
+      if (userSettings.asana_pat && userSettings.youtrack_base_url && userSettings.youtrack_token) {
+        setConnectionStatus({ asana: true, youtrack: true });
+      }
     } catch (err) {
       setError('Failed to load settings: ' + err.message);
     } finally {
@@ -794,6 +800,23 @@ const UserSettings = ({ onBack }) => {
                     )}
                   </button>
                 </div>
+
+                {settings.youtrack_board_id && (
+                  <div className="settings-form-row mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.sync_board_membership || false}
+                        onChange={(e) => {
+                          setSettings(prev => ({ ...prev, sync_board_membership: e.target.checked }));
+                          setHasUnsavedChanges(true);
+                        }}
+                        className="w-4 h-4 accent-blue-600"
+                      />
+                      <span className="settings-label mb-0">Add to this board when syncing</span>
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* Connection Test / Save Button with Message on Right */}

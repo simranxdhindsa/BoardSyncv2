@@ -1199,3 +1199,16 @@ export const updateReverseAutoCreateSettings = async (selectedCreators) => {
 
   return response.json();
 };
+
+export const addToBoard = async (issueIds) => {
+  const response = await fetch(`${API_BASE}/add-to-board`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ issue_ids: issueIds }),
+  });
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to add to board: ${response.status}`);
+  }
+  return response.json();
+};

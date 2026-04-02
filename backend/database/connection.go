@@ -100,6 +100,8 @@ CREATE TABLE IF NOT EXISTS user_settings (
     updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS sync_board_membership BOOLEAN NOT NULL DEFAULT false;
+
 CREATE TABLE IF NOT EXISTS sync_operations (
     id               SERIAL PRIMARY KEY,
     user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -320,12 +322,12 @@ func (db *DB) GetUserSettings(userID int) (*UserSettings, error) {
 	err := db.pool.QueryRow(ctx,
 		`SELECT id, user_id, asana_pat, youtrack_base_url, youtrack_token,
 		        asana_project_id, youtrack_project_id, youtrack_board_id,
-		        custom_field_mappings, column_mappings, created_at, updated_at
+		        sync_board_membership, custom_field_mappings, column_mappings, created_at, updated_at
 		 FROM user_settings WHERE user_id = $1`,
 		userID,
 	).Scan(&s.ID, &s.UserID, &s.AsanaPAT, &s.YouTrackBaseURL, &s.YouTrackToken,
 		&s.AsanaProjectID, &s.YouTrackProjectID, &s.YouTrackBoardID,
-		&cfmJSON, &cmJSON, &s.CreatedAt, &s.UpdatedAt)
+		&s.SyncBoardMembership, &cfmJSON, &cmJSON, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("settings not found")
 	}
@@ -334,7 +336,7 @@ func (db *DB) GetUserSettings(userID int) (*UserSettings, error) {
 	return s, nil
 }
 
-func (db *DB) UpdateUserSettings(userID int, asanaPAT, youtrackBaseURL, youtrackToken, asanaProjectID, youtrackProjectID, youtrackBoardID string, mappings CustomFieldMappings, columnMappings ColumnMappings) (*UserSettings, error) {
+func (db *DB) UpdateUserSettings(userID int, asanaPAT, youtrackBaseURL, youtrackToken, asanaProjectID, youtrackProjectID, youtrackBoardID string, syncBoardMembership bool, mappings CustomFieldMappings, columnMappings ColumnMappings) (*UserSettings, error) {
 	ctx := context.Background()
 	cfmJSON, _ := json.Marshal(mappings)
 	cmJSON, _ := json.Marshal(columnMappings)
@@ -345,17 +347,17 @@ func (db *DB) UpdateUserSettings(userID int, asanaPAT, youtrackBaseURL, youtrack
 		`UPDATE user_settings
 		 SET asana_pat=$1, youtrack_base_url=$2, youtrack_token=$3,
 		     asana_project_id=$4, youtrack_project_id=$5, youtrack_board_id=$6,
-		     custom_field_mappings=$7, column_mappings=$8, updated_at=NOW()
-		 WHERE user_id=$9
+		     sync_board_membership=$7, custom_field_mappings=$8, column_mappings=$9, updated_at=NOW()
+		 WHERE user_id=$10
 		 RETURNING id, user_id, asana_pat, youtrack_base_url, youtrack_token,
 		           asana_project_id, youtrack_project_id, youtrack_board_id,
-		           custom_field_mappings, column_mappings, created_at, updated_at`,
+		           sync_board_membership, custom_field_mappings, column_mappings, created_at, updated_at`,
 		asanaPAT, youtrackBaseURL, youtrackToken,
 		asanaProjectID, youtrackProjectID, youtrackBoardID,
-		cfmJSON, cmJSON, userID,
+		syncBoardMembership, cfmJSON, cmJSON, userID,
 	).Scan(&s.ID, &s.UserID, &s.AsanaPAT, &s.YouTrackBaseURL, &s.YouTrackToken,
 		&s.AsanaProjectID, &s.YouTrackProjectID, &s.YouTrackBoardID,
-		&cfmOut, &cmOut, &s.CreatedAt, &s.UpdatedAt)
+		&s.SyncBoardMembership, &cfmOut, &cmOut, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("settings not found")
 	}
