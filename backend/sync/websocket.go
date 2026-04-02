@@ -4,17 +4,25 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
+// TokenValidator is implemented by auth.Service — used to validate WS connections without a circular import
+type TokenValidator interface {
+	ValidateTokenUserID(token string) (int, error)
+}
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow connections from any origin for development
-		// In production, you should validate the origin
-		return true
+		origin := r.Header.Get("Origin")
+		// Allow localhost dev origins and same-origin requests
+		return origin == "" ||
+			origin == "http://localhost:3000" ||
+			origin == "http://localhost:8080"
 	},
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -22,11 +30,12 @@ var upgrader = websocket.Upgrader{
 
 // WebSocketManager manages WebSocket connections
 type WebSocketManager struct {
-	clients    map[int]map[*websocket.Conn]bool // userID -> connections
-	clientsMux sync.RWMutex
-	broadcast  chan Message
-	register   chan *Client
-	unregister chan *Client
+	clients        map[int]map[*websocket.Conn]bool // userID -> connections
+	clientsMux     sync.RWMutex
+	broadcast      chan Message
+	register       chan *Client
+	unregister     chan *Client
+	tokenValidator TokenValidator // optional; if set, WS connections require a valid JWT
 }
 
 // Client represents a WebSocket client
@@ -63,6 +72,11 @@ func NewWebSocketManager() *WebSocketManager {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
+}
+
+// SetTokenValidator injects an auth token validator for JWT-protected WS connections
+func (wsm *WebSocketManager) SetTokenValidator(v TokenValidator) {
+	wsm.tokenValidator = v
 }
 
 // Run starts the WebSocket manager
@@ -206,18 +220,35 @@ func (wsm *WebSocketManager) SendToAll(msgType string, data interface{}) {
 
 // HandleWebSocket handles WebSocket connections
 func (wsm *WebSocketManager) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// In a real implementation, you'd extract userID from JWT token
-	// For this example, we'll assume it's passed as a query parameter
-	userIDStr := r.URL.Query().Get("user_id")
-	if userIDStr == "" {
-		http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
-		return
-	}
-
 	var userID int
-	if _, err := fmt.Sscanf(userIDStr, "%d", &userID); err != nil {
-		http.Error(w, "Invalid user_id parameter", http.StatusBadRequest)
-		return
+
+	if wsm.tokenValidator != nil {
+		// Prefer Authorization header; fall back to ?token= query param (browsers can't set WS headers)
+		tokenString := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if tokenString == "" {
+			tokenString = r.URL.Query().Get("token")
+		}
+		if tokenString == "" {
+			http.Error(w, "Missing authorization token", http.StatusUnauthorized)
+			return
+		}
+		uid, err := wsm.tokenValidator.ValidateTokenUserID(tokenString)
+		if err != nil {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+		userID = uid
+	} else {
+		// Fallback: read user_id from query (only used if no validator set)
+		userIDStr := r.URL.Query().Get("user_id")
+		if userIDStr == "" {
+			http.Error(w, "Missing user_id parameter", http.StatusBadRequest)
+			return
+		}
+		if _, err := fmt.Sscanf(userIDStr, "%d", &userID); err != nil {
+			http.Error(w, "Invalid user_id parameter", http.StatusBadRequest)
+			return
+		}
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)

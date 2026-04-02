@@ -53,7 +53,11 @@ func main() {
 	log.Println("✅ Cache manager initialized")
 
 	// Initialize services
-	jwtSecret := getEnvDefault("JWT_SECRET", "your-super-secret-jwt-key-change-in-production")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Println("⚠️  WARNING: JWT_SECRET not set — using insecure default. Set JWT_SECRET in .env before deploying!")
+		jwtSecret = "your-super-secret-jwt-key-change-in-production"
+	}
 	authService = auth.NewService(db, jwtSecret)
 	configService = configpkg.NewService(db)
 	rollbackService := sync.NewRollbackService(db)
@@ -78,8 +82,9 @@ func main() {
 	legacy.InitializeAutoManagers(db, configService)
 	log.Println("✅ Auto-sync and auto-create managers initialized")
 
-	// Initialize WebSocket manager
+	// Initialize WebSocket manager with JWT validation
 	wsManager := sync.NewWebSocketManager()
+	wsManager.SetTokenValidator(authService)
 	go wsManager.Run()
 	log.Println("✅ WebSocket manager started")
 

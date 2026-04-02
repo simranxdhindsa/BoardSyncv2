@@ -87,14 +87,17 @@ func (s *YouTrackService) GetIssues(userID int) ([]YouTrackIssue, error) {
 	}
 
 	for i, approach := range approaches {
-		fmt.Printf("Attempting approach %d...\n", i+1)
 		issues, err := approach(settings)
-		if err == nil && len(issues) >= 0 {
-			fmt.Printf("Approach %d succeeded! Found %d issues for user %d\n", i+1, len(issues), userID)
+		if err == nil && len(issues) > 0 {
+			fmt.Printf("YT: Approach %d fetched %d issues for user %d\n", i+1, len(issues), userID)
 			s.setCachedIssues(userID, issues)
 			return issues, nil
 		}
-		fmt.Printf("Approach %d failed: %v\n", i+1, err)
+		if err != nil {
+			fmt.Printf("YT: Approach %d failed: %v\n", i+1, err)
+		} else {
+			fmt.Printf("YT: Approach %d returned 0 issues, trying next\n", i+1)
+		}
 	}
 
 	return nil, fmt.Errorf("all approaches failed to connect to YouTrack")
@@ -136,7 +139,7 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 		baseURL := fmt.Sprintf("%s/api/issues?fields=%s&query=%s",
 			settings.YouTrackBaseURL, fields, encodedQuery)
 
-		if issues, err := s.makeRequestPaginated(settings, baseURL); err == nil {
+		if issues, err := s.makeRequestPaginated(settings, baseURL); err == nil && len(issues) > 0 {
 			return issues, nil
 		}
 	}
@@ -144,25 +147,13 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 	return nil, fmt.Errorf("all query formats failed")
 }
 
-// getIssuesSimpleCloud tries simple issues endpoint
+// getIssuesSimpleCloud tries simple issues endpoint with project filter in query
 func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([]YouTrackIssue, error) {
-	baseURL := fmt.Sprintf("%s/api/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)",
-		settings.YouTrackBaseURL)
+	query := strings.ReplaceAll(fmt.Sprintf("project:%s", settings.YouTrackProjectID), " ", "%20")
+	baseURL := fmt.Sprintf("%s/api/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)&query=%s",
+		settings.YouTrackBaseURL, query)
 
-	allIssues, err := s.makeRequestPaginated(settings, baseURL)
-	if err != nil {
-		return nil, err
-	}
-
-	var projectIssues []YouTrackIssue
-	for _, issue := range allIssues {
-		if issue.Project.ShortName == settings.YouTrackProjectID {
-			projectIssues = append(projectIssues, issue)
-		}
-	}
-
-	fmt.Printf("Filtered %d issues for project %s\n", len(projectIssues), settings.YouTrackProjectID)
-	return projectIssues, nil
+	return s.makeRequestPaginated(settings, baseURL)
 }
 
 // getIssuesViaProjects tries project-specific endpoint
@@ -175,7 +166,7 @@ func (s *YouTrackService) getIssuesViaProjects(settings *config.UserSettings) ([
 	}
 
 	for _, baseURL := range baseURLs {
-		if issues, err := s.makeRequestPaginated(settings, baseURL); err == nil {
+		if issues, err := s.makeRequestPaginated(settings, baseURL); err == nil && len(issues) > 0 {
 			return issues, nil
 		}
 	}
@@ -248,11 +239,6 @@ func (s *YouTrackService) CreateIssue(userID int, task AsanaTask) error {
 
 	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" || settings.YouTrackProjectID == "" {
 		return fmt.Errorf("youtrack credentials not configured")
-	}
-
-	// Check for duplicate
-	if s.IsDuplicateTicket(userID, task.Name) {
-		return fmt.Errorf("ticket with title '%s' already exists in YouTrack", task.Name)
 	}
 
 	asanaService := NewAsanaService(s.configService)
@@ -367,11 +353,6 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 
 	if settings.YouTrackBaseURL == "" || settings.YouTrackToken == "" || settings.YouTrackProjectID == "" {
 		return "", fmt.Errorf("youtrack credentials not configured")
-	}
-
-	// Check for duplicate
-	if s.IsDuplicateTicket(userID, task.Name) {
-		return "", fmt.Errorf("ticket with title '%s' already exists in YouTrack", task.Name)
 	}
 
 	asanaService := NewAsanaService(s.configService)

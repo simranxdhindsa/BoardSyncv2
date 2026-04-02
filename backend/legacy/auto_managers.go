@@ -118,8 +118,12 @@ func (asm *AutoSyncManager) StartAutoSync(userID int, intervalSeconds int) error
 	if autoCreateManager != nil && autoCreateManager.IsRunning(userID) {
 		fmt.Printf("AUTO-SYNC: Auto-create running for user %d — delaying sync start by 10 min\n", userID)
 		go func() {
-			time.Sleep(10 * time.Minute)
-			asm.autoSyncLoop(userID, intervalSeconds, stopChan)
+			select {
+			case <-time.After(10 * time.Minute):
+				asm.autoSyncLoop(userID, intervalSeconds, stopChan)
+			case <-stopChan:
+				// Stopped before stagger delay elapsed — don't start loop
+			}
 		}()
 	} else {
 		go asm.autoSyncLoop(userID, intervalSeconds, stopChan)

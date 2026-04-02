@@ -590,13 +590,6 @@ func (h *Handler) DeleteTickets(w http.ResponseWriter, r *http.Request) {
 	// Perform bulk deletion
 	response := h.deleteService.PerformBulkDelete(user.UserID, req.TicketIDs, req.Source)
 
-	// Perform fresh analysis after deletion
-	fmt.Printf("DELETE: Re-analyzing after deleting tickets for user %d\n", user.UserID)
-	updatedAnalysis, err := h.analysisService.PerformAnalysis(user.UserID, SyncableColumns)
-	if err != nil {
-		fmt.Printf("DELETE: Warning - failed to get updated analysis: %v\n", err)
-	}
-
 	// Set appropriate HTTP status based on result
 	httpStatus := http.StatusOK
 	if response.Status == "failed" {
@@ -605,15 +598,13 @@ func (h *Handler) DeleteTickets(w http.ResponseWriter, r *http.Request) {
 		httpStatus = http.StatusPartialContent
 	}
 
-	// Send response with proper status code and updated analysis
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(httpStatus)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":          response.Status != "failed",
-		"data":             response,
-		"message":          response.Summary,
-		"updated_analysis": updatedAnalysis,
-		"timestamp":        time.Now(),
+		"success":   response.Status != "failed",
+		"data":      response,
+		"message":   response.Summary,
+		"timestamp": time.Now(),
 	})
 
 	fmt.Printf("DELETE: Completed for user %d: %s\n", user.UserID, response.Summary)

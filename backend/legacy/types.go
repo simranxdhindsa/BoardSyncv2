@@ -2,6 +2,7 @@
 package legacy
 
 import (
+	"strings"
 	"time"
 
 	"asana-youtrack-sync/database"
@@ -311,9 +312,10 @@ func IsDisplayOnlyColumn(sectionName string) bool {
 }
 
 func IsActiveYouTrackStatus(status string) bool {
-	activeStatuses := []string{"Backlog", "In Progress", "DEV", "STAGE", "Blocked"}
+	activeStatuses := []string{"backlog", "in progress", "dev", "stage", "blocked", "prod", "ready for stage"}
+	statusLower := strings.ToLower(strings.TrimSpace(status))
 	for _, activeStatus := range activeStatuses {
-		if status == activeStatus {
+		if statusLower == activeStatus {
 			return true
 		}
 	}
