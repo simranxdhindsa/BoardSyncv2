@@ -20,18 +20,20 @@ const youTrackCacheTTL = 2 * time.Minute
 
 // YouTrackService handles YouTrack API operations with user-specific settings
 type YouTrackService struct {
-	configService *config.Service
-	cachedIssues  map[int][]YouTrackIssue
-	cacheExpiry   map[int]time.Time
-	cacheMutex    sync.RWMutex
+	configService        *config.Service
+	cachedIssues         map[int][]YouTrackIssue
+	cacheExpiry          map[int]time.Time
+	cacheMutex           sync.RWMutex
+	assigneeFieldIDCache map[int]string
 }
 
 // NewYouTrackService creates a new YouTrack service
 func NewYouTrackService(configService *config.Service) *YouTrackService {
 	return &YouTrackService{
-		configService: configService,
-		cachedIssues:  make(map[int][]YouTrackIssue),
-		cacheExpiry:   make(map[int]time.Time),
+		configService:        configService,
+		cachedIssues:         make(map[int][]YouTrackIssue),
+		cacheExpiry:          make(map[int]time.Time),
+		assigneeFieldIDCache: make(map[int]string),
 	}
 }
 
@@ -106,7 +108,7 @@ func (s *YouTrackService) GetIssues(userID int) ([]YouTrackIssue, error) {
 // getIssuesWithProjectKey tries direct project key approach
 func (s *YouTrackService) getIssuesWithProjectKey(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	query := fmt.Sprintf("project: {%s}", settings.YouTrackProjectID)
-	fields := "id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
+	fields := "id,summary,description,created,updated,customFields(id,name,$type,value(name,localizedName,description,id,$type,color,fullName,ringId)),project(shortName)"
 
 	encodedQuery := strings.ReplaceAll(query, " ", "%20")
 	encodedQuery = strings.ReplaceAll(encodedQuery, "{", "%7B")
@@ -127,7 +129,7 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 		fmt.Sprintf("#%s", settings.YouTrackProjectID),
 	}
 
-	fields := "id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type,color)),project(shortName)"
+	fields := "id,summary,description,created,updated,customFields(id,name,$type,value(name,localizedName,description,id,$type,color,fullName,ringId)),project(shortName)"
 
 	for _, query := range queries {
 		encodedQuery := strings.ReplaceAll(query, " ", "%20")
@@ -150,7 +152,7 @@ func (s *YouTrackService) getIssuesWithQuery(settings *config.UserSettings) ([]Y
 // getIssuesSimpleCloud tries simple issues endpoint with project filter in query
 func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	query := strings.ReplaceAll(fmt.Sprintf("project:%s", settings.YouTrackProjectID), " ", "%20")
-	baseURL := fmt.Sprintf("%s/api/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName,description,id,$type)),project(shortName)&query=%s",
+	baseURL := fmt.Sprintf("%s/api/issues?fields=id,summary,description,created,updated,customFields(id,name,$type,value(name,localizedName,description,id,$type,color,fullName,ringId)),project(shortName)&query=%s",
 		settings.YouTrackBaseURL, query)
 
 	return s.makeRequestPaginated(settings, baseURL)
@@ -159,9 +161,9 @@ func (s *YouTrackService) getIssuesSimpleCloud(settings *config.UserSettings) ([
 // getIssuesViaProjects tries project-specific endpoint
 func (s *YouTrackService) getIssuesViaProjects(settings *config.UserSettings) ([]YouTrackIssue, error) {
 	baseURLs := []string{
-		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)",
+		fmt.Sprintf("%s/api/admin/projects/%s/issues?fields=id,summary,description,created,updated,customFields(id,name,$type,value(name,localizedName,description,id,$type,color,fullName,ringId)),project(shortName)",
 			settings.YouTrackBaseURL, settings.YouTrackProjectID),
-		fmt.Sprintf("%s/api/projects/%s/issues?fields=id,summary,description,created,updated,customFields(name,value(name,localizedName)),project(shortName)",
+		fmt.Sprintf("%s/api/projects/%s/issues?fields=id,summary,description,created,updated,customFields(id,name,$type,value(name,localizedName,description,id,$type,color,fullName,ringId)),project(shortName)",
 			settings.YouTrackBaseURL, settings.YouTrackProjectID),
 	}
 
@@ -420,6 +422,28 @@ func (s *YouTrackService) CreateIssueWithReturn(userID int, task AsanaTask) (str
 						"name":        subsystem,
 						"label":       subsystem,
 						"description": nil,
+					},
+				})
+			}
+		}
+	}
+
+	// Set assignee from Asana task (best-effort)
+	if task.Assignee.Name != "" {
+		ytUser, resolveErr := s.ResolveYouTrackUserByName(userID, task.Assignee.Name)
+		if resolveErr != nil {
+			fmt.Printf("Warning: Could not resolve assignee '%s': %v\n", task.Assignee.Name, resolveErr)
+		} else {
+			assigneeFieldID, fieldErr := s.GetAssigneeFieldID(userID)
+			if fieldErr != nil {
+				fmt.Printf("Warning: Could not discover assignee field ID: %v\n", fieldErr)
+			} else {
+				customFields = append(customFields, map[string]interface{}{
+					"$type": "SingleUserIssueCustomField",
+					"id":    assigneeFieldID,
+					"value": map[string]interface{}{
+						"$type":  "User",
+						"ringId": ytUser.RingID,
 					},
 				})
 			}
@@ -722,6 +746,28 @@ func (s *YouTrackService) UpdateIssue(userID int, issueID string, task AsanaTask
 		}
 	}
 
+	// Set assignee from Asana task (best-effort, mirrors subsystem pattern)
+	if task.Assignee.Name != "" {
+		ytUser, resolveErr := s.ResolveYouTrackUserByName(userID, task.Assignee.Name)
+		if resolveErr != nil {
+			fmt.Printf("Warning: Could not resolve assignee '%s': %v\n", task.Assignee.Name, resolveErr)
+		} else {
+			assigneeFieldID, fieldErr := s.GetAssigneeFieldID(userID)
+			if fieldErr != nil {
+				fmt.Printf("Warning: Could not discover assignee field ID: %v\n", fieldErr)
+			} else {
+				customFields = append(customFields, map[string]interface{}{
+					"$type": "SingleUserIssueCustomField",
+					"id":    assigneeFieldID,
+					"value": map[string]interface{}{
+						"$type":  "User",
+						"ringId": ytUser.RingID,
+					},
+				})
+			}
+		}
+	}
+
 	if len(customFields) > 0 {
 		payload["fields"] = customFields
 	}
@@ -976,6 +1022,65 @@ func (s *YouTrackService) GetStatusNormalized(issue YouTrackIssue) string {
 
 	// Return original if no mapping found
 	return status
+}
+
+// GetAssignee extracts the assignee fullName from a YouTrack issue's custom fields
+func (s *YouTrackService) GetAssignee(issue YouTrackIssue) string {
+	for _, field := range issue.CustomFields {
+		if field.Name == "Assignee" {
+			switch value := field.Value.(type) {
+			case map[string]interface{}:
+				if fullName, ok := value["fullName"].(string); ok && fullName != "" {
+					return fullName
+				}
+				if name, ok := value["name"].(string); ok && name != "" {
+					return name
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// GetAssigneeFieldID dynamically discovers the Assignee custom field ID from cached issues
+func (s *YouTrackService) GetAssigneeFieldID(userID int) (string, error) {
+	s.cacheMutex.RLock()
+	if id, ok := s.assigneeFieldIDCache[userID]; ok {
+		s.cacheMutex.RUnlock()
+		return id, nil
+	}
+	s.cacheMutex.RUnlock()
+
+	issues, err := s.GetIssues(userID)
+	if err != nil {
+		return "", fmt.Errorf("cannot discover assignee field: %w", err)
+	}
+	for _, issue := range issues {
+		for _, cf := range issue.CustomFields {
+			if cf.Name == "Assignee" && cf.ID != "" {
+				s.cacheMutex.Lock()
+				s.assigneeFieldIDCache[userID] = cf.ID
+				s.cacheMutex.Unlock()
+				return cf.ID, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("Assignee custom field not found in any issue")
+}
+
+// ResolveYouTrackUserByName finds a YouTrack user by case-insensitive fullName match
+func (s *YouTrackService) ResolveYouTrackUserByName(userID int, asanaName string) (*YouTrackUser, error) {
+	users, err := s.GetAllUsers(userID)
+	if err != nil {
+		return nil, err
+	}
+	needle := strings.ToLower(strings.TrimSpace(asanaName))
+	for i, u := range users {
+		if strings.ToLower(strings.TrimSpace(u.FullName)) == needle {
+			return &users[i], nil
+		}
+	}
+	return nil, fmt.Errorf("no YouTrack user found matching '%s'", asanaName)
 }
 
 // ExtractAsanaID extracts Asana ID from YouTrack issue description
@@ -1309,7 +1414,7 @@ func (s *YouTrackService) GetAllUsers(userID int) ([]YouTrackUser, error) {
 		return nil, fmt.Errorf("youtrack credentials not configured")
 	}
 
-	url := fmt.Sprintf("%s/api/users?fields=id,login,fullName,email", settings.YouTrackBaseURL)
+	url := fmt.Sprintf("%s/api/users?fields=id,ringId,login,fullName,email", settings.YouTrackBaseURL)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

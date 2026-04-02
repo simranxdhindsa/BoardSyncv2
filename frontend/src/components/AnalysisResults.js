@@ -724,6 +724,7 @@ const AnalysisResults = ({
                   <tr className="border-b">
                     <th className="text-left p-3 font-medium text-gray-700">Ticket Name</th>
                     <th className="text-left p-3 font-medium text-gray-700">Status</th>
+                    <th className="text-left p-3 font-medium text-gray-700">Assignee</th>
                     <th className="text-left p-3 font-medium text-gray-700">Tags/Subsystem</th>
                     <th className="text-left p-3 font-medium text-gray-700">Actions</th>
                   </tr>
@@ -753,6 +754,26 @@ const AnalysisResults = ({
                               </span>
                             </div>
                           </div>
+                        </td>
+                        <td className="p-3">
+                          {ticket.assignee_mismatch ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center space-x-2">
+                                <span className="status-badge matched text-xs">
+                                  Asana: {ticket.assignee_diff?.asana_value || '—'}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="status-badge mismatched text-xs">
+                                  YouTrack: {ticket.assignee_diff?.youtrack_value || 'Unassigned'}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-500">
+                              {ticket.asana_task?.assignee?.name || '—'}
+                            </span>
+                          )}
                         </td>
                         <td className="p-3">
                           <div className="space-y-2">

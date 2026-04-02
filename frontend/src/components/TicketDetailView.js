@@ -934,11 +934,19 @@ const TicketDetailView = ({
                     YouTrack: {ticket.youtrack_status}
                   </span>
                 </div>
+                {ticket.assignee_mismatch && (
+                  <div className="flex items-center space-x-2 mt-1">
+                    <span className="status-badge mismatched text-xs flex items-center">
+                      <User className="w-3 h-3 mr-1" />
+                      Assignee: {ticket.assignee_diff?.asana_value || '—'} → {ticket.assignee_diff?.youtrack_value || 'Unassigned'}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Title / Description diff panel */}
-            {(ticket.title_diff?.has_diff || ticket.description_diff?.has_diff) && (
+            {/* Title / Description / Assignee diff panel */}
+            {(ticket.title_diff?.has_diff || ticket.description_diff?.has_diff || ticket.assignee_diff?.has_diff) && (
               <div className="mt-3 border-t border-gray-100 pt-3">
                 <div className="text-xs font-semibold text-gray-500 mb-2 flex items-center">
                   <FileText className="w-3 h-3 mr-1" />
@@ -957,6 +965,12 @@ const TicketDetailView = ({
                         {ticket.description_diff.asana_value}
                       </p>
                     )}
+                    {ticket.assignee_diff?.has_diff && (
+                      <p className="text-xs text-gray-800 mt-1 flex items-center">
+                        <User className="w-3 h-3 mr-1 flex-shrink-0" />
+                        {ticket.assignee_diff.asana_value || '—'}
+                      </p>
+                    )}
                   </div>
                   <div className="bg-blue-50 rounded p-2">
                     <div className="text-xs font-semibold text-blue-700 mb-1">YouTrack</div>
@@ -968,6 +982,12 @@ const TicketDetailView = ({
                     {ticket.description_diff?.has_diff && (
                       <p className="text-xs text-gray-600 line-clamp-3">
                         {ticket.description_diff.youtrack_value}
+                      </p>
+                    )}
+                    {ticket.assignee_diff?.has_diff && (
+                      <p className="text-xs text-gray-800 mt-1 flex items-center">
+                        <User className="w-3 h-3 mr-1 flex-shrink-0" />
+                        {ticket.assignee_diff.youtrack_value || 'Unassigned'}
                       </p>
                     )}
                   </div>

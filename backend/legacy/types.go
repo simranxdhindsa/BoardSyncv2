@@ -79,7 +79,9 @@ type YouTrackIssue struct {
 	CreatedBy            string                 `json:"created_by"`
 	Attachments          []YouTrackAttachment   `json:"attachments"`
 	CustomFields []struct {
+		ID    string      `json:"id"`
 		Name  string      `json:"name"`
+		Type  string      `json:"$type"`
 		Value interface{} `json:"value"`
 	} `json:"customFields"`
 	Project struct {
@@ -98,6 +100,7 @@ type YouTrackAttachment struct {
 
 type YouTrackUser struct {
 	ID       string `json:"id"`
+	RingID   string `json:"ringId"`
 	Login    string `json:"login"`
 	FullName string `json:"fullName"`
 	Email    string `json:"email"`
@@ -156,11 +159,13 @@ type MismatchedTicket struct {
 	YouTrackSubsystem string        `json:"youtrack_subsystem"`
 	TagMismatch       bool          `json:"tag_mismatch"`
 	// Enhanced fields
-	AssigneeName    string     `json:"assignee_name"`
-	Priority        string     `json:"priority"`
-	CreatedAt       time.Time  `json:"created_at"`
-	TitleDiff       *FieldDiff `json:"title_diff,omitempty"`
-	DescriptionDiff *FieldDiff `json:"description_diff,omitempty"`
+	AssigneeName     string     `json:"assignee_name"`
+	Priority         string     `json:"priority"`
+	CreatedAt        time.Time  `json:"created_at"`
+	TitleDiff        *FieldDiff `json:"title_diff,omitempty"`
+	DescriptionDiff  *FieldDiff `json:"description_diff,omitempty"`
+	AssigneeDiff     *FieldDiff `json:"assignee_diff,omitempty"`
+	AssigneeMismatch bool       `json:"assignee_mismatch"`
 }
 
 type FindingsAlert struct {

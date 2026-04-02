@@ -336,8 +336,24 @@ func (s *AnalysisService) processReadyForStageTicket(userID int, task AsanaTask,
 	fmt.Printf("ANALYSIS: Processing Ready for Stage ticket '%s' - Expected YT: %s (mapped from Asana), Actual YT: %s\n",
 		task.Name, expectedYouTrackStatus, actualYouTrackStatus)
 
-	// Case-insensitive comparison for status matching
-	if strings.EqualFold(actualYouTrackStatus, expectedYouTrackStatus) {
+	// Assignee comparison
+	ytAssignee := s.youtrackService.GetAssignee(existingIssue)
+	asanaAssignee := task.Assignee.Name
+	var assigneeDiff *FieldDiff
+	assigneeMismatch := false
+	if asanaAssignee != "" {
+		if !strings.EqualFold(strings.TrimSpace(asanaAssignee), strings.TrimSpace(ytAssignee)) {
+			assigneeMismatch = true
+			assigneeDiff = &FieldDiff{
+				AsanaValue:    asanaAssignee,
+				YouTrackValue: ytAssignee,
+				HasDiff:       true,
+			}
+		}
+	}
+
+	// Case-insensitive comparison for status matching; also check assignee
+	if strings.EqualFold(actualYouTrackStatus, expectedYouTrackStatus) && !assigneeMismatch {
 		matchedTicket := MatchedTicket{
 			AsanaTask:         task,
 			YouTrackIssue:     existingIssue,
@@ -349,13 +365,15 @@ func (s *AnalysisService) processReadyForStageTicket(userID int, task AsanaTask,
 		analysis.Matched = append(analysis.Matched, matchedTicket)
 	} else {
 		mismatchedTicket := MismatchedTicket{
-			AsanaTask:         task,
-			YouTrackIssue:     existingIssue,
-			AsanaStatus:       expectedYouTrackStatus,
-			YouTrackStatus:    actualYouTrackStatus,
-			AsanaTags:         asanaTags,
+			AsanaTask:        task,
+			YouTrackIssue:    existingIssue,
+			AsanaStatus:      expectedYouTrackStatus,
+			YouTrackStatus:   actualYouTrackStatus,
+			AsanaTags:        asanaTags,
 			YouTrackSubsystem: "",
-			TagMismatch:       false,
+			TagMismatch:      false,
+			AssigneeDiff:     assigneeDiff,
+			AssigneeMismatch: assigneeMismatch,
 		}
 		analysis.Mismatched = append(analysis.Mismatched, mismatchedTicket)
 	}
@@ -405,6 +423,22 @@ func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, exis
 
 	titleDiff, descDiff := computeDiffs(task, existingIssue)
 
+	// Assignee comparison
+	ytAssignee := s.youtrackService.GetAssignee(existingIssue)
+	asanaAssignee := task.Assignee.Name
+	var assigneeDiff *FieldDiff
+	assigneeMismatch := false
+	if asanaAssignee != "" {
+		if !strings.EqualFold(strings.TrimSpace(asanaAssignee), strings.TrimSpace(ytAssignee)) {
+			assigneeMismatch = true
+			assigneeDiff = &FieldDiff{
+				AsanaValue:    asanaAssignee,
+				YouTrackValue: ytAssignee,
+				HasDiff:       true,
+			}
+		}
+	}
+
 	matchedTicket := MatchedTicket{
 		AsanaTask:         task,
 		YouTrackIssue:     existingIssue,
@@ -421,20 +455,22 @@ func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, exis
 		return
 	}
 
-	// Case-insensitive comparison for status matching
-	if strings.EqualFold(asanaStatus, youtrackStatus) {
+	// Case-insensitive comparison for status matching; also check assignee
+	if strings.EqualFold(asanaStatus, youtrackStatus) && !assigneeMismatch {
 		analysis.Matched = append(analysis.Matched, matchedTicket)
 	} else {
 		mismatchedTicket := MismatchedTicket{
-			AsanaTask:         task,
-			YouTrackIssue:     existingIssue,
-			AsanaStatus:       asanaStatus,
-			YouTrackStatus:    youtrackStatus,
-			AsanaTags:         asanaTags,
+			AsanaTask:        task,
+			YouTrackIssue:    existingIssue,
+			AsanaStatus:      asanaStatus,
+			YouTrackStatus:   youtrackStatus,
+			AsanaTags:        asanaTags,
 			YouTrackSubsystem: "",
-			TagMismatch:       false,
-			TitleDiff:         titleDiff,
-			DescriptionDiff:   descDiff,
+			TagMismatch:      false,
+			TitleDiff:        titleDiff,
+			DescriptionDiff:  descDiff,
+			AssigneeDiff:     assigneeDiff,
+			AssigneeMismatch: assigneeMismatch,
 		}
 		analysis.Mismatched = append(analysis.Mismatched, mismatchedTicket)
 	}
