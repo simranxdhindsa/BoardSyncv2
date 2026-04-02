@@ -40,7 +40,9 @@ func normalizeTitle(title string) string {
 	return strings.Join(strings.Fields(s), " ") // collapse whitespace
 }
 
-// titlesMatch checks if two titles match using 85% word overlap threshold
+// titlesMatch checks if two titles match using word overlap threshold.
+// Exact normalized match always passes. Fuzzy requires >= 92% overlap to
+// avoid false-positive dedup bindings during ticket creation.
 func titlesMatch(title1, title2 string) bool {
 	n1 := normalizeTitle(title1)
 	n2 := normalizeTitle(title2)
@@ -70,7 +72,7 @@ func titlesMatch(title1, title2 string) bool {
 	if len(words2) < shorter {
 		shorter = len(words2)
 	}
-	return float64(overlap)/float64(shorter) >= 0.85
+	return float64(overlap)/float64(shorter) >= 0.92
 }
 
 // PerformAnalysis performs comprehensive ticket analysis for a user

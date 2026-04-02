@@ -356,14 +356,21 @@ const AnalysisResults = ({
   const handleCreateTicket = async (task, index) => {
     const taskId = task.gid;
     setCreating(prev => ({ ...prev, [taskId]: true }));
-    
+
     try {
-      // Wait for actual create to complete
-      await onCreateSingle(taskId);
-      
-      // Only move ticket after successful create
+      // Wait for actual create to complete — throws on HTTP 4xx/5xx
+      const result = await onCreateSingle(taskId);
+      const responseData = result?.data || result;
+      const status = responseData?.status;
+
+      // If the backend explicitly flagged failure (should now be 422, but guard here too)
+      if (status === 'failed') {
+        throw new Error(responseData?.error || 'Creation failed in YouTrack');
+      }
+
+      // 'created', 'already_exists', 'skipped' — all mean mapping exists, remove card
       moveTicketToMatched(taskId, 'missing');
-      
+
       // Show success feedback
       setCreatedTickets(prev => new Set([...prev, taskId]));
       setTimeout(() => {
@@ -373,7 +380,7 @@ const AnalysisResults = ({
           return newSet;
         });
       }, 2000);
-      
+
     } catch (error) {
       console.error('Create failed:', error);
       alert('Create failed: ' + error.message);

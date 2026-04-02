@@ -426,10 +426,11 @@ export const createSingleTicket = async (taskId) => {
     headers: getAuthHeaders(),
     body: JSON.stringify({ task_id: taskId }),
   });
-  
+
   if (!response.ok) {
     handleAuthError(response);
-    throw new Error(`Single create failed: ${response.status}`);
+    const errBody = await response.json().catch(() => ({}));
+    throw new Error(errBody?.error || `Single create failed: ${response.status}`);
   }
   return response.json();
 };

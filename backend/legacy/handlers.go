@@ -384,6 +384,23 @@ func (h *Handler) CreateSingleTicket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If the service returned status:"failed", surface it as HTTP 422 so the
+	// frontend !response.ok branch fires and the card stays visible.
+	if status, _ := result["status"].(string); status == "failed" {
+		errMsg, _ := result["error"].(string)
+		if errMsg == "" {
+			errMsg = "YouTrack ticket creation failed"
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   errMsg,
+			"data":    result,
+		})
+		return
+	}
+
 	utils.SendSuccess(w, result, "Single ticket operation completed")
 }
 
