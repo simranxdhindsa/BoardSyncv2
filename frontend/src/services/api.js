@@ -375,31 +375,14 @@ export const analyzeTickets = async (columnFilter = '') => {
     url += `?column=${encodeURIComponent(columnFilter)}`;
   }
 
-  // Use AbortController with 2 minute timeout for large datasets
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
+  const response = await fetch(url, { headers: getAuthHeaders() });
 
-  try {
-    const response = await fetch(url, {
-      headers: getAuthHeaders(),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      handleAuthError(response);
-      throw new Error(`Analysis failed: ${response.status}`);
-    }
-
-    return response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Analysis timed out - please try again');
-    }
-    throw error;
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Analysis failed: ${response.status}`);
   }
+
+  return response.json();
 };
 
 export const createMissingTickets = async (column = '') => {
@@ -441,32 +424,17 @@ export const syncTickets = async (tickets, column = '') => {
     url += `?column=${encodeURIComponent(column)}`;
   }
 
-  // Use AbortController with 2 minute timeout for large datasets
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(tickets),
+  });
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(tickets),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      handleAuthError(response);
-      throw new Error(`Sync failed: ${response.status}`);
-    }
-    return response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Sync timed out - please try again');
-    }
-    throw error;
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Sync failed: ${response.status}`);
   }
+  return response.json();
 };
 
 export const syncSingleTicket = async (ticketId, column = '') => {
@@ -810,33 +778,18 @@ export const getFilterOptions = async (column = '') => {
 
 // NEW: Get enhanced analysis with filters and sorting
 export const getEnhancedAnalysis = async (requestBody) => {
-  // Use AbortController with 2 minute timeout for large datasets
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes
+  const response = await fetch(`${API_BASE}/analyze/enhanced`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(requestBody),
+  });
 
-  try {
-    const response = await fetch(`${API_BASE}/analyze/enhanced`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(requestBody),
-      signal: controller.signal
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      handleAuthError(response);
-      throw new Error(`Enhanced analysis failed: ${response.status}`);
-    }
-
-    return response.json();
-  } catch (error) {
-    clearTimeout(timeoutId);
-    if (error.name === 'AbortError') {
-      throw new Error('Analysis timed out - please try again');
-    }
-    throw error;
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Enhanced analysis failed: ${response.status}`);
   }
+
+  return response.json();
 };
 
 // NEW: Get changed mappings
