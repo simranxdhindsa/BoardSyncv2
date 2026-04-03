@@ -19,6 +19,7 @@ import '../styles/sync-history-glass.css';
 const TicketDetailView = ({
   type,
   column,
+  cachedAnalysis,
   onBack,
   onSync,
   onCreateSingle,
@@ -276,7 +277,7 @@ const TicketDetailView = ({
               </button>
             )}
             <button
-              onClick={loadInitialData}
+              onClick={() => loadInitialData(true)}
               disabled={loading}
               className="flex items-center bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
             >
@@ -314,21 +315,40 @@ const TicketDetailView = ({
     }
   }, [deleteMode]);
 
-  // Load all initial data
-  const loadInitialData = async () => {
+  // Extract the right ticket slice from an already-fetched analysis object (no network call)
+  const extractTicketsFromAnalysis = (analysis) => {
+    const typeMap = {
+      matched:         analysis.matched          || [],
+      mismatched:      analysis.mismatched       || [],
+      missing:         analysis.missing_youtrack  || [],
+      findings:        analysis.findings_tickets  || [],
+      ready_for_stage: analysis.ready_for_stage  || [],
+      blocked:         analysis.blocked_tickets   || [],
+      orphaned:        analysis.orphaned_youtrack || [],
+      already_exists:  analysis.already_exists   || [],
+      ignored:         analysis.ignored           || [],
+    };
+    return typeMap[type] ?? [];
+  };
+
+  // Load all initial data — use cachedAnalysis on first open, SSE only on explicit Refresh
+  const loadInitialData = async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
 
     try {
-      // Load changed mappings
       await loadChangedMappings();
-
-      // Load auto-sync details
       await loadAutoSyncDetails();
 
-      // Load tickets
-      await loadTickets();
-
+      if (!forceRefresh && cachedAnalysis && Object.keys(cachedAnalysis).length > 0) {
+        // Use already-fetched data — instant, no network call
+        const ticketData = extractTicketsFromAnalysis(cachedAnalysis);
+        console.log(`Using cached analysis: ${ticketData.length} ${type} tickets`);
+        setTickets(ticketData);
+        setDeleteMode(false);
+      } else {
+        await loadTickets();
+      }
     } catch (err) {
       console.error('Failed to load initial data:', err);
       setError(err.message);

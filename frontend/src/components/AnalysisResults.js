@@ -255,6 +255,7 @@ const AnalysisResults = ({
       <TicketDetailView
         type={detailView.type}
         column={detailView.column}
+        cachedAnalysis={safeAnalysis}
         onBack={handleBackFromDetail}
         onSync={onSync}
         onCreateSingle={onCreateSingle}
