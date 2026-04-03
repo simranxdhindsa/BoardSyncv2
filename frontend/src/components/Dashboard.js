@@ -16,7 +16,7 @@ import {
   getUserSettings
 } from '../services/api';
 
-const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
+const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading, analysisProgress }) => {
   const [autoSyncRunning, setAutoSyncRunning] = useState(false);
   const [autoCreateRunning, setAutoCreateRunning] = useState(false);
   const [reverseAutoCreateRunning, setReverseAutoCreateRunning] = useState(false);
@@ -615,7 +615,32 @@ const Dashboard = ({ selectedColumn, onColumnSelect, onAnalyze, loading }) => {
             )}
           </button>
 
-          {selectedColumn && !loading && (
+          {analysisProgress && (
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-gray-600 font-medium">{analysisProgress.stage}</span>
+                {analysisProgress.total > 0 && (
+                  <span className="text-xs text-gray-500">
+                    {analysisProgress.processed}/{analysisProgress.total}
+                  </span>
+                )}
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: analysisProgress.total > 0
+                      ? `${Math.round((analysisProgress.processed / analysisProgress.total) * 100)}%`
+                      : '100%',
+                    background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
+                    animation: analysisProgress.total === 0 ? 'pulse 1.5s ease-in-out infinite' : 'none'
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {selectedColumn && !loading && !analysisProgress && (
             <p className="mt-4 text-gray-600 text-sm text-center select-none">
               Let's see what breaks when we touch <strong>{selectedColumnData?.label}</strong>
             </p>

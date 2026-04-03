@@ -369,6 +369,45 @@ export const getStatus = async () => {
   return response.json();
 };
 
+// analyzeTicketsWithProgress streams progress via SSE then returns the final result.
+// onProgress(event) is called with { stage, processed, total } on each update.
+export const analyzeTicketsWithProgress = async (columnFilter = '', onProgress) => {
+  const url = columnFilter
+    ? `${API_BASE}/analyze/progress?column=${encodeURIComponent(columnFilter)}`
+    : `${API_BASE}/analyze/progress`;
+
+  const response = await fetch(url, { headers: getAuthHeaders() });
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Analysis failed: ${response.status}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop(); // keep incomplete trailing chunk
+
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line.startsWith('data:')) continue;
+      const json = line.slice(5).trim();
+      if (!json) continue;
+      const event = JSON.parse(json);
+      if (event.error) throw new Error(event.error);
+      if (event.done) return event; // final result
+      if (onProgress) onProgress(event);
+    }
+  }
+  throw new Error('SSE stream ended without a result');
+};
+
 export const analyzeTickets = async (columnFilter = '') => {
   let url = `${API_BASE}/analyze`;
   if (columnFilter) {

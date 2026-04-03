@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff, RotateCcw, History } from 'lucide-react';
 import TicketDetailView from './TicketDetailView';
 import SyncHistory from './SyncHistory';
-import { analyzeTickets, getUserSettings, getSyncHistory, rollbackSync, addToBoard } from '../services/api';
+import { analyzeTicketsWithProgress, getUserSettings, getSyncHistory, rollbackSync, addToBoard } from '../services/api';
 import '../styles/sync-history-glass.css';
 
 const AnalysisResults = ({
@@ -30,6 +30,7 @@ const AnalysisResults = ({
   
   // Re-analyze functionality
   const [reAnalyzeLoading, setReAnalyzeLoading] = useState(false);
+  const [reAnalyzeProgress, setReAnalyzeProgress] = useState(null);
   
   // LOCAL STATE for optimistic updates
   const [localAnalysisData, setLocalAnalysisData] = useState(analysisData);
@@ -199,17 +200,16 @@ const AnalysisResults = ({
 
   const handleReAnalyze = async () => {
     setReAnalyzeLoading(true);
+    setReAnalyzeProgress({ stage: 'Starting...', processed: 0, total: 0 });
     try {
-      const data = await analyzeTickets(selectedColumn);
-      setLocalAnalysisData({
-        ...data,
-        analyzedColumn: selectedColumn
-      });
+      const data = await analyzeTicketsWithProgress(selectedColumn, (p) => setReAnalyzeProgress(p));
+      setLocalAnalysisData({ ...data, analyzedColumn: selectedColumn });
     } catch (error) {
       console.error('Re-analysis failed:', error);
       alert('Re-analysis failed: ' + error.message);
     } finally {
       setReAnalyzeLoading(false);
+      setReAnalyzeProgress(null);
     }
   };
 
@@ -607,6 +607,28 @@ const AnalysisResults = ({
               )}
             </button>
           </div>
+          {reAnalyzeProgress && (
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-gray-600">{reAnalyzeProgress.stage}</span>
+                {reAnalyzeProgress.total > 0 && (
+                  <span className="text-xs text-gray-500">{reAnalyzeProgress.processed}/{reAnalyzeProgress.total}</span>
+                )}
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: reAnalyzeProgress.total > 0
+                      ? `${Math.round((reAnalyzeProgress.processed / reAnalyzeProgress.total) * 100)}%`
+                      : '100%',
+                    background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
+                    animation: reAnalyzeProgress.total === 0 ? 'pulse 1.5s ease-in-out infinite' : 'none'
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sync History Panel */}

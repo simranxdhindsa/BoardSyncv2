@@ -112,11 +112,14 @@ func main() {
 	log.Println("🔍 Column verification endpoints added for debugging!")
 
 	server := &http.Server{
-		Addr:         ":" + port,
-		Handler:      router,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 120 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		Addr:        ":" + port,
+		Handler:     router,
+		ReadTimeout: 30 * time.Second,
+		// WriteTimeout must be 0 for SSE/streaming endpoints — a non-zero value
+		// causes Go to terminate long-running responses (e.g. analysis of 1500+
+		// tickets) mid-stream, which the browser sees as a "network error".
+		WriteTimeout: 0,
+		IdleTimeout:  600 * time.Second,
 	}
 
 	log.Fatal(server.ListenAndServe())
@@ -219,6 +222,7 @@ func registerRoutes(
 	// Core analysis and sync endpoints
 	legacyAPI.HandleFunc("/status", legacyHandler.StatusCheck).Methods("GET", "OPTIONS")
 	legacyAPI.HandleFunc("/analyze", legacyHandler.AnalyzeTickets).Methods("GET", "OPTIONS")
+	legacyAPI.HandleFunc("/analyze/progress", legacyHandler.AnalyzeWithProgress).Methods("GET", "OPTIONS")
 
 	// ENHANCED: Analysis with filtering and sorting
 	legacyAPI.HandleFunc("/analyze/enhanced", legacyHandler.AnalyzeTicketsEnhanced).Methods("GET", "POST", "OPTIONS")

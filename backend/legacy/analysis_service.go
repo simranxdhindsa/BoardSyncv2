@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	configpkg "asana-youtrack-sync/config"
@@ -12,6 +13,16 @@ import (
 )
 
 var nonAlphanumRe = regexp.MustCompile(`[^a-z0-9\s]`)
+
+// ytIDPrefixRe matches a YouTrack issue ID prefix prepended to Asana titles during reverse sync,
+// e.g. "ARD-341: " or "PROJ-12: ". We strip this before title comparison so that
+// "ARD-341: Fix login bug" vs "Fix login bug" is NOT flagged as a title mismatch.
+var ytIDPrefixRe = regexp.MustCompile(`(?i)^[A-Z][A-Z0-9]+-\d+:\s*`)
+
+// stripYouTrackPrefix removes a leading YouTrack ID prefix from a title if present.
+func stripYouTrackPrefix(title string) string {
+	return ytIDPrefixRe.ReplaceAllString(title, "")
+}
 
 // AnalysisService handles comprehensive ticket analysis operations
 type AnalysisService struct {
@@ -45,8 +56,8 @@ func normalizeTitle(title string) string {
 // Exact normalized match always passes. Fuzzy requires >= 92% overlap to
 // avoid false-positive dedup bindings during ticket creation.
 func titlesMatch(title1, title2 string) bool {
-	n1 := normalizeTitle(title1)
-	n2 := normalizeTitle(title2)
+	n1 := normalizeTitle(stripYouTrackPrefix(title1))
+	n2 := normalizeTitle(stripYouTrackPrefix(title2))
 	if n1 == n2 {
 		return true
 	}
@@ -76,8 +87,79 @@ func titlesMatch(title1, title2 string) bool {
 	return float64(overlap)/float64(shorter) >= 0.92
 }
 
-// PerformAnalysis performs comprehensive ticket analysis for a user
-func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) (*TicketAnalysis, error) {
+// ytTitleEntry holds a YouTrack issue with its pre-computed normalized title and word set,
+// so title matching never re-normalizes the same YT issue more than once.
+type ytTitleEntry struct {
+	issue   YouTrackIssue
+	norm    string
+	words   []string
+	wordSet map[string]bool
+}
+
+// buildYTTitleIndex pre-computes normalized titles and word sets for all YT issues.
+// Returns the index slice and an exact-match map (normalizedTitle -> slice index) for O(1) lookups.
+func buildYTTitleIndex(issues []YouTrackIssue) ([]ytTitleEntry, map[string]int) {
+	idx := make([]ytTitleEntry, 0, len(issues))
+	exactMap := make(map[string]int, len(issues))
+	for _, issue := range issues {
+		n := normalizeTitle(issue.Summary)
+		words := strings.Fields(n)
+		ws := make(map[string]bool, len(words))
+		for _, w := range words {
+			ws[w] = true
+		}
+		exactMap[n] = len(idx)
+		idx = append(idx, ytTitleEntry{issue: issue, norm: n, words: words, wordSet: ws})
+	}
+	return idx, exactMap
+}
+
+// findByTitle returns the best matching YT issue for asanaTitle using the pre-built index.
+// Issues already in `used` are skipped. Exact normalized match is O(1); fuzzy is O(m) but
+// avoids re-normalizing YT titles on every call.
+func findByTitle(asanaTitle string, idx []ytTitleEntry, exactMap map[string]int, used map[string]bool) (ytTitleEntry, bool) {
+	n := normalizeTitle(asanaTitle)
+	if i, ok := exactMap[n]; ok && !used[idx[i].issue.ID] {
+		return idx[i], true
+	}
+	asanaWords := strings.Fields(n)
+	if len(asanaWords) == 0 {
+		return ytTitleEntry{}, false
+	}
+	asanaWordSet := make(map[string]bool, len(asanaWords))
+	for _, w := range asanaWords {
+		asanaWordSet[w] = true
+	}
+	for _, e := range idx {
+		if used[e.issue.ID] || len(e.words) == 0 {
+			continue
+		}
+		overlap := 0
+		for _, w := range e.words {
+			if asanaWordSet[w] {
+				overlap++
+			}
+		}
+		shorter := len(asanaWords)
+		if len(e.words) < shorter {
+			shorter = len(e.words)
+		}
+		if float64(overlap)/float64(shorter) >= 0.92 {
+			return e, true
+		}
+	}
+	return ytTitleEntry{}, false
+}
+
+// PerformAnalysis performs comprehensive ticket analysis for a user.
+// An optional progress callback func(stage string, processed, total int) can be passed
+// as the third argument; existing callers that omit it are unaffected.
+func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string, progressFn ...func(string, int, int)) (*TicketAnalysis, error) {
+	emit := func(string, int, int) {} // no-op default
+	if len(progressFn) > 0 && progressFn[0] != nil {
+		emit = progressFn[0]
+	}
+
 	fmt.Printf("ANALYSIS: Starting analysis for user %d with columns: %v\n", userID, selectedColumns)
 
 	// Load settings once for self-healing mapping persistence
@@ -89,20 +171,38 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 		fmt.Printf("ANALYSIS: failed to load settings: %v\n", settingsErr)
 	}
 
-	// Step 1: Get all Asana tasks for the user
-	allAsanaTasks, err := s.asanaService.GetTasks(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Asana tasks: %w", err)
+	// Steps 1+3: Fetch Asana tasks and YouTrack issues concurrently
+	emit("Fetching Asana & YouTrack data...", 0, 0)
+	var (
+		allAsanaTasks  []AsanaTask
+		asanaErr       error
+		youTrackIssues []YouTrackIssue
+		ytErr          error
+		wg             sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		allAsanaTasks, asanaErr = s.asanaService.GetTasks(userID)
+	}()
+	go func() {
+		defer wg.Done()
+		youTrackIssues, ytErr = s.youtrackService.GetIssues(userID)
+	}()
+	wg.Wait()
+
+	if asanaErr != nil {
+		return nil, fmt.Errorf("failed to get Asana tasks: %w", asanaErr)
+	}
+	if ytErr != nil {
+		return nil, fmt.Errorf("failed to get YouTrack issues: %w", ytErr)
 	}
 
 	// Step 2: Filter tasks by selected columns
 	asanaTasks := s.asanaService.FilterTasksByColumns(allAsanaTasks, selectedColumns)
+	total := len(asanaTasks)
 
-	// Step 3: Get YouTrack issues for the user
-	youTrackIssues, err := s.youtrackService.GetIssues(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get YouTrack issues: %w", err)
-	}
+	emit("Matching tickets...", 0, total)
 
 	// Step 4: Build lookup maps - PRIORITIZE MAPPING TABLE, then DESCRIPTION, then TITLE
 	youTrackMap := make(map[string]YouTrackIssue)
@@ -146,37 +246,30 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 		}
 	}
 
-	// Priority 3: Title-based matching for unmapped issues (NEW LOGIC)
-	unmatchedYouTrackIssues := []YouTrackIssue{}
+	// Priority 3: Title-based matching using pre-built index (avoids re-normalizing YT titles per comparison)
+	ytAllIndex, ytExactMap := buildYTTitleIndex(youTrackIssues)
+	unmatchedCount := 0
 	for _, issue := range youTrackIssues {
 		if !usedYouTrackIssues[issue.ID] {
-			unmatchedYouTrackIssues = append(unmatchedYouTrackIssues, issue)
+			unmatchedCount++
 		}
 	}
-
-	fmt.Printf("ANALYSIS: Found %d unmatched YouTrack issues, attempting TITLE matching\n", len(unmatchedYouTrackIssues))
+	fmt.Printf("ANALYSIS: Found %d unmatched YouTrack issues, attempting TITLE matching via pre-built index\n", unmatchedCount)
 
 	titleMatchCount := 0
 	for _, task := range asanaTasks {
-		// Skip if already mapped
 		if _, alreadyMapped := youTrackMap[task.GID]; alreadyMapped {
 			continue
 		}
-
-		// Try to find matching YouTrack issue by title
-		for _, issue := range unmatchedYouTrackIssues {
-			if titlesMatch(task.Name, issue.Summary) {
-				youTrackMap[task.GID] = issue
-				usedYouTrackIssues[issue.ID] = true
-				titleMatchCount++
-				fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana task '%s' via TITLE matching ('%s' ≈ '%s')\n",
-					issue.ID, task.GID, issue.Summary, task.Name)
-				// Self-heal: persist mapping so future analyses use DB (O(1) lookup)
-				if settingsErr == nil {
-					s.db.CreateTicketMapping(userID, userSettings.AsanaProjectID, task.GID, userSettings.YouTrackProjectID, issue.ID)
-					fmt.Printf("ANALYSIS: Self-healed mapping via TITLE: Asana %s <-> YT %s\n", task.GID, issue.ID)
-				}
-				break
+		if e, found := findByTitle(task.Name, ytAllIndex, ytExactMap, usedYouTrackIssues); found {
+			youTrackMap[task.GID] = e.issue
+			usedYouTrackIssues[e.issue.ID] = true
+			titleMatchCount++
+			fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Asana task '%s' via TITLE matching ('%s' ≈ '%s')\n",
+				e.issue.ID, task.GID, e.issue.Summary, task.Name)
+			if settingsErr == nil {
+				s.db.CreateTicketMapping(userID, userSettings.AsanaProjectID, task.GID, userSettings.YouTrackProjectID, e.issue.ID)
+				fmt.Printf("ANALYSIS: Self-healed mapping via TITLE: Asana %s <-> YT %s\n", task.GID, e.issue.ID)
 			}
 		}
 	}
@@ -207,7 +300,13 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 	}
 
 	// Step 6: Process filtered Asana tasks
+	processed := 0
 	for _, task := range asanaTasks {
+		processed++
+		if processed%50 == 0 || processed == total {
+			emit("Analysing tickets...", processed, total)
+		}
+
 		if s.ignoreService.IsIgnored(userID, task.GID) {
 			continue
 		}
@@ -227,19 +326,15 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 			_, hasDBMapping := mappingAsanaToYT[task.GID]
 			existingIssue, existsInYouTrack := youTrackMap[task.GID]
 
-			// If not found via DB mapping or description, try title matching
+			// If not found via DB mapping or description, try title matching via pre-built index
 			if !existsInYouTrack && !hasDBMapping {
-				// Try to find matching YouTrack issue by title
-				for _, issue := range youTrackIssues {
-					if !usedYouTrackIssues[issue.ID] && titlesMatch(task.Name, issue.Summary) {
-						youTrackMap[task.GID] = issue
-						usedYouTrackIssues[issue.ID] = true
-						existingIssue = issue
-						existsInYouTrack = true
-						fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Ready for Stage task '%s' via TITLE matching ('%s' ≈ '%s')\n",
-							issue.ID, task.GID, issue.Summary, task.Name)
-						break
-					}
+				if e, found := findByTitle(task.Name, ytAllIndex, ytExactMap, usedYouTrackIssues); found {
+					youTrackMap[task.GID] = e.issue
+					usedYouTrackIssues[e.issue.ID] = true
+					existingIssue = e.issue
+					existsInYouTrack = true
+					fmt.Printf("ANALYSIS: Mapped YouTrack issue '%s' to Ready for Stage task '%s' via TITLE matching ('%s' ≈ '%s')\n",
+						e.issue.ID, task.GID, e.issue.Summary, task.Name)
 				}
 			}
 
@@ -268,10 +363,11 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 			fmt.Printf("ANALYSIS: Task '%s' (GID: %s) has DB mapping but YouTrack issue not in current results - treating as matched\n", task.Name, task.GID)
 			// Don't add to MissingYouTrack since mapping exists in database
 		} else {
-			if s.isSyncableSection(sectionName) {
-				fmt.Printf("ANALYSIS: Task '%s' (GID: %s) missing in YouTrack\n", task.Name, task.GID)
-				analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
-			}
+			// Task already passed FilterTasksByColumns, so it IS in a selected column.
+			// isSyncableSection would return false for dynamic columns (e.g. "mobile done"),
+			// silently dropping the ticket. Trust the filter instead.
+			fmt.Printf("ANALYSIS: Task '%s' (GID: %s) missing in YouTrack\n", task.Name, task.GID)
+			analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
 		}
 	}
 
@@ -279,24 +375,15 @@ func (s *AnalysisService) PerformAnalysis(userID int, selectedColumns []string) 
 	// These are pre-existing YT issues that were never linked via mapping/description
 	stillMissing := []AsanaTask{}
 	for _, task := range analysis.MissingYouTrack {
-		found := false
-		for _, issue := range youTrackIssues {
-			if usedYouTrackIssues[issue.ID] {
-				continue // already mapped to another Asana task
-			}
-			if titlesMatch(task.Name, issue.Summary) {
-				analysis.AlreadyExists = append(analysis.AlreadyExists, AlreadyExistsTicket{
-					AsanaTask:     task,
-					YouTrackIssue: issue,
-					MatchMethod:   "title",
-				})
-				usedYouTrackIssues[issue.ID] = true
-				found = true
-				fmt.Printf("ANALYSIS: already_exists — Asana '%s' <-> YT '%s' (title match, no mapping)\n", task.GID, issue.ID)
-				break
-			}
-		}
-		if !found {
+		if e, found := findByTitle(task.Name, ytAllIndex, ytExactMap, usedYouTrackIssues); found {
+			analysis.AlreadyExists = append(analysis.AlreadyExists, AlreadyExistsTicket{
+				AsanaTask:     task,
+				YouTrackIssue: e.issue,
+				MatchMethod:   "title",
+			})
+			usedYouTrackIssues[e.issue.ID] = true
+			fmt.Printf("ANALYSIS: already_exists — Asana '%s' <-> YT '%s' (title match, no mapping)\n", task.GID, e.issue.ID)
+		} else {
 			stillMissing = append(stillMissing, task)
 		}
 	}
@@ -410,12 +497,14 @@ func (s *AnalysisService) processReadyForStageTicket(userID int, task AsanaTask,
 
 // computeDiffs computes title and description diffs between Asana and YouTrack
 func computeDiffs(task AsanaTask, issue YouTrackIssue) (titleDiff *FieldDiff, descDiff *FieldDiff) {
-	// Title diff
-	asanaTitle := task.Name
+	// Title diff — strip any YouTrack ID prefix (e.g. "ARD-341: ") from the Asana title
+	// before comparing. Reverse sync prepends this prefix when creating Asana tasks from
+	// YouTrack issues, so "ARD-341: Fix login bug" vs "Fix login bug" is not a real diff.
+	asanaTitle := stripYouTrackPrefix(task.Name)
 	ytTitle := issue.Summary
 	if !strings.EqualFold(normalizeTitle(asanaTitle), normalizeTitle(ytTitle)) {
 		titleDiff = &FieldDiff{
-			AsanaValue:    asanaTitle,
+			AsanaValue:    task.Name, // show original (with prefix) in UI for context
 			YouTrackValue: ytTitle,
 			HasDiff:       true,
 		}
@@ -441,9 +530,8 @@ func computeDiffs(task AsanaTask, issue YouTrackIssue) (titleDiff *FieldDiff, de
 func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, sectionName string, analysis *TicketAnalysis) {
 	if existingIssue.ID == "" {
 		fmt.Printf("ANALYSIS WARNING: Task '%s' (GID: %s) has empty YouTrack issue ID - treating as missing\n", task.Name, task.GID)
-		if s.isSyncableSection(sectionName) {
-			analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
-		}
+		// Task already passed FilterTasksByColumns — always add to missing regardless of section name
+		analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
 		return
 	}
 
@@ -603,28 +691,27 @@ func (s *AnalysisService) GetTicketsByType(userID int, ticketType string, column
 		return s.ignoreService.GetIgnoredTickets(userID), nil
 	}
 
+	// Reuse the same resolution logic as the HTTP handlers: convert underscores to
+	// spaces for dynamic columns (e.g. "to_do" → "to do", "mobile_done" → "mobile done").
+	aliases := map[string]string{
+		"backlog":         "backlog",
+		"in_progress":     "in progress",
+		"dev":             "dev",
+		"stage":           "stage",
+		"prod":            "prod",
+		"blocked":         "blocked",
+		"ready_for_stage": "ready for stage",
+		"findings":        "findings",
+	}
 	var columnsToAnalyze []string
-
 	if column == "" || column == "all_syncable" {
 		columnsToAnalyze = SyncableColumns
+	} else if mapped, ok := aliases[column]; ok {
+		columnsToAnalyze = []string{mapped}
 	} else {
-		columnMap := map[string]string{
-			"backlog":         "backlog",
-			"in_progress":     "in progress",
-			"dev":             "dev",
-			"stage":           "stage",
-			"prod":            "prod",
-			"blocked":         "blocked",
-			"ready_for_stage": "ready for stage",
-			"findings":        "findings",
-		}
-
-		if mappedColumn, exists := columnMap[column]; exists {
-			columnsToAnalyze = []string{mappedColumn}
-		} else {
-			fmt.Printf("ANALYSIS: Unknown column '%s', using all syncable columns\n", column)
-			columnsToAnalyze = SyncableColumns
-		}
+		dynamic := strings.ReplaceAll(column, "_", " ")
+		fmt.Printf("ANALYSIS: GetTicketsByType dynamic column '%s' → '%s'\n", column, dynamic)
+		columnsToAnalyze = []string{dynamic}
 	}
 
 	analysis, err := s.PerformAnalysis(userID, columnsToAnalyze)
@@ -865,11 +952,11 @@ func (s *AnalysisService) GetAnalysisHealth(userID int) (map[string]interface{},
 }
 
 // PerformAnalysisWithFiltering performs analysis with filtering and sorting
-func (s *AnalysisService) PerformAnalysisWithFiltering(userID int, selectedColumns []string, filter TicketFilter, sortOpts TicketSortOptions) (*TicketAnalysis, error) {
+func (s *AnalysisService) PerformAnalysisWithFiltering(userID int, selectedColumns []string, filter TicketFilter, sortOpts TicketSortOptions, progressFn ...func(string, int, int)) (*TicketAnalysis, error) {
 	fmt.Printf("ANALYSIS: Starting analysis for user %d with columns: %v, filter: %+v, sort: %+v\n", userID, selectedColumns, filter, sortOpts)
 
 	// Perform base analysis
-	analysis, err := s.PerformAnalysis(userID, selectedColumns)
+	analysis, err := s.PerformAnalysis(userID, selectedColumns, progressFn...)
 	if err != nil {
 		return nil, err
 	}
@@ -891,9 +978,7 @@ func (s *AnalysisService) PerformAnalysisWithFiltering(userID int, selectedColum
 func (s *AnalysisService) processExistingTicketEnhanced(task AsanaTask, existingIssue YouTrackIssue, asanaTags []string, sectionName string, analysis *TicketAnalysis, userID int) {
 	if existingIssue.ID == "" {
 		fmt.Printf("ANALYSIS WARNING: Task '%s' (GID: %s) has empty YouTrack issue ID - treating as missing\n", task.Name, task.GID)
-		if s.isSyncableSection(sectionName) {
-			analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
-		}
+		analysis.MissingYouTrack = append(analysis.MissingYouTrack, task)
 		return
 	}
 

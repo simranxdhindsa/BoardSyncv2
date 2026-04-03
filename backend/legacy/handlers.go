@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"asana-youtrack-sync/auth"
@@ -123,6 +124,33 @@ func (h *Handler) StatusCheck(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccess(w, response, "Service status retrieved")
 }
 
+// resolveColumns maps a URL ?column= parameter to the slice of Asana section names to analyze.
+// Handles both hardcoded legacy aliases and dynamic user-defined column names (e.g. "mobile_done").
+func resolveColumns(columnFilter string) (columns []string, mappedName string) {
+	if columnFilter == "" || columnFilter == "all_syncable" {
+		return SyncableColumns, "all_syncable"
+	}
+	// Hardcoded aliases for commonly used column slugs
+	aliases := map[string]string{
+		"backlog":         "backlog",
+		"in_progress":     "in progress",
+		"dev":             "dev",
+		"stage":           "stage",
+		"prod":            "prod",
+		"blocked":         "blocked",
+		"ready_for_stage": "ready for stage",
+		"findings":        "findings",
+	}
+	if mapped, ok := aliases[columnFilter]; ok {
+		return []string{mapped}, mapped
+	}
+	// Dynamic column from DB: convert underscores to spaces.
+	// FilterTasksByColumns handles arbitrary names via strings.Contains.
+	dynamic := strings.ReplaceAll(columnFilter, "_", " ")
+	fmt.Printf("ANALYZE: Dynamic column '%s' → '%s'\n", columnFilter, dynamic)
+	return []string{dynamic}, dynamic
+}
+
 // AnalyzeTickets performs comprehensive ticket analysis
 func (h *Handler) AnalyzeTickets(w http.ResponseWriter, r *http.Request) {
 	user, ok := auth.GetUserFromContext(r)
@@ -134,36 +162,7 @@ func (h *Handler) AnalyzeTickets(w http.ResponseWriter, r *http.Request) {
 	// Get column filter from query parameters
 	columnFilter := r.URL.Query().Get("column")
 	fmt.Printf("ANALYZE: User %d analyzing with column filter: '%s'\n", user.UserID, columnFilter)
-
-	// Determine columns to analyze
-	var columnsToAnalyze []string
-	var mappedColumnName string
-
-	if columnFilter == "" || columnFilter == "all_syncable" {
-		columnsToAnalyze = SyncableColumns
-		mappedColumnName = "all_syncable"
-	} else {
-		// Frontend to backend column name mapping
-		columnMap := map[string]string{
-			"backlog":         "backlog",
-			"in_progress":     "in progress",
-			"dev":             "dev",
-			"stage":           "stage",
-			"prod":            "prod",
-			"blocked":         "blocked",
-			"ready_for_stage": "ready for stage",
-			"findings":        "findings",
-		}
-
-		if mappedColumn, exists := columnMap[columnFilter]; exists {
-			columnsToAnalyze = []string{mappedColumn}
-			mappedColumnName = mappedColumn
-		} else {
-			fmt.Printf("ANALYZE: Unknown column '%s', using all syncable\n", columnFilter)
-			columnsToAnalyze = SyncableColumns
-			mappedColumnName = "all_syncable"
-		}
-	}
+	columnsToAnalyze, mappedColumnName := resolveColumns(columnFilter)
 
 	// Perform analysis
 	analysis, err := h.analysisService.PerformAnalysis(user.UserID, columnsToAnalyze)
@@ -192,6 +191,91 @@ func (h *Handler) AnalyzeTickets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SendSuccess(w, response, "Analysis completed successfully")
+}
+
+// AnalyzeWithProgress streams analysis progress via Server-Sent Events, then sends
+// the full analysis result as the final event.
+func (h *Handler) AnalyzeWithProgress(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	var mu sync.Mutex
+	sendEvent := func(v interface{}) {
+		mu.Lock()
+		defer mu.Unlock()
+		data, _ := json.Marshal(v)
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		flusher.Flush()
+	}
+
+	// Heartbeat: send a SSE comment every 5s so proxies/browsers don't kill the connection
+	// during long silent stretches (title matching, large fetches, etc.)
+	stopHeartbeat := make(chan struct{})
+	defer close(stopHeartbeat)
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopHeartbeat:
+				return
+			case <-ticker.C:
+				mu.Lock()
+				fmt.Fprintf(w, ": keepalive\n\n")
+				flusher.Flush()
+				mu.Unlock()
+			}
+		}
+	}()
+
+	columnFilter := r.URL.Query().Get("column")
+	columnsToAnalyze, mappedColumnName := resolveColumns(columnFilter)
+
+	progressFn := func(stage string, processed, total int) {
+		sendEvent(map[string]interface{}{
+			"stage":     stage,
+			"processed": processed,
+			"total":     total,
+		})
+	}
+
+	analysis, err := h.analysisService.PerformAnalysis(user.UserID, columnsToAnalyze, progressFn)
+	if err != nil {
+		sendEvent(map[string]interface{}{"error": err.Error()})
+		return
+	}
+
+	summary, _ := h.analysisService.GetAnalysisSummary(user.UserID, columnsToAnalyze)
+
+	sendEvent(map[string]interface{}{
+		"done":             true,
+		"analysis":         analysis,
+		"summary":          summary,
+		"column_filter":    columnFilter,
+		"mapped_column":    mappedColumnName,
+		"analyzed_columns": columnsToAnalyze,
+	})
 }
 
 // GetTicketsByType returns tickets of a specific type
@@ -261,24 +345,14 @@ func (h *Handler) CreateMissingTickets(w http.ResponseWriter, r *http.Request) {
 	// Get column filter from query parameters
 	columnFilter := r.URL.Query().Get("column")
 
-	// Map frontend column names to backend names if needed
+	// Resolve column name using shared helper (handles dynamic columns like "to_do" → "to do")
 	var mappedColumn string
 	if columnFilter != "" && columnFilter != "all_syncable" {
-		columnMap := map[string]string{
-			"backlog":         "backlog",
-			"in_progress":     "in progress",
-			"dev":             "dev",
-			"stage":           "stage",
-			"prod":            "prod",
-			"blocked":         "blocked",
-			"ready_for_stage": "ready for stage",
+		cols, _ := resolveColumns(columnFilter)
+		if len(cols) > 0 {
+			mappedColumn = cols[0]
 		}
-		if mapped, exists := columnMap[columnFilter]; exists {
-			mappedColumn = mapped
-		} else {
-			mappedColumn = columnFilter
-		}
-		fmt.Printf("CREATE: Column filter '%s' mapped to '%s'\n", columnFilter, mappedColumn)
+		fmt.Printf("CREATE: Column filter '%s' resolved to '%s'\n", columnFilter, mappedColumn)
 	}
 
 	// Create sync operation record BEFORE performing the operation
@@ -415,24 +489,13 @@ func (h *Handler) SyncMismatchedTickets(w http.ResponseWriter, r *http.Request) 
 	// Get column filter from query parameters
 	columnFilter := r.URL.Query().Get("column")
 
-	// Map frontend column names to backend names if needed
 	var mappedColumn string
 	if columnFilter != "" && columnFilter != "all_syncable" {
-		columnMap := map[string]string{
-			"backlog":         "backlog",
-			"in_progress":     "in progress",
-			"dev":             "dev",
-			"stage":           "stage",
-			"prod":            "prod",
-			"blocked":         "blocked",
-			"ready_for_stage": "ready for stage",
+		cols, _ := resolveColumns(columnFilter)
+		if len(cols) > 0 {
+			mappedColumn = cols[0]
 		}
-		if mapped, exists := columnMap[columnFilter]; exists {
-			mappedColumn = mapped
-		} else {
-			mappedColumn = columnFilter
-		}
-		fmt.Printf("SYNC: Column filter '%s' mapped to '%s'\n", columnFilter, mappedColumn)
+		fmt.Printf("SYNC: Column filter '%s' resolved to '%s'\n", columnFilter, mappedColumn)
 	}
 
 	if r.Method == "GET" {
@@ -815,29 +878,7 @@ func (h *Handler) AnalyzeTicketsEnhanced(w http.ResponseWriter, r *http.Request)
 	var columnsToAnalyze []string
 	var mappedColumnName string
 
-	if columnFilter == "" || columnFilter == "all_syncable" {
-		columnsToAnalyze = SyncableColumns
-		mappedColumnName = "all_syncable"
-	} else {
-		columnMap := map[string]string{
-			"backlog":         "backlog",
-			"in_progress":     "in progress",
-			"dev":             "dev",
-			"stage":           "stage",
-			"prod":            "prod",
-			"blocked":         "blocked",
-			"ready_for_stage": "ready for stage",
-			"findings":        "findings",
-		}
-
-		if mappedColumn, exists := columnMap[columnFilter]; exists {
-			columnsToAnalyze = []string{mappedColumn}
-			mappedColumnName = mappedColumn
-		} else {
-			columnsToAnalyze = SyncableColumns
-			mappedColumnName = "all_syncable"
-		}
-	}
+	columnsToAnalyze, mappedColumnName = resolveColumns(columnFilter)
 
 	// Perform analysis with filtering and sorting
 	analysis, err := h.analysisService.PerformAnalysisWithFiltering(user.UserID, columnsToAnalyze, filter, sortOpts)
@@ -890,26 +931,7 @@ func (h *Handler) GetFilterOptions(w http.ResponseWriter, r *http.Request) {
 	columnFilter := r.URL.Query().Get("column")
 	var columnsToAnalyze []string
 
-	if columnFilter == "" || columnFilter == "all_syncable" {
-		columnsToAnalyze = SyncableColumns
-	} else {
-		columnMap := map[string]string{
-			"backlog":         "backlog",
-			"in_progress":     "in progress",
-			"dev":             "dev",
-			"stage":           "stage",
-			"prod":            "prod",
-			"blocked":         "blocked",
-			"ready_for_stage": "ready for stage",
-			"findings":        "findings",
-		}
-
-		if mappedColumn, exists := columnMap[columnFilter]; exists {
-			columnsToAnalyze = []string{mappedColumn}
-		} else {
-			columnsToAnalyze = SyncableColumns
-		}
-	}
+	columnsToAnalyze, _ = resolveColumns(columnFilter)
 
 	filterOptions, err := h.analysisService.GetFilterOptions(user.UserID, columnsToAnalyze)
 	if err != nil {

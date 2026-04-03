@@ -7,9 +7,10 @@ import {
   AlertCircle, TrendingUp, History
 } from 'lucide-react';
 import {
-  getTicketsByType, ignoreTicket, unignoreTicket, deleteTickets,
+  ignoreTicket, unignoreTicket, deleteTickets,
   getChangedMappings,
-  syncEnhancedTickets, getAutoSyncDetailed, getUserSettings
+  syncEnhancedTickets, getAutoSyncDetailed, getUserSettings,
+  analyzeTicketsWithProgress
 } from '../services/api';
 import TicketAuditTrail from './TicketAuditTrail';
 import SyncHistory from './SyncHistory';
@@ -27,6 +28,7 @@ const TicketDetailView = ({
 }) => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [analysisProgress, setAnalysisProgress] = useState(null);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
   const [ignoredTickets, setIgnoredTickets] = useState(new Set());
@@ -358,31 +360,30 @@ const TicketDetailView = ({
     }
   };
 
-  // Load tickets - always use simple API, filter/sort on frontend
+  // Load tickets via SSE progress stream, then extract the relevant slice
   const loadTickets = async () => {
     try {
       const columnParam = column && column !== 'all_syncable' ? column : '';
+      setAnalysisProgress({ stage: 'Starting...', processed: 0, total: 0 });
 
-      // Use simple API (original behavior)
-      console.log(`Loading tickets with simple API: type=${type}, column=${columnParam}`);
-      const response = await getTicketsByType(type, columnParam);
-      console.log('Simple API response:', response);
+      const event = await analyzeTicketsWithProgress(columnParam, (p) => setAnalysisProgress(p));
+      const analysis = event.analysis || {};
 
-      let ticketData = [];
-      if (response.data) {
-        ticketData = response.data.tickets || response.data;
-      } else if (response.tickets) {
-        ticketData = response.tickets;
-      } else if (Array.isArray(response)) {
-        ticketData = response;
-      }
+      // Map ticket type to the correct field in the analysis result
+      const typeMap = {
+        matched:        analysis.matched         || [],
+        mismatched:     analysis.mismatched      || [],
+        missing:        analysis.missing_youtrack || [],
+        findings:       analysis.findings_tickets || [],
+        ready_for_stage: analysis.ready_for_stage || [],
+        blocked:        analysis.blocked_tickets  || [],
+        orphaned:       analysis.orphaned_youtrack || [],
+        already_exists: analysis.already_exists  || [],
+        ignored:        analysis.ignored          || [],
+      };
 
-      if (!Array.isArray(ticketData)) {
-        console.warn('Ticket data is not an array:', ticketData);
-        ticketData = [];
-      }
-
-      console.log(`Loaded ${ticketData.length} ${type} tickets`);
+      const ticketData = typeMap[type] ?? [];
+      console.log(`Loaded ${ticketData.length} ${type} tickets via SSE`);
       setTickets(ticketData);
       setDeleteMode(false);
 
@@ -390,6 +391,8 @@ const TicketDetailView = ({
       console.error('Failed to load tickets:', err);
       setError(err.message);
       setTickets([]);
+    } finally {
+      setAnalysisProgress(null);
     }
   };
 
@@ -1160,9 +1163,35 @@ const TicketDetailView = ({
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center">
-          <RefreshCw className="w-6 h-6 animate-spin mr-2" />
-          <span>Loading {typeInfo.title.toLowerCase()}...</span>
+        <div className="w-full max-w-md px-8">
+          <div className="flex items-center mb-4">
+            <RefreshCw className="w-6 h-6 animate-spin mr-3 text-blue-600" />
+            <span className="text-gray-700 font-medium">
+              {analysisProgress?.stage || `Loading ${typeInfo.title.toLowerCase()}...`}
+            </span>
+          </div>
+          {analysisProgress && (
+            <>
+              {analysisProgress.total > 0 && (
+                <div className="flex justify-between text-sm text-gray-500 mb-1">
+                  <span>Analysing tickets</span>
+                  <span>{analysisProgress.processed} / {analysisProgress.total}</span>
+                </div>
+              )}
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: analysisProgress.total > 0
+                      ? `${Math.round((analysisProgress.processed / analysisProgress.total) * 100)}%`
+                      : '100%',
+                    background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)',
+                    animation: analysisProgress.total === 0 ? 'pulse 1.5s ease-in-out infinite' : 'none'
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
     );

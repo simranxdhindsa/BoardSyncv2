@@ -10,7 +10,7 @@ import UserSettings from './components/settings/UserSettings';
 import SyncHistory from './components/SyncHistory';
 import AuditLogs from './components/AuditLogs';
 import ReverseSyncPage from './components/ReverseSync/ReverseSyncPage';
-import { analyzeTickets, syncSingleTicket, createSingleTicket, createMissingTickets, mapTicket, ignoreTicket } from './services/api';
+import { analyzeTickets, analyzeTicketsWithProgress, syncSingleTicket, createSingleTicket, createMissingTickets, mapTicket, ignoreTicket } from './services/api';
 import './styles/glass-theme.css';
 import { Settings, History, FileText, RefreshCw } from 'lucide-react';
 
@@ -24,6 +24,7 @@ function AppContent() {
   const [selectedColumn, setSelectedColumn] = useState('');
   const [analysisData, setAnalysisData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(null); // { stage, processed, total }
   const [navLeft, setNavLeft] = useState(null);
   const [navRight, setNavRight] = useState(null);
 
@@ -82,32 +83,28 @@ function AppContent() {
     if (!selectedColumn) return;
 
     setLoading(true);
-    
+    setAnalysisProgress({ stage: 'Starting...', processed: 0, total: 0 });
+
     try {
-      const data = await analyzeTickets(selectedColumn);
-      // Store both the analysis data and the column it was analyzed for
-      setAnalysisData({
-        ...data,
-        analyzedColumn: selectedColumn
-      });
+      const data = await analyzeTicketsWithProgress(selectedColumn, (p) => setAnalysisProgress(p));
+      setAnalysisData({ ...data, analyzedColumn: selectedColumn });
       setCurrentView('results');
     } catch (error) {
       console.error('Analysis failed:', error);
       alert('Analysis failed: ' + error.message);
     } finally {
       setLoading(false);
+      setAnalysisProgress(null);
     }
   };
 
   // Handle re-analyze
   const handleReAnalyze = async (columnToAnalyze) => {
     setLoading(true);
+    setAnalysisProgress({ stage: 'Starting...', processed: 0, total: 0 });
     try {
-      const data = await analyzeTickets(columnToAnalyze);
-      setAnalysisData({
-        ...data,
-        analyzedColumn: columnToAnalyze
-      });
+      const data = await analyzeTicketsWithProgress(columnToAnalyze, (p) => setAnalysisProgress(p));
+      setAnalysisData({ ...data, analyzedColumn: columnToAnalyze });
       if (columnToAnalyze !== selectedColumn) {
         setSelectedColumn(columnToAnalyze);
       }
@@ -116,6 +113,7 @@ function AppContent() {
       alert('Re-analysis failed: ' + error.message);
     } finally {
       setLoading(false);
+      setAnalysisProgress(null);
     }
   };
 
@@ -343,6 +341,7 @@ function AppContent() {
               onColumnSelect={handleColumnSelect}
               onAnalyze={handleAnalyze}
               loading={loading}
+              analysisProgress={analysisProgress}
             />
           ) : currentView === 'results' ? (
             <AnalysisResults
