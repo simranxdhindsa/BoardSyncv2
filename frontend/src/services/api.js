@@ -1205,3 +1205,17 @@ export const addToBoard = async (issueIds) => {
   }
   return response.json();
 };
+
+// Sync priority mismatches: items = [{youtrack_issue_id, priority}]
+export const syncPriorities = async (items) => {
+  const response = await fetch(`${API_BASE}/sync-priorities`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ items }),
+  });
+  if (!response.ok) {
+    handleAuthError(response);
+    throw new Error(`Failed to sync priorities: ${response.status}`);
+  }
+  return response.json();
+};

@@ -1003,6 +1003,60 @@ func (s *YouTrackService) GetStatus(issue YouTrackIssue) string {
 	return "Unknown"
 }
 
+// GetPriority reads the Priority custom field value from a YouTrack issue.
+// Returns "" if the field is absent or has no value.
+func (s *YouTrackService) GetPriority(issue YouTrackIssue) string {
+	for _, field := range issue.CustomFields {
+		if strings.EqualFold(field.Name, "Priority") {
+			switch v := field.Value.(type) {
+			case map[string]interface{}:
+				if name, ok := v["name"].(string); ok && name != "" {
+					return name
+				}
+			case string:
+				return v
+			}
+		}
+	}
+	return ""
+}
+
+// SyncPriority sets the Priority custom field on a YouTrack issue via the Commands API.
+// priorityName should match the bundle element name in YouTrack (e.g. "P1", "A3").
+func (s *YouTrackService) SyncPriority(settings *config.UserSettings, issueID, priorityName string) error {
+	commandURL := fmt.Sprintf("%s/api/commands", settings.YouTrackBaseURL)
+	payload := map[string]interface{}{
+		"query": fmt.Sprintf("Priority %s", priorityName),
+		"issues": []map[string]interface{}{
+			{"idReadable": issueID},
+		},
+	}
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal failed: %w", err)
+	}
+	req, err := http.NewRequest("POST", commandURL, bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return fmt.Errorf("request creation failed: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+settings.YouTrackToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("command request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("command failed %d: %s", resp.StatusCode, string(body))
+	}
+	fmt.Printf("PRIORITY: Set %s → %s\n", issueID, priorityName)
+	return nil
+}
+
 // GetStatusNormalized gets the status and normalizes it for comparison
 // This handles different variations of the same status
 func (s *YouTrackService) GetStatusNormalized(issue YouTrackIssue) string {

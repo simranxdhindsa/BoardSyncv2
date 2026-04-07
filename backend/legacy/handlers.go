@@ -1141,6 +1141,63 @@ func (h *Handler) AddToBoard(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccess(w, results, fmt.Sprintf("Processed %d issues", len(req.IssueIDs)))
 }
 
-// Then in your route registration (usually in main.go or handlers.go RegisterRoutes):
+// SyncPriorities sets the Priority custom field on YouTrack issues to match the
+// priority codes extracted from their Asana task titles (e.g. "P1", "A3").
+// Request body: {"items": [{"youtrack_issue_id": "ARD-278", "priority": "P1"}, ...]}
+func (h *Handler) SyncPriorities(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth.GetUserFromContext(r)
+	if !ok {
+		utils.SendUnauthorized(w, "Authentication required")
+		return
+	}
+
+	var req struct {
+		Items []struct {
+			YouTrackIssueID string `json:"youtrack_issue_id"`
+			Priority        string `json:"priority"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.Items) == 0 {
+		utils.SendBadRequest(w, "items required: [{youtrack_issue_id, priority}]")
+		return
+	}
+
+	settings, err := h.configService.GetSettings(user.UserID)
+	if err != nil {
+		utils.SendInternalError(w, "Failed to load settings")
+		return
+	}
+
+	ytService := NewYouTrackService(h.configService)
+	synced, failed := 0, 0
+	results := make([]map[string]interface{}, 0, len(req.Items))
+
+	for _, item := range req.Items {
+		if item.YouTrackIssueID == "" || item.Priority == "" {
+			continue
+		}
+		err := ytService.SyncPriority(settings, item.YouTrackIssueID, item.Priority)
+		entry := map[string]interface{}{
+			"youtrack_issue_id": item.YouTrackIssueID,
+			"priority":          item.Priority,
+		}
+		if err != nil {
+			entry["status"] = "failed"
+			entry["error"] = err.Error()
+			failed++
+			fmt.Printf("PRIORITY: Failed to set %s → %s: %v\n", item.YouTrackIssueID, item.Priority, err)
+		} else {
+			entry["status"] = "ok"
+			synced++
+		}
+		results = append(results, entry)
+	}
+
+	utils.SendSuccess(w, map[string]interface{}{
+		"synced":  synced,
+		"failed":  failed,
+		"results": results,
+	}, fmt.Sprintf("Priority sync: %d synced, %d failed", synced, failed))
+}
 
 // Column verification endpoints

@@ -127,20 +127,30 @@ type MissingBoardTicket struct {
 	Status        string        `json:"status"`
 }
 
+// PriorityMismatch represents a ticket where the Asana title priority (e.g. "P1", "A3")
+// differs from the current YouTrack Priority custom field value.
+type PriorityMismatch struct {
+	AsanaTask     AsanaTask     `json:"asana_task"`
+	YouTrackIssue YouTrackIssue `json:"youtrack_issue"`
+	AsanaPriority string        `json:"asana_priority"`
+	YTPriority    string        `json:"yt_priority"`
+}
+
 // Analysis result structures
 type TicketAnalysis struct {
-	SelectedColumn   string                `json:"selected_column"`
-	Matched          []MatchedTicket       `json:"matched"`
-	Mismatched       []MismatchedTicket    `json:"mismatched"`
-	MissingYouTrack  []AsanaTask           `json:"missing_youtrack"`
-	FindingsTickets  []AsanaTask           `json:"findings_tickets"`
-	FindingsAlerts   []FindingsAlert       `json:"findings_alerts"`
-	ReadyForStage    []AsanaTask           `json:"ready_for_stage"`
-	BlockedTickets   []MatchedTicket       `json:"blocked_tickets"`
-	OrphanedYouTrack []YouTrackIssue       `json:"orphaned_youtrack"`
-	Ignored          []string              `json:"ignored"`
-	AlreadyExists    []AlreadyExistsTicket `json:"already_exists"`
-	MissingBoard     []MissingBoardTicket  `json:"missing_board"`
+	SelectedColumn     string               `json:"selected_column"`
+	Matched            []MatchedTicket      `json:"matched"`
+	Mismatched         []MismatchedTicket   `json:"mismatched"`
+	MissingYouTrack    []AsanaTask          `json:"missing_youtrack"`
+	FindingsTickets    []AsanaTask          `json:"findings_tickets"`
+	FindingsAlerts     []FindingsAlert      `json:"findings_alerts"`
+	ReadyForStage      []AsanaTask          `json:"ready_for_stage"`
+	BlockedTickets     []MatchedTicket      `json:"blocked_tickets"`
+	OrphanedYouTrack   []YouTrackIssue      `json:"orphaned_youtrack"`
+	Ignored            []string             `json:"ignored"`
+	AlreadyExists      []AlreadyExistsTicket `json:"already_exists"`
+	MissingBoard       []MissingBoardTicket `json:"missing_board"`
+	PriorityMismatches []PriorityMismatch   `json:"priority_mismatches"`
 }
 
 type MatchedTicket struct {

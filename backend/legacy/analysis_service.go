@@ -14,6 +14,22 @@ import (
 
 var nonAlphanumRe = regexp.MustCompile(`[^a-z0-9\s]`)
 
+// priorityPrefixRe matches priority codes at the start of Asana ticket titles.
+// Supported codes: A1, A2, A3, P0, P1, P2, P3  (case-insensitive)
+// Examples: "P1 BE MC: fix login" → "P1",  "A3 FE UI: mic button" → "A3"
+var priorityPrefixRe = regexp.MustCompile(`(?i)^(A[1-3]|P[0-3])\b`)
+
+// extractPriorityFromTitle extracts a priority code from an Asana task title.
+// Strips the YT ID prefix first (e.g. "ARD-341: "), then looks for the priority code.
+func extractPriorityFromTitle(title string) string {
+	clean := ytIDPrefixRe.ReplaceAllString(title, "")
+	m := priorityPrefixRe.FindStringSubmatch(clean)
+	if len(m) > 1 {
+		return strings.ToUpper(m[1])
+	}
+	return ""
+}
+
 // ytIDPrefixRe matches a YouTrack issue ID prefix prepended to Asana titles during reverse sync,
 // e.g. "ARD-341: " or "PROJ-12: ". We strip this before title comparison so that
 // "ARD-341: Fix login bug" vs "Fix login bug" is NOT flagged as a title mismatch.
@@ -555,6 +571,19 @@ func (s *AnalysisService) processExistingTicket(userID int, task AsanaTask, exis
 				HasDiff:       true,
 			}
 		}
+	}
+
+	// Priority comparison — extract from Asana title, read from YouTrack custom fields
+	asanaPriority := extractPriorityFromTitle(task.Name)
+	ytPriority := s.youtrackService.GetPriority(existingIssue)
+	if asanaPriority != "" && !strings.EqualFold(asanaPriority, ytPriority) {
+		analysis.PriorityMismatches = append(analysis.PriorityMismatches, PriorityMismatch{
+			AsanaTask:     task,
+			YouTrackIssue: existingIssue,
+			AsanaPriority: asanaPriority,
+			YTPriority:    ytPriority,
+		})
+		fmt.Printf("PRIORITY: Mismatch on '%s' — Asana=%s YT=%s\n", task.Name, asanaPriority, ytPriority)
 	}
 
 	matchedTicket := MatchedTicket{

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff, RotateCcw, History } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Plus, ArrowLeft, RefreshCw, Tag, Eye, EyeOff, RotateCcw, History, Zap } from 'lucide-react';
 import TicketDetailView from './TicketDetailView';
 import SyncHistory from './SyncHistory';
+import PrioritySyncModal from './PrioritySyncModal';
 import { analyzeTicketsWithProgress, getUserSettings, getSyncHistory, rollbackSync, addToBoard } from '../services/api';
 import '../styles/sync-history-glass.css';
 
@@ -31,6 +32,9 @@ const AnalysisResults = ({
   // Re-analyze functionality
   const [reAnalyzeLoading, setReAnalyzeLoading] = useState(false);
   const [reAnalyzeProgress, setReAnalyzeProgress] = useState(null);
+
+  // Priority sync modal
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
   
   // LOCAL STATE for optimistic updates
   const [localAnalysisData, setLocalAnalysisData] = useState(analysisData);
@@ -558,6 +562,7 @@ const AnalysisResults = ({
   }
 
   return (
+    <>
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Header with Re-analyze Button */}
@@ -587,6 +592,19 @@ const AnalysisResults = ({
                     Undo Last Sync
                   </>
                 )}
+              </button>
+            )}
+
+            {(safeAnalysis?.priority_mismatches || []).length > 0 && (
+              <button
+                onClick={() => setShowPriorityModal(true)}
+                className="flex items-center bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors font-medium"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                Sync Priorities
+                <span className="ml-2 bg-yellow-300 text-yellow-900 text-xs font-bold px-1.5 py-0.5 rounded-full">
+                  {safeAnalysis.priority_mismatches.length}
+                </span>
               </button>
             )}
 
@@ -1182,6 +1200,15 @@ const AnalysisResults = ({
         )}
       </div>
     </div>
+
+    {showPriorityModal && (
+      <PrioritySyncModal
+        mismatches={safeAnalysis?.priority_mismatches || []}
+        onClose={() => setShowPriorityModal(false)}
+        onSynced={() => {}}
+      />
+    )}
+  </>
   );
 };
 
